@@ -226,8 +226,8 @@ class STELLA:
     X[:,1] %= (2*np.pi) # put theta in [-2pi,2pi]
     X[:,1][X[:,1]<0] += (2*np.pi) # correct negative thetas
     # correct phi
-    X[:,2] %= (2*np.pi) # phi in [-2pi,2pi]
-    X[:,2][X[:,2]<0] += (2*np.pi) # correct negative phis
+    X[:,2] %= self.phimax # phi in [-2pi/nfp,2pi/nfp]
+    X[:,2][X[:,2]<0] += self.phimax # correct negative phis
     # correct vpar
     vpardiff = self.vparmax - self.vparmin
     idx_up =  X[:,3] > self.vparmax
