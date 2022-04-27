@@ -12,7 +12,7 @@ from simsopt.geo.plot import plot
 def make_LandremanPaul_field():
   """
   Compute the Landreman Paul coils and BiotSavart field, then
-  save it
+  save it.
   """
   nphi = 32
   ntheta = 32
@@ -120,8 +120,44 @@ def load_LandremanPaul_field():
   bs.x = np.loadtxt(inpath)
   return bs
 
+def make_interpolated_field():
+  """
+  Make an interpolated field from the BiotSavart field. Interpolated fields 
+  can be evaluated in cylindrical coordinates (r,phi,z).
+  """
+  from simsopt.field.magneticfieldclasses import InterpolatedField, UniformInterpolationRule
+
+  # load the surface to get appropriate ranges
+  nphi = 32
+  ntheta = 32
+  filename = "./input.LandremanPaul2021_QA"
+  s = SurfaceRZFourier.from_vmec_input(filename, range="half period", nphi=nphi, ntheta=ntheta)
+  nfp = 2
+
+  # load the field
+  bs = load_LandremanPaul_field()
+
+  degree =2
+  n = 16
+  rs = np.linalg.norm(s.gamma()[:, :, 0:2], axis=2)
+  zs = s.gamma()[:, :, 2]
+  rrange = (np.min(rs), np.max(rs), n)
+  phirange = (0, 2*np.pi/nfp, n*2)
+  zrange = (0, np.max(zs), n//2)
+  bsh = InterpolatedField(bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=True)
+  return bsh
+
 if __name__=="__main__":
+  # make the field and save it
   make_LandremanPaul_field()
+  # load it
   field = load_LandremanPaul_field()
+  # eval it
   field.set_points(np.array([[0.5, 0.5, 0.1], [0.1, 0.1, -0.3]]))
   print(field.B())
+  # make an interpolated field in (r,phi,z)
+  bsh = make_interpolated_field()
+  # eval it
+  bsh.set_points(np.array([[0.5, np.pi, 0.1], [0.1, np.pi/2, -0.3]]))
+  print(bsh.B())
+
