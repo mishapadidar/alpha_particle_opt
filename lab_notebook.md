@@ -1,20 +1,18 @@
 
 ## Lab Notebook
 
-### Questions
-- How do we compute curl(vpar b) in true guiding center equations?
-- What is the correct mass and initial velocity (Ekin), charge?
-- the velocity is constant so vperp varies right?
-- what is the scale of the Bfield?
-- why isnt VMEC always non-vacuum?
-
 ### TODO
-- Develop Sela
+- Develop Sela in cylindrical coordinates
 - Build a Bfield from coils for the LandremanPaul configuration
+- Run a Tokomak test case with analytic solution.
 
 ### Sela improvements
-- Use VMEC coordinates.
-- Look into mass conservative methods through mass-consistent splitting.
-- Use higher order interpolation (cascade interpolation?)
+- vectorize computations
+- build a vtk writer for visualization.
+- Use VMEC coordinates (Zernike polynomials?).
+- Look into mass conservative methods.
+- Use higher order interpolation (cascade interpolation, cubic by Ritchie)
+- High resolution mesh around plasma boundary.
 - Implement adjoint
 - Implement GPU or MPI parallelism
+
