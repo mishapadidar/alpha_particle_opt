@@ -14,6 +14,7 @@ class STELLA:
   We assume stellarator symmetry, so that G is periodic across field periods.
 
   Potential problems
+  - Periodic boundary conditions are unphysical for vpar.
   - Our method does not conserve mass. For this we should use a mass-corrector method.
   - The boundary of the plasma may be problematic because it represents a discontinuity in
     the density function. So we should have high resolution grid/interpolation there. 
@@ -157,6 +158,7 @@ class STELLA:
       G = np.array([self.GC_rhs(*xx) for xx in X+k3])
       k4 = np.copy(dt*G)
       Xtm1 = np.copy(X -(k1+2*k2+2*k3+k4)/6)
+
     return Xtm1
 
   def interpolate(self,X):
@@ -193,41 +195,50 @@ class STELLA:
 
   def apply_boundary_conds(self,X):
     """
-    Correct the departure points and apply the boundary conditions.
-    Some departure points may have r < 0 or theta,phi not within [0,2pi], 
-    of vpar not within [-vpar,vpar]. 
-    To ensure that the departure points have the correct interpolated value
-    of the density, we correct [r,theta,phi,vpar] so that the point lies within
-    the grid. 
-    If r is negative, we set r = abs(r) and increase theta by 2pi.
-    Since theta,phi are periodic we simply apply the periodic boundary conditions
-    to map them back to the domain [0,2pi].
-    We apply periodic boundary conditions to vpar. 
+    Apply the boundary conditions. 
+    If a departure point is outside of the mesh, then we have to apply
+    boundary conditions to ensure correctness of the solve. We return the set
+    of points that are valid for interpolation.
 
-    Note there is still a multiplicity in how the toroidal axis is defined, i.e.
-    for a fixed phi and vpar, and r=0, any value of theta defines the same point 
-    in cartesian coordinates.
+    If a departure point is outside of the mesh in the r or z directions, then
+    it the density of the departure point is zero. This is because particles cannot
+    enter the device from outside of the device walls.
+
+    phi has periodic boundary conditions on its domain.
+
+    We give vpar periodic boundary conditions. This is unphysical, as it passes
+    probability mass between particles with velocity >=vparmax to particles with
+    velocity <=vparmin, and vice versa. To avoid the effects of this boundary 
+    condition, set vparmin and vparmax to be Large! We can theoretically bound the
+    max velocity of particles within a given time, so the vpar bounds can be set
+    based on that. Alternatively we can track mu instead of vpar.
+
+    input:
+      X: (N,dim_state) array of departure points
+    return:
+      X_feas: (M,dim_state) array of departure points which are contained within
+         the meshed volume. Any points in X with r or z outside of their bounds
+         are dropped. The phi,vpar directions of a given point which are violating
+         their bounds are corrected to satisfy the periodic boundary conditions. Thus
+         X_feas is the set of departure points that are within the mesh.
+      idx_feas: boolean array indicating the indexes of X such that X_feas = X[idx_feas].
     """
-    # TODO: set dirichlet boundary conditions at rmax, so that u = 0 if r > r_max
-    # TODO: switch to cylindrical
-    # correct r
-    neg_r = X[:,0]<0
-    X[:,0] = np.abs(X[:,0]) # set r > 0
-    X[:,1][neg_r] += (2*np.pi) # correct theta
-    # correct theta
-    X[:,1] %= (2*np.pi) # put theta in [-2pi,2pi]
-    X[:,1][X[:,1]<0] += (2*np.pi) # correct negative thetas
-    # correct phi
-    X[:,2] %= self.phimax # phi in [-2pi/nfp,2pi/nfp]
-    X[:,2][X[:,2]<0] += self.phimax # correct negative phis
-    # correct vpar
+    # get indexes of points with r,z in the meshed volume
+    r_in = np.logical_and(X[:,0]>=self.rmin,X[:,0]<=self.rmax)
+    z_in = np.logical_and(X[:,2]>=self.zmin,X[:,2]<=self.zmax)
+    idx_feas = np.logical_and(r_in,z_in)
+    X_feas = np.copy(X[idx_feas])
+    # phi periodic on [phimin,phimax)... (assumes phimin = 0)
+    X_feas[:,1] %= self.phimax # phi in [-phimax,phimax]
+    X_feas[:,1][X_feas[:,1]<0] += self.phimax # correct negatives
+    # vpar periodic
     vpardiff = self.vparmax - self.vparmin
-    idx_up =  X[:,3] > self.vparmax
-    X[:,3][idx_up] = self.vparmin + (X[:,3][idx_up]-vparmax)%vpardiff
-    idx_down =  X[:,3] < self.vparmin
-    X[:,3][idx_up] = self.vparmax - (vparmin-X[:,3][idx_down])%vpardiff
+    idx_up =  X_feas[:,3] > self.vparmax
+    X_feas[:,3][idx_up] = self.vparmin + (X_feas[:,3][idx_up]-vparmax)%vpardiff
+    idx_down =  X_feas[:,3] < self.vparmin
+    X_feas[:,3][idx_up] = self.vparmax - (vparmin-X_feas[:,3][idx_down])%vpardiff
 
-    return np.copy(X)
+    return np.copy(X_feas),idx_feas
     
 
   def solve(self):
@@ -240,14 +251,20 @@ class STELLA:
     # only backwards integrate once b/c time independent
     X = self.backstep()
 
-    # apply the boundary conditions to correct X
-    X = self.apply_boundary_conds(X)
+    # allocate space for density values
+    UX = np.zeros(len(X))
+
+    # collect departure points within the meshed volume
+    X_feas,idx_feas = self.apply_boundary_conds(X)
     
     times = np.arange(self.tmin,self.tmax,self.dt)
     for tt in times:
 
-      # intepolate the values of X
-      UX = self.interpolate(X)
+      # intepolate the values of the departure points
+      # this step assumes the dirichlet boundary conditions
+      # i.e. that UX[not idx_feas] == 0
+      UX[idx_feas] = self.interpolate(X_feas)
+
       # forward step: set U(grid,t+1) from UX
       self.update_U_grid(UX)
 
