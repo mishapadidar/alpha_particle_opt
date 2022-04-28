@@ -28,12 +28,14 @@ class STELLA:
     dt,tmax,integration_method):
     """
     """
-    # initial distribution function u(r,z,vpar,0)
+    # initial distribution function u0(r,phi,z,vpar)
     self.u0 = u0
-    # B field function B(r,z)
+    # B field function B(r,phi,z)
     self.B = B
     self.Bgrad = Bgrad
-    self.nfp = nfp # number field periods
+
+    # number field periods
+    self.nfp = nfp 
     # toroidal mesh sizes
     self.dr = dr
     self.dphi = dphi
@@ -63,17 +65,59 @@ class STELLA:
     self.ALPHA_PARTICLE_MASS = 2*self.PROTON_MASS + 2*self.NEUTRON_MASS
     self.ALPHA_PARTICLE_CHARGE = 2*self.ELEMENTARY_CHARGE
     self.FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 * self.ONE_EV # Ekin
+    self.FUSION_ALPHA_SPEED_SQUARED = 2*self.FUSION_ALPHA_PARTICLE_ENERGY/self.ALPHA_PARTICLE_MASS
 
-  def GC_rhs(self,r,z,vpar):
+  def jac_cart_to_cyl(self,r,phi,z):
+   """
+   jacobian of (r,phi,z) with respect to (x,y,z) evaluated
+   at r,phi,z.
+
+   J = [[cos(phi), sin(phi),0]
+        [-sin(phi),cos(phi),0]/r
+        [0,0,1]]
+
+   return 
+   J: (3,3) jacobian matrix
+   """
+   J = np.array([[np.cos(phi),np.sin(phi),0.],[-np.sin(phi)/r,np.cos(phi)/r,0.0],[0,0,1.0]])
+   return J
+
+  def GC_rhs(self,r,phi,z,vpar):
     """ 
     Right hand side of the vacuum guiding center equations in 
     cylindrical coordinates.
+
+    input:
+    r,phi,z,vpar: floats
+    
+    return
+    (4,) array, time derivatives [dr/dt,dphi/dt,dz/dt,dvpar/dt]
     """
-    # TODO: implement gc_vac eqns.
-    Bb = self.B(r,z)
+    # TODO: need Bb computation in r,phi,z
+    Bb = self.B(r,phi,z)
+    # TODO: @ML is B a signed magnitude like on simsopt page?
     B = np.linalg.norm(Bb)
+    # TODO: need Bgrad computation in r,phi,z
+    Bg = self.Bgrad(r,phi,z)
     b = B/B
-    raise NotImplementedError
+    vperp_squared = self.FUSION_ALPHA_SPEED_SQUARED - vpar**2
+    c = self.ALPHA_PARTICLE_MASS /self.ALPHA_PARTICLE_CHARGE/B/B/B
+    mu = vperp_squared/2/B
+
+    # compute d/dt (r,phi,z)
+    dot_xyz = b*vpar +c*(vperp_squared/2 + vpar**2) * np.cross(Bb,B)
+    J =self.jac_cart_to_cyl(r,phi,z)
+    dot_rphiz = J @ dot_x
+
+    # compute d/dt (vpar)
+    # TODO: @ML: Bb or b?
+    dot_vpar = -(mu/vpar)*Bg @ dot_rphiz
+
+    # compile into a vector
+    dot_state =  np.append(dot_rphiz,dot_vpar)
+    return dot_state
+    
+
 
   def startup(self):
     """
