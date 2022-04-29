@@ -22,9 +22,9 @@ class STELLA:
   """
   
   def __init__(self,u0,B,gradAbsB,
-    rmin,rmax,dr,dphi,nfp,
-    zmin,zmax,dz,
-    vparmin,vparmax,dvpar,
+    rmin,rmax,n_r,n_phi,nfp,
+    zmin,zmax,n_z,
+    vparmin,vparmax,n_vpar,
     dt,tmax,integration_method):
     """
     """
@@ -38,16 +38,21 @@ class STELLA:
     # number field periods
     self.nfp = nfp 
     # toroidal mesh sizes
-    self.dr = dr
-    self.dphi = dphi
-    self.dz = dz
-    self.dvpar = dvpar
+    self.n_r = n_r
+    self.n_phi = n_phi
+    self.n_z = n_z
+    self.n_vpar = n_vpar
+    #self.dr = dr
+    #self.dphi = dphi
+    #self.dz = dz
+    #self.dvpar = dvpar
     self.dt = dt
     # mesh bounds
     self.rmin = rmin
-    self.rmax = rmax
+    # TODO: make a system to automatically set the domain bounds
+    self.rmax = rmax 
     self.phimin = 0.0
-    self.phimax = 2*np.pi/nfp + dphi # add dphi to get endpoint in arange
+    self.phimax = 2*np.pi/nfp 
     self.zmin = zmin
     self.zmax = zmax
     self.vparmin = vparmin
@@ -74,6 +79,21 @@ class STELLA:
      R,Phi,Z: 1d array of cylindrical coordinate values
     """
     return R*np.cos(Phi),R*np.sin(Phi),Z
+
+  def jac_cyl_to_cart(self,r,phi,z):
+   """
+   jacobian of (x,y,z) with respect to (r,phi,z) evaluated
+   at r,phi,z.
+
+   J = [[cos(phi), -r*sin(phi),0]
+        [sin(phi),r*cos(phi),0]
+        [0,0,1]]
+
+   return 
+   J: (3,3) jacobian matrix
+   """
+   J = np.array([[np.cos(phi),-r*np.sin(phi),0.],[np.sin(phi),r*np.cos(phi),0.0],[0,0,1.0]])
+   return J
 
   def jac_cart_to_cyl(self,r,phi,z):
    """
@@ -112,11 +132,12 @@ class STELLA:
 
     # compute d/dt (r,phi,z)
     dot_xyz = b*vpar +c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg)
-    J =self.jac_cart_to_cyl(r,phi,z)
-    dot_rphiz = J @ dot_xyz
+    J_cart_to_cyl =self.jac_cart_to_cyl(r,phi,z)
+    dot_rphiz = J_cart_to_cyl @ dot_xyz
 
     # compute d/dt (vpar)
-    dot_vpar = -(mu/vpar)*Bg @ dot_rphiz
+    J_cyl_to_cart =self.jac_cyl_to_cart(r,phi,z)
+    dot_vpar = -(mu/vpar)*Bg @ J_cyl_to_cart @ dot_rphiz
 
     # compile into a vector
     dot_state =  np.append(dot_rphiz,dot_vpar)
@@ -129,14 +150,18 @@ class STELLA:
     Evaluate u0 over the mesh.
     """
     # mesh spacing
-    r_lin = np.arange(self.rmin,self.rmax,self.dr)
-    phi_lin = np.arange(self.phimin,self.phimax,self.dphi)
-    z_lin = np.arange(self.zmin,self.zmax,self.dz)
-    vpar_lin = np.arange(self.vparmin,self.vparmax,self.dvpar)
-    n_r = len(r_lin)
-    n_phi = len(phi_lin)
-    n_z = len(z_lin)
-    n_vpar = len(vpar_lin)
+    #r_lin = np.arange(self.rmin,self.rmax,self.dr)
+    #phi_lin = np.arange(self.phimin,self.phimax,self.dphi)
+    #z_lin = np.arange(self.zmin,self.zmax,self.dz)
+    #vpar_lin = np.arange(self.vparmin,self.vparmax,self.dvpar)
+    #n_r = len(r_lin)
+    #n_phi = len(phi_lin)
+    #n_z = len(z_lin)
+    #n_vpar = len(vpar_lin)
+    r_lin = np.linspace(self.rmin,self.rmax,self.n_r)
+    phi_lin = np.linspace(self.phimin,self.phimax,self.n_phi)
+    z_lin = np.linspace(self.zmin,self.zmax,self.n_z)
+    vpar_lin = np.linspace(self.vparmin,self.vparmax,self.n_vpar)
 
     # build the grid
     r_grid,phi_grid,z_grid,vpar_grid = np.meshgrid(r_lin,phi_lin,
@@ -176,6 +201,12 @@ class STELLA:
     # build the grid
     r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
                              self.z_lin,indexing='ij')
+   
+    # compute initial density along the mesh, and reshape it
+    X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
+            np.ravel(z_grid))).T
+    U_grid = np.array([self.u0(*xx,0.0) for xx in X])
+    U_grid = np.reshape(U_grid,np.shape(r_grid))
     X,Y,Z = self.cyl_to_cart(np.ravel(r_grid),np.ravel(phi_grid),
             np.ravel(z_grid))
     X = np.reshape(X,np.shape(r_grid))
@@ -184,7 +215,7 @@ class STELLA:
 
     from pyevtk.hl import gridToVTK 
     path = "mesh"
-    gridToVTK(path, X,Y,Z)
+    gridToVTK(path, X,Y,Z,pointData= {'u0':U_grid})
     
   def backstep(self):
     """
@@ -301,7 +332,24 @@ class STELLA:
     idx_up =  X_feas[:,3] > self.vparmax
     X_feas[:,3][idx_up] = self.vparmin + (X_feas[:,3][idx_up]-self.vparmax)%vpardiff
     idx_down =  X_feas[:,3] < self.vparmin
-    X_feas[:,3][idx_up] = self.vparmax - (self.vparmin-X_feas[:,3][idx_down])%vpardiff
+    X_feas[:,3][idx_down] = self.vparmax - (self.vparmin-X_feas[:,3][idx_down])%vpardiff
+
+    #print(np.all(X_feas[:,0] >= self.rmin))
+    #print(np.all(X_feas[:,0] <= self.rmax))
+    #print(np.all(X_feas[:,1] >= self.phimin))
+    #print(np.all(X_feas[:,1] <= self.phimax))
+    #print(np.all(X_feas[:,2] >= self.zmin))
+    #print(np.all(X_feas[:,2] <= self.zmax))
+    #print(np.all(X_feas[:,3] >= self.vparmin))
+    #print(np.all(X_feas[:,3] <= self.vparmax))
+    #print(np.all(X_feas[:,0] >= np.min(self.r_lin)))
+    #print(np.all(X_feas[:,0] <= np.max(self.r_lin)))
+    #print(np.all(X_feas[:,1] >= np.min(self.phi_lin)))
+    #print(np.all(X_feas[:,1] >= np.min(self.phi_lin)))
+    #print(np.all(X_feas[:,2] >= np.min(self.z_lin)))
+    #print(np.all(X_feas[:,2] <= np.max(self.z_lin)))
+    #print(np.all(X_feas[:,3] <= np.max(self.vpar_lin)))
+    #print(np.all(X_feas[:,3] <= np.max(self.vpar_lin)))
 
     return np.copy(X_feas),idx_feas
     
@@ -319,6 +367,7 @@ class STELLA:
     # only backwards integrate once b/c time independent
     t0 = time.time()
     X = self.backstep()
+    print('backstep time',time.time()-t0)
 
     # allocate space for density values
     UX = np.zeros(len(X))
