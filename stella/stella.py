@@ -47,7 +47,7 @@ class STELLA:
     self.rmin = rmin
     self.rmax = rmax
     self.phimin = 0.0
-    self.phimax = 2*np.pi/nfp
+    self.phimax = 2*np.pi/nfp + dphi # add dphi to get endpoint in arange
     self.zmin = zmin
     self.zmax = zmax
     self.vparmin = vparmin
@@ -67,6 +67,13 @@ class STELLA:
     self.ALPHA_PARTICLE_CHARGE = 2*self.ELEMENTARY_CHARGE
     self.FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 * self.ONE_EV # Ekin
     self.FUSION_ALPHA_SPEED_SQUARED = 2*self.FUSION_ALPHA_PARTICLE_ENERGY/self.ALPHA_PARTICLE_MASS
+
+  def cyl_to_cart(self,R,Phi,Z):
+    """ cylindrical to cartesian coordinates 
+    input:
+     R,Phi,Z: 1d array of cylindrical coordinate values
+    """
+    return R*np.cos(Phi),R*np.sin(Phi),Z
 
   def jac_cart_to_cyl(self,r,phi,z):
    """
@@ -94,6 +101,7 @@ class STELLA:
     return
     (4,) array, time derivatives [dr/dt,dphi/dt,dz/dt,dvpar/dt]
     """
+    # TODO: verify correctness of equations.
     Bb = self.B(r,phi,z)
     B = np.linalg.norm(Bb)
     Bg = self.gradAbsB(r,phi,z)
@@ -105,7 +113,7 @@ class STELLA:
     # compute d/dt (r,phi,z)
     dot_xyz = b*vpar +c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg)
     J =self.jac_cart_to_cyl(r,phi,z)
-    dot_rphiz = J @ dot_x
+    dot_rphiz = J @ dot_xyz
 
     # compute d/dt (vpar)
     dot_vpar = -(mu/vpar)*Bg @ dot_rphiz
@@ -132,7 +140,7 @@ class STELLA:
 
     # build the grid
     r_grid,phi_grid,z_grid,vpar_grid = np.meshgrid(r_lin,phi_lin,
-                             z_lin,vpar_lin,indexing='ij',sparse=True)
+                             z_lin,vpar_lin,indexing='ij')
     ## evaluate 
     #U_grid = np.zeros_like(r_grid)
     #for ii in range(n_r):
@@ -143,8 +151,8 @@ class STELLA:
     #                         phi_grid[ii,jj,kk,ll],vpar_grid[ii,jj,kk,ll])
 
     # reshape the grid to points
-    X = np.vstack((np.ravel(self.r_grid),np.ravel(self.phi_grid),
-            np.ravel(self.z_grid),np.ravel(self.vpar_grid))).T
+    X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
+            np.ravel(z_grid),np.ravel(vpar_grid))).T
 
     # compute initial density along the mesh, and reshape it
     U_grid = np.array([self.u0(*xx) for xx in X])
@@ -154,12 +162,30 @@ class STELLA:
     self.U_grid = np.copy(U_grid)
 
     # save the grids for interpolation
-    self.r_grid = r_grid
-    self.phi_grid = phi_grid
-    self.z_grid = z_grid
-    self.vpar_grid = vpar_grid
+    self.r_grid = np.copy(r_grid)
+    self.phi_grid = np.copy(phi_grid)
+    self.z_grid = np.copy(z_grid)
+    self.vpar_grid = np.copy(vpar_grid)
+    self.r_lin = r_lin
+    self.phi_lin = phi_lin
+    self.z_lin = z_lin
+    self.vpar_lin = vpar_lin
     return 
 
+  def write_mesh_vtk(self):
+    # build the grid
+    r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
+                             self.z_lin,indexing='ij')
+    X,Y,Z = self.cyl_to_cart(np.ravel(r_grid),np.ravel(phi_grid),
+            np.ravel(z_grid))
+    X = np.reshape(X,np.shape(r_grid))
+    Y = np.reshape(Y,np.shape(r_grid))
+    Z = np.reshape(Z,np.shape(r_grid))
+
+    from pyevtk.hl import gridToVTK 
+    path = "mesh"
+    gridToVTK(path, X,Y,Z)
+    
   def backstep(self):
     """
     Backwards integrate along the characteristic from time
@@ -178,26 +204,26 @@ class STELLA:
             np.ravel(self.z_grid),np.ravel(self.vpar_grid))).T
     # backwards integrate the points
     if self.integration_method == "euler":
-      # TODO: verify correctness
       G =  np.array([self.GC_rhs(*xx) for xx in X])
       Xtm1 = X - self.dt*G
     elif self.integration_method == "midpoint":
-      # TODO: verify correctness
       G =  np.array([self.GC_rhs(*xx) for xx in X])
       Xstar = np.copy(X - self.dt*G/2)
       G =  np.array([self.GC_rhs(*xx) for xx in Xstar])
-      Xtm1 = X - self.dt*G/2
+      Xtm1 = X - self.dt*G
 
     elif self.integration_method == "rk4":
-      # TODO: verify correctness
+      print("rk4 not functional")
+      quit()
+      # TODO: not working
       G = np.array([self.GC_rhs(*xx) for xx in X])
-      k1 = np.copy(dt*G)
+      k1 = np.copy(self.dt*G)
       G = np.array([self.GC_rhs(*xx) for xx in X+k1/2])
-      k2 = np.copy(dt*G)
+      k2 = np.copy(self.dt*G)
       G = np.array([self.GC_rhs(*xx) for xx in X+k2/2])
-      k3 = np.copy(dt*G)
+      k3 = np.copy(self.dt*G)
       G = np.array([self.GC_rhs(*xx) for xx in X+k3])
-      k4 = np.copy(dt*G)
+      k4 = np.copy(self.dt*G)
       Xtm1 = np.copy(X -(k1+2*k2+2*k3+k4)/6)
 
     return Xtm1
@@ -213,10 +239,8 @@ class STELLA:
     return: 
     U: (N,) array, interpolated values of u(state) for state in X.
     """
-    # TODO: should we use sparse arrays for U_grid to avoid computation
-    # with zeros?
-    interpolator = RegularGridInterpolator((self.r_grid,self.phi_grid,
-                   self.z_grid,self.vpar_grid), self.U_grid)
+    interpolator = RegularGridInterpolator((self.r_lin,self.phi_lin,
+                   self.z_lin,self.vpar_lin), self.U_grid)
     UX = interpolator(X)
     return UX
 
@@ -275,9 +299,9 @@ class STELLA:
     # vpar periodic
     vpardiff = self.vparmax - self.vparmin
     idx_up =  X_feas[:,3] > self.vparmax
-    X_feas[:,3][idx_up] = self.vparmin + (X_feas[:,3][idx_up]-vparmax)%vpardiff
+    X_feas[:,3][idx_up] = self.vparmin + (X_feas[:,3][idx_up]-self.vparmax)%vpardiff
     idx_down =  X_feas[:,3] < self.vparmin
-    X_feas[:,3][idx_up] = self.vparmax - (vparmin-X_feas[:,3][idx_down])%vpardiff
+    X_feas[:,3][idx_up] = self.vparmax - (self.vparmin-X_feas[:,3][idx_down])%vpardiff
 
     return np.copy(X_feas),idx_feas
     
@@ -286,21 +310,27 @@ class STELLA:
     """
     Perform the pde solve.
     """
+    import time
     # build the mesh and evalute U
+    t0 = time.time()
     self.startup()
+    print('startup time',time.time()-t0)
 
     # only backwards integrate once b/c time independent
+    t0 = time.time()
     X = self.backstep()
 
     # allocate space for density values
     UX = np.zeros(len(X))
 
     # collect departure points within the meshed volume
+    t0 = time.time()
     X_feas,idx_feas = self.apply_boundary_conds(X)
+    print('bndry cond time',time.time()-t0)
     
     times = np.arange(self.tmin,self.tmax,self.dt)
     for tt in times:
-
+      print('t = ',tt,np.sum(self.U_grid))
       # intepolate the values of the departure points
       # this step assumes the dirichlet boundary conditions
       # i.e. that UX[not idx_feas] == 0
