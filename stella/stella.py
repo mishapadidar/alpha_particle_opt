@@ -150,14 +150,6 @@ class STELLA:
     Evaluate u0 over the mesh.
     """
     # mesh spacing
-    #r_lin = np.arange(self.rmin,self.rmax,self.dr)
-    #phi_lin = np.arange(self.phimin,self.phimax,self.dphi)
-    #z_lin = np.arange(self.zmin,self.zmax,self.dz)
-    #vpar_lin = np.arange(self.vparmin,self.vparmax,self.dvpar)
-    #n_r = len(r_lin)
-    #n_phi = len(phi_lin)
-    #n_z = len(z_lin)
-    #n_vpar = len(vpar_lin)
     r_lin = np.linspace(self.rmin,self.rmax,self.n_r)
     phi_lin = np.linspace(self.phimin,self.phimax,self.n_phi)
     z_lin = np.linspace(self.zmin,self.zmax,self.n_z)
@@ -166,14 +158,6 @@ class STELLA:
     # build the grid
     r_grid,phi_grid,z_grid,vpar_grid = np.meshgrid(r_lin,phi_lin,
                              z_lin,vpar_lin,indexing='ij')
-    ## evaluate 
-    #U_grid = np.zeros_like(r_grid)
-    #for ii in range(n_r):
-    #  for jj in range(n_theta):
-    #    for kk in range(n_phi):
-    #      for ll in range(n_vpar):
-    #        U_grid[ii,jj,kk,ll] = self.u0(r_grid[ii,jj,kk,ll],theta_grid[ii,jj,kk,ll],
-    #                         phi_grid[ii,jj,kk,ll],vpar_grid[ii,jj,kk,ll])
 
     # reshape the grid to points
     X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),

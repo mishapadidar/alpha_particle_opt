@@ -6,6 +6,11 @@
 - Does it matter that i havent fully converted my gc equations to cylindrical? 
 
 ### TODO
+- remove `r_grid,phi_grid,...` from self. just save the list of points instead.
+- Correct rk4 method to allow for larger timesteps.
+- vectorize `u0` computation and `GH_rhs` to get faster startup and backstep.
+- write method to compute marginal over `x,y,z`.
+- write volume integration method to compute probability mass over grid.
 - Implement a bfield test case for stella. 
     - use biotsavart field and GradAbsB feature. Wrap the x,y,z computations
       to compute in cylindrical.

@@ -47,21 +47,32 @@ def gradAbsB(r,phi,z):
   return bs.GradAbsB().flatten()
 
 rmin,rmax,zmin,zmax = load_LandremanPaul_bounds(vmec_input,field_path)
-dr  = (rmax-rmin)/10
+# expand the bounds
+delta_r = rmax - rmin 
+rmax = rmax + 0.3*delta_r
+rmin = max(rmin - 0.3*delta_r,0.0)
+delta_z = zmax - zmin 
+zmax = zmax + 0.3*delta_z
+zmin = zmin - 0.3*delta_z
+
+n_r = 10
 nfp = 2
-dphi = 2*np.pi/nfp/10
-dz  = (zmax-zmin)/10
-vparmin = vpar0_lb
-vparmax = vpar0_ub
-dvpar = (vparmax-vparmin)/10
+n_phi = 10
+n_z = 10
+
+vparmin = 10*vpar0_lb
+vparmax = 10*vpar0_ub
+n_vpar = 100
 dt = 1e-8
 tmax = 1e-4
 integration_method='midpoint'
 
 solver = STELLA(u0,bfield,gradAbsB,
-    rmin,rmax,dr,dphi,nfp,
-    zmin,zmax,dz,
-    vparmin,vparmax,dvpar,
+    rmin,rmax,n_r,n_phi,nfp,
+    zmin,zmax,n_z,
+    vparmin,vparmax,n_vpar,
     dt,tmax,integration_method)
 
+#solver.startup()
+#solver.write_mesh_vtk()
 solver.solve()
