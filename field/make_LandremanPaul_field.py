@@ -147,6 +147,41 @@ def make_interpolated_field():
   bsh = InterpolatedField(bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=True)
   return bsh
 
+def load_LandremanPaul_bounds():
+  # load the surface to get appropriate ranges
+  nphi = 64
+  ntheta = 64
+  filename = "./input.LandremanPaul2021_QA"
+  s = SurfaceRZFourier.from_vmec_input(filename, range="field period", nphi=nphi, ntheta=ntheta)
+  nfp = 2
+
+  # load the field
+  bs = load_LandremanPaul_field()
+
+  rs = np.linalg.norm(s.gamma()[:, :, 0:2], axis=2)
+  zs = s.gamma()[:, :, 2]
+  return np.min(rs),np.max(rs), np.min(zs),np.max(zs)
+
+def compute_plasma_volume():
+  # load the surface to get appropriate ranges
+  nphi = 64
+  ntheta = 64
+  filename = "./input.LandremanPaul2021_QA"
+  s = SurfaceRZFourier.from_vmec_input(filename, range="field period", nphi=nphi, ntheta=ntheta)
+  nfp = 2
+  return s.volume()
+
+def make_surface_classifier():
+  from simsopt.field.tracing import SurfaceClassifier
+  # load the surface to get appropriate ranges
+  nphi = 64
+  ntheta = 64
+  filename = "./input.LandremanPaul2021_QA"
+  s = SurfaceRZFourier.from_vmec_input(filename, range="field period", nphi=nphi, ntheta=ntheta)
+  nfp = 2
+  sc_particle = SurfaceClassifier(s, h=0.1, p=2)
+  return sc_particle
+
 if __name__=="__main__":
   # make the field and save it
   make_LandremanPaul_field()
@@ -160,4 +195,9 @@ if __name__=="__main__":
   # eval it
   bsh.set_points(np.array([[0.5, np.pi, 0.1], [0.1, np.pi/2, -0.3]]))
   print(bsh.B())
+  rmin,rmax,zmin,zmax = load_LandremanPaul_bounds()
+  print(rmin,rmax,zmin,zmax)
+  vol = compute_plasma_volume()
+  print(vol)
+  classifier = make_surface_classifier()
 
