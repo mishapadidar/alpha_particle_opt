@@ -6,21 +6,23 @@
 - Does it matter that i havent fully converted my gc equations to cylindrical? 
 
 ### TODO
-- vectorize `u0` computation and `GH_rhs` to get faster startup and backstep.
-- remove `r_grid,phi_grid,...` from self. just save the list of points instead.
-- write volume integration method to compute probability mass over grid. Verify that probability sums to 1.
+- vectorize `u0` computation 
+- set up scipy Nd integrator to compute integral over volume.
+- verify that u0 integrates to 1.
+- vectorize `GH_rhs` to get faster startup and backstep.
+- vectorize midpoint method integrator.
+- validate that divergence of `GC_rhs` is actually zero and the Louiville actually holds. Otherwise we 
+  need to add terms to our pde.
 - find appropriate width for vpar interval. 
 - Correct rk4 method to allow for larger timesteps.
-- write method to compute marginal over `x,y,z`.
-- Implement a bfield test case for stella. 
-    - use biotsavart field and GradAbsB feature. Wrap the x,y,z computations
-      to compute in cylindrical.
+- Run the biotsavart test case, compute the probability mass, and verify against particle tracing.
 - Run a Tokomak test case with analytic solution.
+- set up scipy integrator to compute marginal over `x,y,z`.
 
 ### Sela improvements
 - B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
 - only compute phi over a half field period and use reflective boundary conditions.
-- build a vtk writer for visualization.
+- build a vtk writer for visualization of `u` over the mesh.
 - Look into mass conservative methods.
 - Use VMEC coordinates (Zernike polynomials?).
 - Talk to Andrew or Alex Vlad about hyperbolic pdes, or spectral solvers.
