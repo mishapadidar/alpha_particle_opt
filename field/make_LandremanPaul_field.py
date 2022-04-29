@@ -9,7 +9,7 @@ from simsopt.geo.curveobjectives import CurveLength, CurveCurveDistance
 from simsopt.geo.plot import plot
 
 
-def make_LandremanPaul_field():
+def make_LandremanPaul_field(filename = "./input.LandremanPaul2021_QA"):
   """
   Compute the Landreman Paul coils and BiotSavart field, then
   save it.
@@ -17,7 +17,6 @@ def make_LandremanPaul_field():
   nphi = 32
   ntheta = 32
   
-  filename = "./input.LandremanPaul2021_QA"
   s = SurfaceRZFourier.from_vmec_input(filename, range="half period", nphi=nphi, ntheta=ntheta)
   
   # Number of unique coil shapes:
@@ -80,14 +79,13 @@ def make_LandremanPaul_field():
   return bs
 
 
-def load_LandremanPaul_field():
+def load_LandremanPaul_field(filename = "./input.LandremanPaul2021_QA",bs_path="./bs.LandremanPaul2021_QA"):
   """
   Load the BiotSavart field for the LandremanPaul coils.
   """
   nphi = 32
   ntheta = 32
   
-  filename = "./input.LandremanPaul2021_QA"
   s = SurfaceRZFourier.from_vmec_input(filename, range="half period", nphi=nphi, ntheta=ntheta)
   
   # Number of unique coil shapes:
@@ -116,11 +114,10 @@ def load_LandremanPaul_field():
   bs = BiotSavart(coils)
 
   # load the biot savart field
-  inpath="bs.LandremanPaul2021_QA"
-  bs.x = np.loadtxt(inpath)
+  bs.x = np.loadtxt(bs_path)
   return bs
 
-def make_interpolated_field():
+def make_interpolated_field(filename = "./input.LandremanPaul2021_QA"):
   """
   Make an interpolated field from the BiotSavart field. Interpolated fields 
   can be evaluated in cylindrical coordinates (r,phi,z).
@@ -130,7 +127,6 @@ def make_interpolated_field():
   # load the surface to get appropriate ranges
   nphi = 32
   ntheta = 32
-  filename = "./input.LandremanPaul2021_QA"
   s = SurfaceRZFourier.from_vmec_input(filename, range="half period", nphi=nphi, ntheta=ntheta)
   nfp = 2
 
@@ -147,36 +143,35 @@ def make_interpolated_field():
   bsh = InterpolatedField(bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=True)
   return bsh
 
-def load_LandremanPaul_bounds():
+def load_LandremanPaul_bounds(filename = "./input.LandremanPaul2021_QA",bs_path="./bs.LandremanPaul2021_QA"):
+  
   # load the surface to get appropriate ranges
   nphi = 64
   ntheta = 64
-  filename = "./input.LandremanPaul2021_QA"
   s = SurfaceRZFourier.from_vmec_input(filename, range="field period", nphi=nphi, ntheta=ntheta)
   nfp = 2
 
   # load the field
-  bs = load_LandremanPaul_field()
+  bs = load_LandremanPaul_field(filename,bs_path)
 
   rs = np.linalg.norm(s.gamma()[:, :, 0:2], axis=2)
   zs = s.gamma()[:, :, 2]
   return np.min(rs),np.max(rs), np.min(zs),np.max(zs)
 
-def compute_plasma_volume():
+def compute_plasma_volume(filename = "./input.LandremanPaul2021_QA"):
   # load the surface to get appropriate ranges
   nphi = 64
   ntheta = 64
-  filename = "./input.LandremanPaul2021_QA"
   s = SurfaceRZFourier.from_vmec_input(filename, range="field period", nphi=nphi, ntheta=ntheta)
   nfp = 2
   return s.volume()
 
-def make_surface_classifier():
+def make_surface_classifier(filename = "./input.LandremanPaul2021_QA"):
   from simsopt.field.tracing import SurfaceClassifier
   # load the surface to get appropriate ranges
   nphi = 64
   ntheta = 64
-  filename = "./input.LandremanPaul2021_QA"
+  
   s = SurfaceRZFourier.from_vmec_input(filename, range="field period", nphi=nphi, ntheta=ntheta)
   nfp = 2
   sc_particle = SurfaceClassifier(s, h=0.1, p=2)
