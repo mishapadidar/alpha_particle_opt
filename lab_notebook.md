@@ -6,13 +6,12 @@
 - Does it matter that i havent fully converted my gc equations to cylindrical? 
 
 ### TODO
+- validate that divergence of `GC_rhs` is actually zero and the Louiville actually holds. Derive the guiding center equations from Matts pdf.
 - vectorize `u0` computation 
 - set up scipy Nd integrator to compute integral over volume.
 - verify that u0 integrates to 1.
 - vectorize `GH_rhs` to get faster startup and backstep.
 - vectorize midpoint method integrator.
-- validate that divergence of `GC_rhs` is actually zero and the Louiville actually holds. Otherwise we 
-  need to add terms to our pde.
 - find appropriate width for vpar interval. 
 - Correct rk4 method to allow for larger timesteps.
 - Run the biotsavart test case, compute the probability mass, and verify against particle tracing.
