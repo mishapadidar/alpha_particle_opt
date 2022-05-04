@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+from pyevtk.hl import gridToVTK 
 
 
 class STELLA:
@@ -201,25 +202,40 @@ class STELLA:
     self.vpar_lin = vpar_lin
     return 
 
-  #def write_mesh_vtk(self):
-  #  # build the grid
-  #  r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
-  #                           self.z_lin,indexing='ij')
-  # 
-  #  # compute initial density along the mesh, and reshape it
-  #  X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
-  #          np.ravel(z_grid))).T
-  #  U_grid = np.array([self.u0(*xx,0.0) for xx in X])
-  #  U_grid = np.reshape(U_grid,np.shape(r_grid))
-  #  X,Y,Z = self.cyl_to_cart(np.ravel(r_grid),np.ravel(phi_grid),
-  #          np.ravel(z_grid))
-  #  X = np.reshape(X,np.shape(r_grid))
-  #  Y = np.reshape(Y,np.shape(r_grid))
-  #  Z = np.reshape(Z,np.shape(r_grid))
+  def write_mesh_vtk(self,tau=0.0):
+    """
+    Write the probability density to a vtk file. 
+    
+    Write U_grid to vtk files by taking slices across
+    the vpar component. The vtk files should show the 
+    value of the density at over the spatial domain with 
+    a fixed value of vpar. By default, files are dropped
+    for each value of vpar.
+    
+    tau: time variable for naming files.
+    """
+    # build the grid in spatial components
+    r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
+                             self.z_lin,indexing='ij')
+    r_phi_z = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
+            np.ravel(z_grid))).T
+    xyz = self.cyl_to_cart(r_phi_z)
+    X = np.reshape(xyz[:,0],np.shape(r_grid))
+    Y = np.reshape(xyz[:,1],np.shape(r_grid))
+    Z = np.reshape(xyz[:,2],np.shape(r_grid))
 
-  #  from pyevtk.hl import gridToVTK 
-  #  path = "mesh"
-  #  gridToVTK(path, X,Y,Z,pointData= {'u0':U_grid})
+    # get the current density
+    U_grid = np.copy(self.U_grid)
+
+    for ii,vpar in enumerate(self.vpar_lin):
+      # take a slice of U_grid in vpar direction
+      U_slice = U_grid[:,:,:,ii]
+      # reshape like spatial grid
+      U_slice = np.copy(np.reshape(U_slice,np.shape(r_grid)))
+      # write the vtk
+      path = f"plot_data/u_mesh_time_{tau}_vpar_{ii}"
+      gridToVTK(path, X,Y,Z,pointData= {'u':U_slice})
+
     
   def backstep(self):
     """
@@ -381,6 +397,9 @@ class STELLA:
     X_feas,idx_feas = self.apply_boundary_conds(X)
     print('bndry cond time',time.time()-t0)
     
+    self.write_mesh_vtk(tau=0.0)
+    quit()
+
     times = np.arange(self.tmin,self.tmax,self.dt)
     for tt in times:
       #print('t = ',tt)
