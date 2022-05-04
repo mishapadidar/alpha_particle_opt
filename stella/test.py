@@ -37,7 +37,7 @@ n_z = 10
 n_vpar = 100
 dt = 1e-8
 tmax = 1e-4
-integration_method='euler'
+integration_method='midpoint'
 # compute the initial state volume
 vpar_vol = vpar0_ub - vpar0_lb
 prob0 = 1/plasma_vol/vpar_vol
@@ -55,17 +55,40 @@ def cyl_to_cart(r_phi_z):
   z = r_phi_z[:,2]
   return np.vstack((r*np.cos(phi),r*np.sin(phi),z)).T
 def u0(X):
-  """ u0(r,phi,z,vpar) """
-  # TODO: verify this integrates to 1!
+  """ 
+  u0(r,phi,z,vpar) 
+  input: X, 2d array of points in cylindrical (r,phi,z,vpar)
+  """
   xyz = cyl_to_cart(X[:,:-1])
   c= np.array([classifier.evaluate(x.reshape((1,-1)))[0].item() for x in xyz])
   idx_feas = c >= 0
   idx_feas = np.logical_and(idx_feas, X[:,-1] >= vpar0_lb)
   idx_feas = np.logical_and(idx_feas, X[:,-1] <= vpar0_ub)
   prob = np.zeros(len(xyz))
+  # det(Jac) = r
   det_jac = X[:,0][idx_feas]
   prob[idx_feas] = prob0*det_jac
   return prob
+
+#def u0(r,phi,z,vpar):
+#  """ u0(r,phi,z,vpar) 
+#  input: X, 2d array of points in cylindrical (r,phi,z,vpar)
+#  """
+#  x = r*np.cos(phi)
+#  y = r*np.sin(phi)
+#  c = classifier.evaluate(np.array([[x,y,z]])).flatten().item()
+#  idx_feas = c >= 0 and vpar >= vpar0_lb and vpar <=vpar0_ub
+#  # det(Jac) = r
+#  det_jac = r
+#  prob = prob0*det_jac*idx_feas
+#  return prob
+
+#from scipy import integrate
+#print(integrate.nquad(u0, [[rmin,rmax],[0,2*np.pi/nfp],[zmin,zmax],[vparmin,vparmax]], opts={'epsabs':0.01,'limit':5}, full_output=True))
+##quit()
+#quit()
+
+
 def bfield(xyz):
   # add zero to shut simsopt up
   bs.set_points(xyz + np.zeros(np.shape(xyz)))
@@ -75,13 +98,10 @@ def gradAbsB(xyz):
   bs.set_points(xyz + np.zeros(np.shape(xyz)))
   return bs.GradAbsB()
 
-
 solver = STELLA(u0,bfield,gradAbsB,
     rmin,rmax,n_r,n_phi,nfp,
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
     dt,tmax,integration_method)
 
-#solver.startup()
-#solver.write_mesh_vtk()
 solver.solve()
