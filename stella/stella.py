@@ -26,13 +26,12 @@ class STELLA:
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
     dt,tmax,integration_method):
-    """
-    """
-    # initial distribution function u0(r,phi,z,vpar)
+
+    # initial distribution u0(r,phi,z,vpar)
     self.u0 = u0
-    # B field function B(r,phi,z)
+    # B field function B(x,y,z)
     self.B = B
-    # gradient of ||B|| as a function of (r,phi,z)
+    # gradient of ||B|| as a function of (x,y,z)
     self.gradAbsB = gradAbsB
 
     # number field periods
@@ -73,78 +72,100 @@ class STELLA:
     self.FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 * self.ONE_EV # Ekin
     self.FUSION_ALPHA_SPEED_SQUARED = 2*self.FUSION_ALPHA_PARTICLE_ENERGY/self.ALPHA_PARTICLE_MASS
 
-  def cyl_to_cart(self,R,Phi,Z):
+  def cyl_to_cart(self,r_phi_z):
     """ cylindrical to cartesian coordinates 
     input:
-     R,Phi,Z: 1d array of cylindrical coordinate values
+    r_phi_z: (N,3) array of points (r,phi,z)
+
+    return
+    xyz: (N,3) array of point (x,y,z)
     """
-    return R*np.cos(Phi),R*np.sin(Phi),Z
+    r = r_phi_z[:,0]
+    phi = r_phi_z[:,1]
+    z = r_phi_z[:,2]
+    return np.vstack((r*np.cos(phi),r*np.sin(phi),z)).T
 
-  def jac_cyl_to_cart(self,r,phi,z):
+  #def jac_cyl_to_cart(self,r,phi,z):
+  # """
+  # jacobian of (x,y,z) with respect to (r,phi,z) evaluated
+  # at r,phi,z.
+
+  # J = [[cos(phi), -r*sin(phi),0]
+  #      [sin(phi),r*cos(phi),0]
+  #      [0,0,1]]
+
+  # return 
+  # J: (3,3) jacobian matrix
+  # """
+  # J = np.array([[np.cos(phi),-r*np.sin(phi),0.],[np.sin(phi),r*np.cos(phi),0.0],[0,0,1.0]])
+  # return J
+
+  def jac_cart_to_cyl(self,r_phi_z,D):
    """
-   jacobian of (x,y,z) with respect to (r,phi,z) evaluated
-   at r,phi,z.
+   Compute the jacobian vector product of the jacobian of the coordinate 
+   transformation from cartesian to cylindrical with a set of vectors.
+   The Jacobian 
+     J = [[cos(phi), sin(phi),0]
+          [-sin(phi),cos(phi),0]/r
+          [0,0,1]]
+   is evaluated at the points in r_phi_z, then the product is computed against
+   the vectors in D.
 
-   J = [[cos(phi), -r*sin(phi),0]
-        [sin(phi),r*cos(phi),0]
-        [0,0,1]]
-
+   input:
+   r_phi_z: (N,3) array of points in cylindrical coordinates, (r,phi,z)
+   D: (N,3) array of vectors in xyz coordinates to compute the directional derivatives.
    return 
-   J: (3,3) jacobian matrix
+   JD: (N,3) array of jacobian vector products, J @ D
    """
-   J = np.array([[np.cos(phi),-r*np.sin(phi),0.],[np.sin(phi),r*np.cos(phi),0.0],[0,0,1.0]])
-   return J
+   #J = np.array([[np.cos(phi),np.sin(phi),0.],[-np.sin(phi)/r,np.cos(phi)/r,0.0],[0,0,1.0]])
+   r = r_phi_z[:,0]
+   phi = r_phi_z[:,1]
+   JD = np.vstack((np.cos(phi)*D[:,0] + np.sin(phi)*D[:,1],
+                  (-np.sin(phi)*D[:,0] + np.cos(phi)*D[:,1])/r,
+                  D[:,2])).T
+   return JD
 
-  def jac_cart_to_cyl(self,r,phi,z):
-   """
-   jacobian of (r,phi,z) with respect to (x,y,z) evaluated
-   at r,phi,z.
-
-   J = [[cos(phi), sin(phi),0]
-        [-sin(phi),cos(phi),0]/r
-        [0,0,1]]
-
-   return 
-   J: (3,3) jacobian matrix
-   """
-   J = np.array([[np.cos(phi),np.sin(phi),0.],[-np.sin(phi)/r,np.cos(phi)/r,0.0],[0,0,1.0]])
-   return J
-
-  def GC_rhs(self,r,phi,z,vpar):
+  def GC_rhs(self,X):
     """ 
     Right hand side of the vacuum guiding center equations in 
     cylindrical coordinates.
 
     input:
-    r,phi,z,vpar: floats
+    X: (N,4) array of points in cylindrical coords (r,phi,z,vpar)
     
     return
-    (4,) array, time derivatives [dr/dt,dphi/dt,dz/dt,dvpar/dt]
+    (N,4) array, time derivatives [dr/dt,dphi/dt,dz/dt,dvpar/dt]
     """
-    # TODO: verify correctness of equations.
-    Bb = self.B(r,phi,z)
-    B = np.linalg.norm(Bb)
-    Bg = self.gradAbsB(r,phi,z)
-    b = B/B
-    vperp_squared = self.FUSION_ALPHA_SPEED_SQUARED - vpar**2
-    c = self.ALPHA_PARTICLE_MASS /self.ALPHA_PARTICLE_CHARGE/B/B/B
+    # extract values
+    r_phi_z = np.copy(X[:,:-1])
+    vpar = np.copy(X[:,-1])
+
+    # convert to xyz
+    xyz = self.cyl_to_cart(r_phi_z)
+
+    # field values
+    Bb = self.B(xyz) # shape (N,3)
+    B = np.linalg.norm(Bb,axis=1) # shape (N,)
+    b = (Bb.T/B).T # shape (N,3)
+    Bg = self.gradAbsB(xyz) # shape (N,3)
+
+    vperp_squared = self.FUSION_ALPHA_SPEED_SQUARED - vpar**2 # shape (N,)
+    c = self.ALPHA_PARTICLE_MASS /self.ALPHA_PARTICLE_CHARGE/B/B/B # shape (N,)
     mu = vperp_squared/2/B
 
-    # compute d/dt (r,phi,z)
-    dot_xyz = b*vpar +c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg)
-    J_cart_to_cyl =self.jac_cart_to_cyl(r,phi,z)
-    dot_rphiz = J_cart_to_cyl @ dot_xyz
+    # compute d/dt (x,y,z); shape (N,3)
+    dot_xyz = ((b.T)*vpar + c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg).T).T
 
-    # compute d/dt (vpar)
-    J_cyl_to_cart =self.jac_cyl_to_cart(r,phi,z)
-    dot_vpar = -(mu/vpar)*Bg @ J_cyl_to_cart @ dot_rphiz
+    # compute d/dt (r,phi,z); shape (N,3)
+    dot_rphiz =self.jac_cart_to_cyl(r_phi_z,dot_xyz)
 
-    # compile into a vector
-    dot_state =  np.append(dot_rphiz,dot_vpar)
+    # compute d/dt (vpar); shape (N,)
+    dot_vpar = -mu*np.sum(b * Bg,axis=1)
+
+    # compile into a vector; shape (N,4)
+    dot_state = np.hstack((dot_rphiz,np.reshape(dot_vpar,(-1,1))))
     return dot_state
     
-
-
   def startup(self):
     """
     Evaluate u0 over the mesh.
@@ -163,43 +184,42 @@ class STELLA:
     X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
             np.ravel(z_grid),np.ravel(vpar_grid))).T
 
-    # compute initial density along the mesh, and reshape it
-    U_grid = np.array([self.u0(*xx) for xx in X])
+    # compute u0
+    U_grid = self.u0(X)
     U_grid = np.reshape(U_grid,np.shape(r_grid))
 
-    # store the value of the density
+    # store the value of the density in grid shaping
     self.U_grid = np.copy(U_grid)
 
-    # save the grids for interpolation
-    self.r_grid = np.copy(r_grid)
-    self.phi_grid = np.copy(phi_grid)
-    self.z_grid = np.copy(z_grid)
-    self.vpar_grid = np.copy(vpar_grid)
+    # save a 2d-array of grid points
+    self.X = np.copy(X)
+
+    # save the spacing
     self.r_lin = r_lin
     self.phi_lin = phi_lin
     self.z_lin = z_lin
     self.vpar_lin = vpar_lin
     return 
 
-  def write_mesh_vtk(self):
-    # build the grid
-    r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
-                             self.z_lin,indexing='ij')
-   
-    # compute initial density along the mesh, and reshape it
-    X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
-            np.ravel(z_grid))).T
-    U_grid = np.array([self.u0(*xx,0.0) for xx in X])
-    U_grid = np.reshape(U_grid,np.shape(r_grid))
-    X,Y,Z = self.cyl_to_cart(np.ravel(r_grid),np.ravel(phi_grid),
-            np.ravel(z_grid))
-    X = np.reshape(X,np.shape(r_grid))
-    Y = np.reshape(Y,np.shape(r_grid))
-    Z = np.reshape(Z,np.shape(r_grid))
+  #def write_mesh_vtk(self):
+  #  # build the grid
+  #  r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
+  #                           self.z_lin,indexing='ij')
+  # 
+  #  # compute initial density along the mesh, and reshape it
+  #  X = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
+  #          np.ravel(z_grid))).T
+  #  U_grid = np.array([self.u0(*xx,0.0) for xx in X])
+  #  U_grid = np.reshape(U_grid,np.shape(r_grid))
+  #  X,Y,Z = self.cyl_to_cart(np.ravel(r_grid),np.ravel(phi_grid),
+  #          np.ravel(z_grid))
+  #  X = np.reshape(X,np.shape(r_grid))
+  #  Y = np.reshape(Y,np.shape(r_grid))
+  #  Z = np.reshape(Z,np.shape(r_grid))
 
-    from pyevtk.hl import gridToVTK 
-    path = "mesh"
-    gridToVTK(path, X,Y,Z,pointData= {'u0':U_grid})
+  #  from pyevtk.hl import gridToVTK 
+  #  path = "mesh"
+  #  gridToVTK(path, X,Y,Z,pointData= {'u0':U_grid})
     
   def backstep(self):
     """
@@ -214,23 +234,23 @@ class STELLA:
     X: (...,4) array of departuare points
     """
     
-    # reshape the grid to points
-    X = np.vstack((np.ravel(self.r_grid),np.ravel(self.phi_grid),
-            np.ravel(self.z_grid),np.ravel(self.vpar_grid))).T
+    # get the 2d array of grid points
+    X = np.copy(self.X)
+
     # backwards integrate the points
     if self.integration_method == "euler":
-      G =  np.array([self.GC_rhs(*xx) for xx in X])
+      G =  self.GC_rhs(X)
       Xtm1 = X - self.dt*G
     elif self.integration_method == "midpoint":
-      G =  np.array([self.GC_rhs(*xx) for xx in X])
+      G =  self.GC_rhs(X)
       Xstar = np.copy(X - self.dt*G/2)
-      G =  np.array([self.GC_rhs(*xx) for xx in Xstar])
-      Xtm1 = X - self.dt*G
+      G =  self.GC_rhs(Xstar)
+      Xtm1 = np.copy(X - self.dt*G)
 
     elif self.integration_method == "rk4":
       print("rk4 not functional")
       quit()
-      # TODO: not working
+      # TODO: not working. not vectorized either.
       G = np.array([self.GC_rhs(*xx) for xx in X])
       k1 = np.copy(self.dt*G)
       G = np.array([self.GC_rhs(*xx) for xx in X+k1/2])
@@ -363,7 +383,8 @@ class STELLA:
     
     times = np.arange(self.tmin,self.tmax,self.dt)
     for tt in times:
-      print('t = ',tt,np.sum(self.U_grid))
+      #print('t = ',tt)
+
       # intepolate the values of the departure points
       # this step assumes the dirichlet boundary conditions
       # i.e. that UX[not idx_feas] == 0
