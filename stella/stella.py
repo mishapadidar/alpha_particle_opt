@@ -444,12 +444,33 @@ class STELLA:
     U_marg = integrate.simpson(self.U_grid,x=self.vpar_lin,axis=-1)
     return U_marg
 
-  def compute_loss_fraction(self,pbndry):
+  def compute_plasma_probability_mass(self,classifier):
     """
     Compute the loss fraction by integrating the probability density
     over the plasma boundary.
 
-    input: plasma boundary should be a radial function, r(theta,z) = pndry(phi,z).
-    return: probability mass of particles within pbndry.
+    input: simsopt surface classifier as a function of x,y,z
     """
-    raise NotImplementedError
+    # integrate over vpar
+    U_marg = self.compute_spatial_marginal()
+
+    # build the grid in spatial components
+    r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
+                             self.z_lin,indexing='ij')
+    r_phi_z = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
+            np.ravel(z_grid))).T
+    xyz = self.cyl_to_cart(r_phi_z)
+
+    # zero out U_marg where r,phi,z is not in plasma
+    c= np.array([classifier.evaluate(x.reshape((1,-1)))[0].item() for x in xyz])
+    idx_infeas = c < 0
+    idx_infeas = np.copy(np.reshape(idx_infeas,np.shape(U_marg)))
+    U_marg[idx_infeas] = 0.0
+
+    # now integrate U_marg
+    U_marg = integrate.simpson(U_marg,x=self.z_lin,axis=-1)
+    U_marg = integrate.simpson(U_marg,x=self.phi_lin,axis=-1)
+    prob = integrate.simpson(U_marg,x=self.r_lin,axis=-1)
+  
+    # multiply by nfp
+    return prob*self.nfp
