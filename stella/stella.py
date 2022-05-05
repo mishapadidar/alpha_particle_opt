@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from pyevtk.hl import gridToVTK 
+from scipy import integrate
 
 
 class STELLA:
@@ -236,6 +237,27 @@ class STELLA:
       path = f"plot_data/u_mesh_time_{tau}_vpar_{ii}"
       gridToVTK(path, X,Y,Z,pointData= {'u':U_slice})
 
+  def write_spatial_marginal_vtk(self,tau=0.0):
+    """
+    Write the marginal probability density u(r,phi,z) to a vtk file. 
+
+    tau: time variable for naming files.
+    """
+    # build the grid in spatial components
+    r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
+                             self.z_lin,indexing='ij')
+    r_phi_z = np.vstack((np.ravel(r_grid),np.ravel(phi_grid),
+            np.ravel(z_grid))).T
+    xyz = self.cyl_to_cart(r_phi_z)
+    X = np.reshape(xyz[:,0],np.shape(r_grid))
+    Y = np.reshape(xyz[:,1],np.shape(r_grid))
+    Z = np.reshape(xyz[:,2],np.shape(r_grid))
+    # get the spatial marginal
+    U_marg = self.compute_spatial_marginal()
+    # write the vtk
+    path = f"plot_data/u_spatial_marginal_time_{tau}"
+    gridToVTK(path, X,Y,Z,pointData= {'u':U_marg})
+
     
   def backstep(self):
     """
@@ -396,13 +418,12 @@ class STELLA:
     t0 = time.time()
     X_feas,idx_feas = self.apply_boundary_conds(X)
     print('bndry cond time',time.time()-t0)
-    
-    self.write_mesh_vtk(tau=0.0)
-    quit()
 
     times = np.arange(self.tmin,self.tmax,self.dt)
-    for tt in times:
-      #print('t = ',tt)
+    for n_step,tt in enumerate(times):
+      print('t = ',tt)
+      #if n_step%1 == 0:
+      #  self.write_mesh_vtk(tau=tt)
 
       # intepolate the values of the departure points
       # this step assumes the dirichlet boundary conditions
@@ -416,9 +437,12 @@ class STELLA:
 
   def compute_spatial_marginal(self):
     """ 
-    Compute the marginal density over the spatial variables.
+    Compute the marginal density over the spatial variables by 
+    integrating over the vpar domain.
+    return the marginal u(r,phi,z) as a 3d meshgrid.
     """
-    raise NotImplementedError
+    U_marg = integrate.simpson(self.U_grid,x=self.vpar_lin,axis=-1)
+    return U_marg
 
   def compute_loss_fraction(self,pbndry):
     """
