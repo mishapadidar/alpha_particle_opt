@@ -396,7 +396,7 @@ class STELLA:
     return np.copy(X_feas),idx_feas
     
 
-  def solve(self):
+  def solve(self,classifier=None):
     """
     Perform the pde solve.
     """
@@ -421,9 +421,10 @@ class STELLA:
 
     times = np.arange(self.tmin,self.tmax,self.dt)
     for n_step,tt in enumerate(times):
-      print('t = ',tt)
-      #if n_step%1 == 0:
-      #  self.write_mesh_vtk(tau=tt)
+      #print('t = ',tt)
+      if n_step%1 == 0:
+        #self.write_mesh_vtk(tau=tt)
+        print('t = ',tt,'p = ',self.compute_plasma_probability_mass(classifier))
 
       # intepolate the values of the departure points
       # this step assumes the dirichlet boundary conditions
