@@ -254,8 +254,10 @@ class STELLA:
     Z = np.reshape(xyz[:,2],np.shape(r_grid))
     # get the spatial marginal
     U_marg = self.compute_spatial_marginal()
+    # transform density to cartesian; det(jac) = cos(phi)^2 + (1/r)*sin(phi)^2
+    U_marg = U_marg*(np.cos(phi_grid)**2 + (1.0/r_grid)*np.sin(phi_grid)**2)
     # write the vtk
-    path = f"plot_data/u_spatial_marginal_time_{tau}"
+    path = f"plot_data/u_spatial_marginal_time_{tau:08d}"
     gridToVTK(path, X,Y,Z,pointData= {'u':U_marg})
 
     
@@ -423,8 +425,11 @@ class STELLA:
     for n_step,tt in enumerate(times):
       #print('t = ',tt)
       if n_step%1 == 0:
-        #self.write_mesh_vtk(tau=tt)
-        print('t = ',tt,'p = ',self.compute_plasma_probability_mass(classifier))
+        if classifier is not None:
+          print('t = ',tt,'p = ',self.compute_plasma_probability_mass(classifier))
+          self.write_spatial_marginal_vtk(tau=n_step)
+        else:
+          print('t = ',tt)
 
       # intepolate the values of the departure points
       # this step assumes the dirichlet boundary conditions
@@ -453,7 +458,7 @@ class STELLA:
     input: simsopt surface classifier as a function of x,y,z
     """
     # integrate over vpar
-    U_marg = self.compute_spatial_marginal()
+    U_marg = np.copy(self.compute_spatial_marginal())
 
     # build the grid in spatial components
     r_grid,phi_grid,z_grid = np.meshgrid(self.r_lin,self.phi_lin,
