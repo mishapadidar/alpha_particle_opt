@@ -447,13 +447,17 @@ class STELLA:
     integrating over the vpar domain.
     return the marginal u(r,phi,z) as a 3d meshgrid.
     """
-    U_marg = integrate.simpson(self.U_grid,x=self.vpar_lin,axis=-1)
+    #U_marg = integrate.simpson(self.U_grid,x=self.vpar_lin,axis=-1)
+    U_marg = integrate.trapezoid(self.U_grid,x=self.vpar_lin,axis=-1)
     return U_marg
 
   def compute_plasma_probability_mass(self,classifier):
     """
     Compute the loss fraction by integrating the probability density
-    over the plasma boundary.
+    over the plasma boundary in the meshed region. Since
+    we model the probability density over one field period, you 
+    should multiply by the probability mass by the number of field 
+    periods nfp to get the probility over the entire plasma.
 
     input: simsopt surface classifier as a function of x,y,z
     """
@@ -474,9 +478,11 @@ class STELLA:
     U_marg[idx_infeas] = 0.0
 
     # now integrate U_marg
-    U_marg = integrate.simpson(U_marg,x=self.z_lin,axis=-1)
-    U_marg = integrate.simpson(U_marg,x=self.phi_lin,axis=-1)
-    prob = integrate.simpson(U_marg,x=self.r_lin,axis=-1)
+    #U_marg = integrate.simpson(U_marg,x=self.z_lin,axis=-1)
+    #U_marg = integrate.simpson(U_marg,x=self.phi_lin,axis=-1)
+    #prob = integrate.simpson(U_marg,x=self.r_lin,axis=-1)
+    U_marg = integrate.trapezoid(U_marg,x=self.z_lin,axis=-1)
+    U_marg = integrate.trapezoid(U_marg,x=self.phi_lin,axis=-1)
+    prob = integrate.trapezoid(U_marg,x=self.r_lin,axis=-1)
   
-    # multiply by nfp
-    return prob*self.nfp
+    return prob
