@@ -11,7 +11,7 @@ FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 *ONE_EV # Ekin
 FUSION_ALPHA_SPEED_SQUARED = 2*FUSION_ALPHA_PARTICLE_ENERGY/ALPHA_PARTICLE_MASS
 
 # load the plasma volume, classifier and bfield
-ntheta=nphi=64
+ntheta=nphi=128
 plasma_vol = compute_plasma_volume(ntheta=ntheta,nphi=nphi)
 classifier = make_surface_classifier(ntheta=ntheta,nphi=nphi)
 bs = load_field(ntheta=ntheta,nphi=nphi)
@@ -27,16 +27,16 @@ zmax = zmax + 0.3*delta_z
 zmin = zmin - 0.3*delta_z
 vpar0_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
 vpar0_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)
-vparmin = 10*vpar0_lb
-vparmax = 10*vpar0_ub
+vparmin = 8*vpar0_lb
+vparmax = 8*vpar0_ub
 nfp = 2 # number field periods
 # set discretization sizes
-n_r = 10
-n_phi = 10
-n_z = 10
-n_vpar = 100
+n_r = 64
+n_phi = 32
+n_z = 64
+n_vpar = 32
 dt = 1e-8
-tmax = 1e-4
+tmax = 1e-5
 integration_method='midpoint'
 # compute the initial state volume
 vpar_vol = vpar0_ub - vpar0_lb
@@ -70,25 +70,6 @@ def u0(X):
   prob[idx_feas] = prob0*det_jac
   return prob
 
-#def u0(r,phi,z,vpar):
-#  """ u0(r,phi,z,vpar) 
-#  input: X, 2d array of points in cylindrical (r,phi,z,vpar)
-#  """
-#  x = r*np.cos(phi)
-#  y = r*np.sin(phi)
-#  c = classifier.evaluate(np.array([[x,y,z]])).flatten().item()
-#  idx_feas = c >= 0 and vpar >= vpar0_lb and vpar <=vpar0_ub
-#  # det(Jac) = r
-#  det_jac = r
-#  prob = prob0*det_jac*idx_feas
-#  return prob
-
-#from scipy import integrate
-#print(integrate.nquad(u0, [[rmin,rmax],[0,2*np.pi/nfp],[zmin,zmax],[vparmin,vparmax]], opts={'epsabs':0.01,'limit':5}, full_output=True))
-##quit()
-#quit()
-
-
 def bfield(xyz):
   # add zero to shut simsopt up
   bs.set_points(xyz + np.zeros(np.shape(xyz)))
@@ -104,4 +85,4 @@ solver = STELLA(u0,bfield,gradAbsB,
     vparmin,vparmax,n_vpar,
     dt,tmax,integration_method)
 
-solver.solve()
+solver.solve(classifier=classifier)
