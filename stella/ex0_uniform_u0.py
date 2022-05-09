@@ -11,6 +11,7 @@ FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 *ONE_EV # Ekin
 FUSION_ALPHA_SPEED_SQUARED = 2*FUSION_ALPHA_PARTICLE_ENERGY/ALPHA_PARTICLE_MASS
 
 # load the plasma volume, classifier and bfield
+nfp = 2 # number field periods
 ntheta=nphi=128
 plasma_vol = compute_plasma_volume(ntheta=ntheta,nphi=nphi)
 classifier = make_surface_classifier(ntheta=ntheta,nphi=nphi)
@@ -27,13 +28,13 @@ zmax = zmax + 0.3*delta_z
 zmin = zmin - 0.3*delta_z
 vpar0_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
 vpar0_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)
-vparmin = 8*vpar0_lb
-vparmax = 8*vpar0_ub
-nfp = 2 # number field periods
+# set vpar bounds: vpar^2 cannot exceed v0^2
+vparmin = vpar0_lb
+vparmax = vpar0_ub
 # set discretization sizes
-n_r = 64
+n_r = 32
 n_phi = 32
-n_z = 64
+n_z = 32
 n_vpar = 32
 dt = 1e-8
 tmax = 1e-5
