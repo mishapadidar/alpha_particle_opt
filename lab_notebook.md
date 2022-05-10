@@ -32,6 +32,7 @@
 ### Sela improvements
 - [x] B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
 - Correct rk4 method to allow for larger timesteps.
+- Implement a sympletic ODE intgrator.
 - Use higher order interpolation (cascade interpolation, cubic by Ritchie)
 - only compute phi over a half field period and use reflective boundary conditions.
 - Look into mass conservative methods.
