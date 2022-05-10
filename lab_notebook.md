@@ -2,10 +2,26 @@
 ## Lab Notebook
 
 ### TODO
-- Set up a reimann sum integrator for marginal and probability mass; might work better for the discontinuous problem
+- We need to be using coils and boundary that are scaled to reactor size, such as Florians coils.
+    - Device should be scaled up so that major radius is a few meters, say 5 or 10. To do this just multiply all of       the fourier coefficients of the boundary by the scale factor. This should improve confinement substantially.
+    - The field strength should be scaled so that it is roughly 5 or 6 Tesla. For instance |B| inside the surface 
+      should average to roughly 5 tesla. We can achieve this by multiplying the coil current by a scale factor.
+      We could also build a toroidal flux objective from a surface and the coils, compute the .J quantity, and then
+      compare to the desired target. The scale factor .J/target should be used to scale the coil currents.
+    - Matt has sent a reactor-scaled QA configuration. Now we just need to scale the coil currents based on the
+      target toroidal flux he sent.
+- Run a driftless QA example. Multiply the drift terms in the guiding center equations by zero. Then particles 
+  should only move along field lines, and should spread out over flux surfaces, but not move across flux surfaces.
+- Look into mass conservative methods.
+- Run a truly axisymmetric driftless computation. In true axisymmetry we just need a B field that satisfies 
+  `div(B) = 0`. We can use `B = grad(psi) \cross \grad(phi) + G*\grad(\phi)` where `G` is a constant,
+  `\psi = (R-R0)^2 + Z^2` and `R,phi,Z` are cylindrical coordinates. We can also parametrize the B field to 
+   get other options, see the toroidal coordinates page of the Fusion wiki. In this examples particles should 
+   simply spread out over flux surfaces. They should not move across contours of psi.
 - Track a parcel of particles through probability space and compare to guiding center solution.
 - Compare particle losses to particle tracing losses for LP QA problem.
-- Find appropriate width for vpar interval. 
+- [x] Find appropriate width for vpar interval.
+    > vpar can always be bound by [-vtotal,vtotal] because of conservation of energy. 
 - [x] vectorize `u0` computation 
 - [x] verify that u0 integrates to 1.
 - [x] vectorize `GH_rhs` to get faster startup and backstep.
@@ -14,7 +30,7 @@
 - [x] set up scipy integrator to compute marginal over `x,y,z`.
 
 ### Sela improvements
-- B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
+- [x] B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
 - Correct rk4 method to allow for larger timesteps.
 - Use higher order interpolation (cascade interpolation, cubic by Ritchie)
 - only compute phi over a half field period and use reflective boundary conditions.
