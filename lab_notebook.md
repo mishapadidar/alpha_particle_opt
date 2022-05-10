@@ -10,6 +10,8 @@
       compare to the desired target. The scale factor .J/target should be used to scale the coil currents.
     - Matt has sent a reactor-scaled QA configuration. Now we just need to scale the coil currents based on the
       target toroidal flux he sent.
+- Run particle tracing examples to verify that the coils and device get low particle losses. Visualize the trajectories.
+- Correct rk4 method to allow for larger timesteps.
 - Run a driftless QA example. Multiply the drift terms in the guiding center equations by zero. Then particles 
   should only move along field lines, and should spread out over flux surfaces, but not move across flux surfaces.
 - Look into mass conservative methods.
