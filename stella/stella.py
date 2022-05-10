@@ -145,11 +145,22 @@ class STELLA:
     # convert to xyz
     xyz = self.cyl_to_cart(r_phi_z)
 
+    # dont compute repeated points on grid
+    xyz_for_B = xyz[::self.n_vpar]
+
+    # compute B on grid
+    Bb = self.B(xyz_for_B)
+    Bb = np.copy(np.repeat(Bb,self.n_vpar,axis=0))
+    #Bb = self.B(xyz) # shape (N,3)
+
+    # compute Bg on grid
+    Bg = self.gradAbsB(xyz_for_B)
+    Bg = np.copy(np.repeat(Bg,self.n_vpar,axis=0))
+    #Bg = self.gradAbsB(xyz) # shape (N,3)
+
     # field values
-    Bb = self.B(xyz) # shape (N,3)
     B = np.linalg.norm(Bb,axis=1) # shape (N,)
     b = (Bb.T/B).T # shape (N,3)
-    Bg = self.gradAbsB(xyz) # shape (N,3)
 
     vperp_squared = self.FUSION_ALPHA_SPEED_SQUARED - vpar**2 # shape (N,)
     c = self.ALPHA_PARTICLE_MASS /self.ALPHA_PARTICLE_CHARGE/B/B/B # shape (N,)
@@ -371,6 +382,13 @@ class STELLA:
     # phi periodic on [phimin,phimax)... (assumes phimin = 0)
     X_feas[:,1] %= self.phimax # phi in [-phimax,phimax]
     X_feas[:,1][X_feas[:,1]<0] += self.phimax # correct negatives
+
+    ## cap vpar to not exceed v0,-v0 so that energy is not created.
+    #idx_up =  X_feas[:,3] > np.sqrt(self.FUSION_ALPHA_SPEED_SQUARED)
+    #X_feas[:,3][idx_up] = np.sqrt(self.FUSION_ALPHA_SPEED_SQUARED)
+    #idx_down =  X_feas[:,3] < -np.sqrt(self.FUSION_ALPHA_SPEED_SQUARED)
+    #X_feas[:,3][idx_down] = -np.sqrt(self.FUSION_ALPHA_SPEED_SQUARED)
+
     # vpar periodic
     vpardiff = self.vparmax - self.vparmin
     idx_up =  X_feas[:,3] > self.vparmax
