@@ -49,11 +49,11 @@
 - Look into mass conservative methods, such as mass conservative operator splitting (Durran).
 - Look into positivity preserving interpolation that corrects over/undershoots.
 - Only compute phi over a half field period and use reflective boundary conditions.
+- Use VMEC or Boozer coordinates with a cartesian grid around the magnetic axis.
 - High resolution mesh around plasma boundary.
 - Implement a higher order timestepper.
 - Implement adjoint
 - Implement GPU or MPI parallelism
-- Use VMEC coordinates.
 - [x] B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
 - [x] build a vtk writer for visualization of `u` over the mesh.
 
