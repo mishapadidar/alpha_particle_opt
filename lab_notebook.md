@@ -9,15 +9,7 @@
   that arrises from the initial conditions.
 
 ### TODO
-- Scale Bfield and device to reactor scale.
-    - Device should be scaled up so that major radius is a few meters, say 5 or 10. To do this just multiply all of       the fourier coefficients of the boundary by the scale factor. This should improve confinement substantially.
-    - The field strength should be scaled so that it is roughly 5 or 6 Tesla. For instance |B| inside the surface 
-      should average to roughly 5 tesla. We can achieve this by multiplying the coil current by a scale factor.
-      We could also build a toroidal flux objective from a surface and the coils, compute the .J quantity, and then
-      compare to the desired target. The scale factor .J/target should be used to scale the coil currents.
-    - Matt has sent a reactor-scaled QA configuration. Now we just need to scale the coil currents based on the
-      target toroidal flux he sent.
-- Run particle tracing examples to verify that the coils and device get low particle losses. Visualize the trajectories. 
+- Run particle tracing on reactor scale device to verify that the coils and device get low particle losses. Visualize the trajectories. 
 - Derive and implement a second order time splitting routine. 
 - Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation.
 - Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
@@ -36,6 +28,14 @@
   plot the video alongside the density in paraview.
 
 ### Completed
+- [x] Scale Bfield and device to reactor scale.
+    - Device should be scaled up so that major radius is a few meters, say 5 or 10. To do this just multiply all of       the fourier coefficients of the boundary by the scale factor. This should improve confinement substantially.
+    - The field strength should be scaled so that it is roughly 5 or 6 Tesla. For instance |B| inside the surface 
+      should average to roughly 5 tesla. We can achieve this by multiplying the coil current by a scale factor.
+      We could also build a toroidal flux objective from a surface and the coils, compute the .J quantity, and then
+      compare to the desired target. The scale factor .J/target should be used to scale the coil currents.
+    - Matt has sent a reactor-scaled QA configuration. Now we just need to scale the coil currents based on the
+      target toroidal flux he sent.
 - [x] Find appropriate width for vpar interval.
     > vpar can always be bound by [-vtotal,vtotal] because of conservation of energy. 
 - [x] vectorize `u0` computation 
