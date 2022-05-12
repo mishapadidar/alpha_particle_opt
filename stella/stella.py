@@ -168,6 +168,7 @@ class STELLA:
 
     # compute d/dt (x,y,z); shape (N,3)
     dot_xyz = ((b.T)*vpar + c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg).T).T
+    #dot_xyz = ((b.T)*vpar).T # no drift terms
 
     # compute d/dt (r,phi,z); shape (N,3)
     dot_rphiz =self.jac_cart_to_cyl(r_phi_z,dot_xyz)
@@ -265,8 +266,8 @@ class STELLA:
     Z = np.reshape(xyz[:,2],np.shape(r_grid))
     # get the spatial marginal
     U_marg = self.compute_spatial_marginal()
-    # transform density to cartesian; det(jac) = cos(phi)^2 + (1/r)*sin(phi)^2
-    U_marg = U_marg*(np.cos(phi_grid)**2 + (1.0/r_grid)*np.sin(phi_grid)**2)
+    # transform density to cartesian; det(jac) = 1/r
+    U_marg = U_marg*(1.0/r_grid)
     # write the vtk
     path = f"plot_data/u_spatial_marginal_time_{tau:08d}"
     gridToVTK(path, X,Y,Z,pointData= {'u':U_marg})
