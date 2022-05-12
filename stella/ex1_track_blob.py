@@ -38,12 +38,12 @@ zmin = zmin - 0.3*delta_z
 n_r = 64
 n_phi = 64
 n_z = 64
-n_vpar = 4
+n_vpar = 32
 dt = 1e-8
 tmax = 1e-6
 integration_method='midpoint'
 # set the initial density bounds for vpar
-vpar0_lb = 0.99*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
+vpar0_lb = -1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
 vpar0_ub = 1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
 # set the vpar grid bounds
 vparmin = vpar0_lb

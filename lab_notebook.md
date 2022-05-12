@@ -13,6 +13,7 @@
 - Derive and implement a second order time splitting routine. 
 - Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation.
 - Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
+- Implement MPI parallelism
 - Test 1: Run a driftless QA example. Multiply the drift terms in the guiding center equations by zero. Then particles 
   should only move along field lines, and should spread out over flux surfaces, but not move across flux surfaces.
   To avoid problems with discontinuities we could initialize our density to be continuous but still with compact.
@@ -53,7 +54,6 @@
 - High resolution mesh around plasma boundary.
 - Implement a higher order timestepper.
 - Implement adjoint
-- Implement GPU or MPI parallelism
 - [x] B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
 - [x] build a vtk writer for visualization of `u` over the mesh.
 
