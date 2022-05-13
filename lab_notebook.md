@@ -2,17 +2,12 @@
 ## Lab Notebook
 
 
-### Problems
-- Cubic interpolation is not positivity preserving, we need to justify that it is not problematic as they did
-  in the GYSELA 4D paper.
-- Cubic interpolation is not a great choice for interpolation of the discontinuous function with only two heights
-  that arrises from the initial conditions.
-
 ### TODO
 - Run particle tracing on reactor scale device to verify that the coils and device get low particle losses. Visualize the trajectories. 
 - Derive and implement a second order time splitting routine. 
 - Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Periodic directions can be interpolated with spectral accuracy using trig polynomials.
 - Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
+- Look into mass conservative methods, such as mass conservative operator splitting (Durran).
 - Implement MPI parallelism
 - Test 1: Run a driftless QA example. Multiply the drift terms in the guiding center equations by zero. Then particles 
   should only move along field lines, and should spread out over flux surfaces, but not move across flux surfaces.
@@ -49,7 +44,8 @@
 
 ### Sela improvements
 - Look into mass conservative methods, such as mass conservative operator splitting (Durran).
-- Look into positivity preserving interpolation that corrects over/undershoots.
+- Look into positivity preserving interpolation that corrects over/undershoots or justify that the 
+  overshoots and undershoots are not problematic like in the GYSELA-4D paper.
 - Only compute phi over a half field period and use reflective boundary conditions.
 - Use VMEC or Boozer coordinates with a cartesian grid around the magnetic axis.
 - High resolution mesh around plasma boundary.
