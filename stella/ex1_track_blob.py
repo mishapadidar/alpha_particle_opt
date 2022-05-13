@@ -1,6 +1,7 @@
 from stella import *    
 import numpy as np
 from bfield import load_field,compute_rz_bounds,compute_plasma_volume,make_surface_classifier
+import time 
 
 """
 Track a blob of probability mass through space.
@@ -21,9 +22,12 @@ FUSION_ALPHA_SPEED_SQUARED = 2*FUSION_ALPHA_PARTICLE_ENERGY/ALPHA_PARTICLE_MASS
 # load the plasma volume, classifier and bfield
 nfp = 2 # number field periods
 ntheta=nphi=128
-plasma_vol = compute_plasma_volume(ntheta=ntheta,nphi=nphi)
+print('building classifier and bfield')
+t0 = time.time()
+#plasma_vol = compute_plasma_volume(ntheta=ntheta,nphi=nphi)
 classifier = make_surface_classifier(ntheta=ntheta,nphi=nphi)
 bs = load_field(ntheta=ntheta,nphi=nphi)
+print('time: ',time.time()-t0)
 
 # set the bounds
 rmin,rmax,zmin,zmax = compute_rz_bounds(ntheta=ntheta,nphi=nphi)
@@ -39,9 +43,10 @@ n_r = 64
 n_phi = 64
 n_z = 64
 n_vpar = 32
-dt = 1e-8
-tmax = 1e-6
+dt = 1e-9
+tmax = 1e-2
 integration_method='midpoint'
+mesh_type = "chebyshev"
 # set the initial density bounds for vpar
 vpar0_lb = -1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
 vpar0_ub = 1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
@@ -107,8 +112,8 @@ solver = STELLA(u0,bfield,gradAbsB,
     rmin,rmax,n_r,n_phi,nfp,
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
-    dt,tmax,integration_method)
+    dt,tmax,integration_method,
+    mesh_type=mesh_type)
 
-#solver.startup()
-#solver.write_spatial_marginal_vtk(tau=0)
-solver.solve(classifier=classifier)
+#solver.solve(classifier=classifier)
+solver.solve()
