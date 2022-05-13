@@ -27,7 +27,7 @@ class STELLA:
     rmin,rmax,n_r,n_phi,nfp,
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
-    dt,tmax,integration_method):
+    dt,tmax,integration_method,mesh_type="uniform"):
 
     # initial distribution u0(r,phi,z,vpar)
     self.u0 = u0
@@ -64,7 +64,11 @@ class STELLA:
     # for backwards integration
     assert integration_method in ['euler','midpoint','rk4']
     self.integration_method = integration_method
- 
+
+    # for meshing
+    assert mesh_type in ['uniform','chebyshev']
+    self.mesh_type = mesh_type
+
     self.PROTON_MASS = 1.67262192369e-27  # kg
     self.NEUTRON_MASS = 1.67492749804e-27  # kg
     self.ELEMENTARY_CHARGE = 1.602176634e-19  # C
@@ -73,6 +77,24 @@ class STELLA:
     self.ALPHA_PARTICLE_CHARGE = 2*self.ELEMENTARY_CHARGE
     self.FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 * self.ONE_EV # Ekin
     self.FUSION_ALPHA_SPEED_SQUARED = 2*self.FUSION_ALPHA_PARTICLE_ENERGY/self.ALPHA_PARTICLE_MASS
+
+  def cheby_lin(self,a,b,n):
+    """
+    Create a one dimensional grid using chebyshev nodes,
+    see https://en.wikipedia.org/wiki/Chebyshev_nodes
+    for a definition.
+
+    input: 
+    a,b: float, interval bounds
+    n: int, number of grid points
+
+    return:
+    x: 1d array, entries are chebyshev nodes.
+    """
+    k = np.arange(1,n+1,1)
+    arg = np.pi*(2*k-1)/2/n
+    ret = 0.5*(a+b) + 0.5*(b-a)*np.cos(arg)
+    return np.copy(ret[::-1])
 
   def cyl_to_cart(self,r_phi_z):
     """ cylindrical to cartesian coordinates 
@@ -184,11 +206,29 @@ class STELLA:
     """
     Evaluate u0 over the mesh.
     """
-    # mesh spacing
-    r_lin = np.linspace(self.rmin,self.rmax,self.n_r)
-    phi_lin = np.linspace(self.phimin,self.phimax,self.n_phi)
-    z_lin = np.linspace(self.zmin,self.zmax,self.n_z)
-    vpar_lin = np.linspace(self.vparmin,self.vparmax,self.n_vpar)
+
+    if self.mesh_type == "uniform":
+      # mesh spacing
+      r_lin = np.linspace(self.rmin,self.rmax,self.n_r)
+      phi_lin = np.linspace(self.phimin,self.phimax,self.n_phi)
+      z_lin = np.linspace(self.zmin,self.zmax,self.n_z)
+      vpar_lin = np.linspace(self.vparmin,self.vparmax,self.n_vpar)
+    elif self.mesh_type == "chebyshev":
+      # mesh spacing
+      r_lin = self.cheby_lin(self.rmin,self.rmax,self.n_r)
+      phi_lin = np.linspace(self.phimin,self.phimax,self.n_phi) # phi is periodic
+      z_lin = self.cheby_lin(self.zmin,self.zmax,self.n_z)
+      vpar_lin = self.cheby_lin(self.vparmin,self.vparmax,self.n_vpar)
+      # the mesh will not hit the bounds, so redefine the bounds
+      self.rmin = np.min(r_lin)
+      self.rmax = np.max(r_lin)
+      self.phimin = np.min(phi_lin)
+      self.phimax = np.max(phi_lin)
+      self.zmin = np.min(z_lin)
+      self.zmax = np.max(z_lin)
+      self.vparmin = np.min(vpar_lin)
+      self.vparmax = np.max(vpar_lin)
+   
 
     # build the grid
     r_grid,phi_grid,z_grid,vpar_grid = np.meshgrid(r_lin,phi_lin,
