@@ -11,7 +11,7 @@
 ### TODO
 - Run particle tracing on reactor scale device to verify that the coils and device get low particle losses. Visualize the trajectories. 
 - Derive and implement a second order time splitting routine. 
-- Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation.
+- Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Periodic directions can be interpolated with spectral accuracy using trig polynomials.
 - Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
 - Implement MPI parallelism
 - Test 1: Run a driftless QA example. Multiply the drift terms in the guiding center equations by zero. Then particles 
@@ -29,6 +29,7 @@
   plot the video alongside the density in paraview.
 
 ### Completed
+- [x] Change grid spacing: periodic directions are fine as uniform mesh, but other directions should use a better grid such as chebyshev.
 - [x] Scale Bfield and device to reactor scale.
     - Device should be scaled up so that major radius is a few meters, say 5 or 10. To do this just multiply all of       the fourier coefficients of the boundary by the scale factor. This should improve confinement substantially.
     - The field strength should be scaled so that it is roughly 5 or 6 Tesla. For instance |B| inside the surface 
