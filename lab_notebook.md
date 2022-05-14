@@ -3,16 +3,20 @@
 
 
 ### TODO
-- Run particle tracing on reactor scale device to verify that the coils and device get low particle losses. Visualize the trajectories. 
-- Derive and implement a second order time splitting routine. 
-- Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Periodic directions can be interpolated with spectral accuracy using trig polynomials.
-- Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
-- Look into mass conservative methods, such as mass conservative operator splitting (Durran).
+- Implement strang splitting... this will allow us to reduce our interpolation to one 3-dimensional and one 1-dimensional while giving us second order time accuracy.
+- Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Remember that periodic directions can be interpolated with spectral accuracy using trig polynomials. For cubic interpolation we can use the eqtools package (https://eqtools.readthedocs.io/en/latest/eqtools.html#eqtools.trispline.Spline) or we can implement the somewhat cheaper cubic interpolation by Ritchie.
 - Implement MPI parallelism
+- Switch to boozer/VMEC coordinates.
+
+
+### Verification Tests
 - Test 1: Run a driftless QA example. Multiply the drift terms in the guiding center equations by zero. Then particles 
   should only move along field lines, and should spread out over flux surfaces, but not move across flux surfaces.
-  To avoid problems with discontinuities we could initialize our density to be continuous but still with compact.
-  support.
+    > We mostly see the expecteed result. The problem is that particles are still flowing out of the plasma because
+      they cannot navigate through the strange stellarator geometry. I think this could definitely be fixed by
+      substantially increasing the grid discretization, using higher interpolation. Both of these implementations
+      would likely require us to parallelize our implementation. A more computationally practical approach would
+      be to use boozer coordinates, which naturally handle the geometry.
 - Test 2: Run a truly axisymmetric driftless computation. In true axisymmetry we just need a B field that satisfies 
   `div(B) = 0`. We can use `B = grad(psi) \cross \grad(phi) + G*\grad(\phi)` where `G` is a constant,
   `\psi = (R-R0)^2 + Z^2` and `R,phi,Z` are cylindrical coordinates. We can also parametrize the B field to 
@@ -24,6 +28,8 @@
   plot the video alongside the density in paraview.
 
 ### Completed
+- [x] Run particle tracing on reactor scale device to verify that the coils and device get low particle losses. Visualize the trajectories. 
+- [x] Increase initial coil radius to actually enclose the plasma so that we get a good bfield.
 - [x] Change grid spacing: periodic directions are fine as uniform mesh, but other directions should use a better grid such as chebyshev.
 - [x] Scale Bfield and device to reactor scale.
     - Device should be scaled up so that major radius is a few meters, say 5 or 10. To do this just multiply all of       the fourier coefficients of the boundary by the scale factor. This should improve confinement substantially.
@@ -43,6 +49,7 @@
 - [x] set up scipy integrator to compute marginal over `x,y,z`.
 
 ### Sela improvements
+- Implement Ritchie's efficient cubic interpolation, find reference from Durran's book. Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
 - Look into mass conservative methods, such as mass conservative operator splitting (Durran).
 - Look into positivity preserving interpolation that corrects over/undershoots or justify that the 
   overshoots and undershoots are not problematic like in the GYSELA-4D paper.
