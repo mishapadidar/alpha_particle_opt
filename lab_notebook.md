@@ -3,6 +3,7 @@
 
 
 ### TODO
+- Run Test 2, the driftless axisymmetry test.
 - Implement strang splitting... this will allow us to reduce our interpolation to one 3-dimensional and one 1-dimensional while giving us second order time accuracy.
 - Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Remember that periodic directions can be interpolated with spectral accuracy using trig polynomials. For cubic interpolation we can use the eqtools package (https://eqtools.readthedocs.io/en/latest/eqtools.html#eqtools.trispline.Spline) or we can implement the somewhat cheaper cubic interpolation by Ritchie.
 - Implement MPI parallelism
@@ -26,6 +27,22 @@
 - Test 3: Solve the PDE when the initial density has compact support over a small blob on the interior of 
   the plasma. Then compute the guiding center trajectories with particles starting from the same distribution and
   plot the video alongside the density in paraview.
+- Test 4: Tokamak with analytic solution. Initialize distribution which depends on `r,z,vpar` only through energy `v^2/2`, canonical angular momentum `p\_phi`, and `mu`. We should be able to find the orbits analytically. Equation 68 from matts intro to quasisymmetry shows how we can relate the toroidal flux to `vpar`. Some characteristics may leave the domain, so the distribution should be set to zero on those. Need a current density.
+
+
+### Sela improvements
+- Implement Ritchie's efficient cubic interpolation, find reference from Durran's book. Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
+- Look into mass conservative methods, such as mass conservative operator splitting (Durran).
+- Look into positivity preserving interpolation that corrects over/undershoots or justify that the 
+  overshoots and undershoots are not problematic like in the GYSELA-4D paper.
+- Only compute phi over a half field period and use reflective boundary conditions.
+- Use VMEC or Boozer coordinates with a cartesian grid around the magnetic axis.
+- High resolution mesh around plasma boundary.
+- Implement a higher order timestepper.
+- Implement adjoint
+- [x] B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
+- [x] build a vtk writer for visualization of `u` over the mesh.
+
 
 ### Completed
 - [x] Run particle tracing on reactor scale device to verify that the coils and device get low particle losses. Visualize the trajectories. 
@@ -47,28 +64,3 @@
 - [x] vectorize midpoint method integrator.
 - [x] set up scipy Nd integrator to compute integral over volume.
 - [x] set up scipy integrator to compute marginal over `x,y,z`.
-
-### Sela improvements
-- Implement Ritchie's efficient cubic interpolation, find reference from Durran's book. Test cubic interpolation with a rotating cubic example (see cascade interpolation paper).
-- Look into mass conservative methods, such as mass conservative operator splitting (Durran).
-- Look into positivity preserving interpolation that corrects over/undershoots or justify that the 
-  overshoots and undershoots are not problematic like in the GYSELA-4D paper.
-- Only compute phi over a half field period and use reflective boundary conditions.
-- Use VMEC or Boozer coordinates with a cartesian grid around the magnetic axis.
-- High resolution mesh around plasma boundary.
-- Implement a higher order timestepper.
-- Implement adjoint
-- [x] B field only depends on x,y,z and not vpar. So there is redundancy in computing B over the x,y,z,vpar grid that can be removed.
-- [x] build a vtk writer for visualization of `u` over the mesh.
-
-### Tokomak example
-- initialize distribution which depends on r,z,vpar only through energy v^2/2, canonical angular momentum p\_phi, and mu
-- we should be able to find the orbits analytically. equation 68 from matts intro to quasisymmetry shows how we can relate the toroidal flux to vpar.
-- some characteristics may leave the domain, so the distribution should be set to zero on those.
-- need a current density.
-
-### Low energy example
-- particles initialized with low energy, but vpar=v should stay on a flux surface.
-- there should be zero losses out to a gyro radius around the plasma.
-- For LP QA config run particle tracing starting particles on the boundary. All the losses should be here.
-- Do particle traacing and compare losses with pde.
