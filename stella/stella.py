@@ -27,7 +27,8 @@ class STELLA:
     rmin,rmax,n_r,n_phi,nfp,
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
-    dt,tmax,integration_method,mesh_type="uniform"):
+    dt,tmax,integration_method,
+    mesh_type="uniform",include_drifts=True):
 
     # initial distribution u0(r,phi,z,vpar)
     self.u0 = u0
@@ -64,6 +65,9 @@ class STELLA:
     # for backwards integration
     assert integration_method in ['euler','midpoint','rk4']
     self.integration_method = integration_method
+
+    # drift terms
+    self.include_drifts = include_drifts
 
     # for meshing
     assert mesh_type in ['uniform','chebyshev']
@@ -189,8 +193,10 @@ class STELLA:
     mu = vperp_squared/2/B
 
     # compute d/dt (x,y,z); shape (N,3)
-    dot_xyz = ((b.T)*vpar + c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg).T).T
-    #dot_xyz = ((b.T)*vpar).T # no drift terms
+    if self.include_drifts:
+      dot_xyz = ((b.T)*vpar + c*(vperp_squared/2 + vpar**2) * np.cross(Bb,Bg).T).T
+    else:
+      dot_xyz = ((b.T)*vpar).T # no drift terms
 
     # compute d/dt (r,phi,z); shape (N,3)
     dot_rphiz =self.jac_cart_to_cyl(r_phi_z,dot_xyz)
@@ -423,6 +429,8 @@ class STELLA:
     # phi periodic on [phimin,phimax)... (assumes phimin = 0)
     X_feas[:,1] %= self.phimax # phi in [-phimax,phimax]
     X_feas[:,1][X_feas[:,1]<0] += self.phimax # correct negatives
+    print(np.max(X_feas[:,1])%np.pi)
+    print(np.min(X_feas[:,1])%np.pi)
 
     ## cap vpar to not exceed v0,-v0 so that energy is not created.
     #idx_up =  X_feas[:,3] > np.sqrt(self.FUSION_ALPHA_SPEED_SQUARED)
@@ -484,9 +492,9 @@ class STELLA:
     for n_step,tt in enumerate(times):
       #print('t = ',tt)
       if n_step%1 == 0:
+        self.write_spatial_marginal_vtk(tau=n_step)
         if classifier is not None:
           print('t = ',tt,'p = ',self.compute_plasma_probability_mass(classifier))
-          self.write_spatial_marginal_vtk(tau=n_step)
         else:
           print('t = ',tt)
 
