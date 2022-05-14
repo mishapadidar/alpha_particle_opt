@@ -190,14 +190,14 @@ if __name__=="__main__":
   # load it
   bs = load_field()
 
-  ## eval it
-  #nphi=ntheta=128
-  #s = SurfaceRZFourier.from_vmec_input("input.new_QA_scaling", range="field period",ntheta=ntheta,nphi=nphi)
-  #bs.set_points(s.gamma().reshape((-1, 3)))
-  #B_dot_n = np.sum(bs.B().reshape((nphi,ntheta, 3)) * s.unitnormal(), axis=2)
-  #print('')
-  #print(bs.B())
-  #print('max B dot n:', np.max(B_dot_n))
+  # eval it
+  nphi=ntheta=128
+  s = SurfaceRZFourier.from_vmec_input("input.new_QA_scaling", range="field period",ntheta=ntheta,nphi=nphi)
+  bs.set_points(s.gamma().reshape((-1, 3)))
+  B_dot_n = np.sum(bs.B().reshape((nphi,ntheta, 3)) * s.unitnormal(), axis=2)
+  print('')
+  print(bs.B())
+  print('max B dot n:', np.max(B_dot_n))
 
   # get bounds
   rmin,rmax,zmin,zmax = compute_rz_bounds()
