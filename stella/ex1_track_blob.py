@@ -21,7 +21,7 @@ FUSION_ALPHA_SPEED_SQUARED = 2*FUSION_ALPHA_PARTICLE_ENERGY/ALPHA_PARTICLE_MASS
 
 # load the plasma volume, classifier and bfield
 nfp = 2 # number field periods
-ntheta=nphi=128
+ntheta=nphi=64
 print('building classifier and bfield')
 t0 = time.time()
 #plasma_vol = compute_plasma_volume(ntheta=ntheta,nphi=nphi)
@@ -41,12 +41,13 @@ zmin = zmin - 0.3*delta_z
 # set discretization sizes
 n_r = 64
 n_phi = 64
-n_z = 64
-n_vpar = 32
-dt = 1e-9
-tmax = 1e-2
+n_z = 75
+n_vpar = 40
+dt = 5e-8
+tmax = 1e-5
 integration_method='midpoint'
 mesh_type = "chebyshev"
+include_drifts = False
 # set the initial density bounds for vpar
 vpar0_lb = -1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
 vpar0_ub = 1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
@@ -113,7 +114,8 @@ solver = STELLA(u0,bfield,gradAbsB,
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
     dt,tmax,integration_method,
-    mesh_type=mesh_type)
+    mesh_type=mesh_type,
+    include_drifts=include_drifts)
 
 #solver.solve(classifier=classifier)
 solver.solve()
