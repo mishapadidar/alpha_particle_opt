@@ -20,10 +20,10 @@ def write_field(vmec_input = "./input.new_QA_scaling",bs_path="bs.new_QA_scaling
   ncoils = 4
   
   # Major radius for the initial circular coils:
-  R0 = 11.0
+  R0 = 10.0
   
   # Minor radius for the initial circular coils:
-  R1 = 2.5
+  R1 = 5
   
   # Number of Fourier modes describing each Cartesian component of each coil:
   order = 5
@@ -36,8 +36,8 @@ def write_field(vmec_input = "./input.new_QA_scaling",bs_path="bs.new_QA_scaling
   coils = coils_via_symmetries(base_curves, base_currents, s.nfp, True)
   
   curves = [c.curve for c in coils]
-  #curves_to_vtk(curves, "curves_init")
-  #s.to_vtk("surf_init")
+  curves_to_vtk(curves, "curves_init")
+  s.to_vtk("surf_init")
   
   bs = BiotSavart(coils)
   bs.set_points(s.gamma().reshape((-1, 3)))
@@ -46,11 +46,11 @@ def write_field(vmec_input = "./input.new_QA_scaling",bs_path="bs.new_QA_scaling
   print('Initial max B dot n:', np.max(B_dot_n))
   
   # Weight on the curve lengths in the objective function:
-  ALPHA = 1e-7
+  ALPHA = 1e-9
   # Threshhold for the coil-to-coil distance penalty in the objective function:
   MIN_DIST = 0.1
   # Weight on the coil-to-coil distance penalty term in the objective function:
-  BETA = 10
+  BETA = 1
   
   Jf = SquaredFlux(s, bs)
   Jls = [CurveLength(c) for c in base_curves]
@@ -190,20 +190,23 @@ if __name__=="__main__":
   # load it
   bs = load_field()
 
-  # eval it
-  nphi=ntheta=128
-  s = SurfaceRZFourier.from_vmec_input("input.new_QA_scaling", range="field period",ntheta=ntheta,nphi=nphi)
-  bs.set_points(s.gamma().reshape((-1, 3)))
-  B_dot_n = np.sum(bs.B().reshape((nphi,ntheta, 3)) * s.unitnormal(), axis=2)
-  print('')
-  print(bs.B())
-  print('max B dot n:', np.max(B_dot_n))
+  ## eval it
+  #nphi=ntheta=128
+  #s = SurfaceRZFourier.from_vmec_input("input.new_QA_scaling", range="field period",ntheta=ntheta,nphi=nphi)
+  #bs.set_points(s.gamma().reshape((-1, 3)))
+  #B_dot_n = np.sum(bs.B().reshape((nphi,ntheta, 3)) * s.unitnormal(), axis=2)
+  #print('')
+  #print(bs.B())
+  #print('max B dot n:', np.max(B_dot_n))
 
   # get bounds
   rmin,rmax,zmin,zmax = compute_rz_bounds()
   print('')
   print('r and z bounds')
   print(rmin,rmax,zmin,zmax)
+
+  # plot it
+  bs.to_vtk('magnetic_field',nphi=32,rmin=rmin,rmax=rmax,zmin=zmin,zmax=zmax)
 
   # get volume
   vol = compute_plasma_volume()
