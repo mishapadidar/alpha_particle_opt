@@ -13,15 +13,18 @@ Track a blob of probability mass through space.
 The blob is initialized with a uniform distribution in 
 Cartesian space over a small block in r,phi,z,vpar space.
 """
-n_particles = 100
-tmax = 1e-5
+n_particles = 20
+tmax = 1e-4
 dt = 1e-10
 n_skip = 1000
+trace_simsopt = True
 method = 'euler'
 
+# seed
+#np.random.seed(0)
 
 # load the bfield
-ntheta=nphi=128
+ntheta=nphi=32
 vmec_input="../stella/input.new_QA_scaling"
 bs_path="../stella/bs.new_QA_scaling"
 bs = load_field(vmec_input,bs_path,ntheta=ntheta,nphi=nphi)
@@ -44,6 +47,8 @@ ONE_EV = 1.602176634e-19  # J
 ALPHA_PARTICLE_MASS = 2*PROTON_MASS + 2*NEUTRON_MASS
 FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 *ONE_EV # Ekin
 FUSION_ALPHA_SPEED_SQUARED = 2*FUSION_ALPHA_PARTICLE_ENERGY/ALPHA_PARTICLE_MASS
+ELEMENTARY_CHARGE = 1.602176634e-19  # C
+ALPHA_PARTICLE_CHARGE = 2*ELEMENTARY_CHARGE
 # set the bounds
 rmin,rmax,zmin,zmax = compute_rz_bounds(vmec_input,ntheta=ntheta,nphi=nphi)
 delta_r = rmax - rmin 
@@ -92,24 +97,53 @@ X = np.vstack((R,Phi,Z,Vpar)).T
 # vtk writer
 vtk_writer = vtkClass.VTK_XML_Serial_Unstructured()
 
-times = np.arange(0,tmax,dt)
-for n_step,t in enumerate(times):
-  # make a paraview file
-  if n_step % n_skip == 0:
-    vtkfilename = f"./plot_data/timestep_{n_step:09d}.vtu"
-    xyz = GC.cyl_to_cart(X[:,:-1])
-    vtk_writer.snapshot(vtkfilename, xyz[:,0],xyz[:,1],xyz[:,2])
-  # take a step
-  if method == 'euler':
-    g =  GC.GC_rhs(X)
-    Xtp1 = np.copy(X + dt*g)
-  elif method == 'midpoint':
-    g =  GC.GC_rhs(X)
-    Xstar = np.copy(X + dt*g/2)
-    g =  GC.GC_rhs(Xstar)
-    Xtp1 = np.copy(X + dt*g)
-  X = np.copy(Xtp1)
-# make the pvd
-pvd_filename = f"./plot_data/trajectories.pvd"
+if trace_simsopt:
+  """
+  Trace particles with simsopt. Write each particle trajectory to its own vtk file.
+  We use the color atribute to encode time.
+  """
+  from simsopt.field.tracing import trace_particles, LevelsetStoppingCriterion
+  # load the surface classifier
+  classifier = make_surface_classifier(vmec_input=vmec_input, ntheta=ntheta,nphi=nphi)
+  xyz_inits = GC.cyl_to_cart(X[:,:-1])
+  stopping_criteria=[LevelsetStoppingCriterion(classifier.dist)]
+  for ii in range(n_particles):
+    print("tracing particle ",ii)
+    xyz = xyz_inits[ii].reshape((1,-1))
+    vpar = [Vpar[ii]]
+    res_tys, _ = trace_particles(bs, xyz, vpar, tmax=tmax, mass=ALPHA_PARTICLE_MASS,
+                 charge=ALPHA_PARTICLE_CHARGE, Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
+                 tol=1e-09, stopping_criteria=stopping_criteria, mode='gc_vac',
+                  forget_exact_path=False)
+    txyz = res_tys[0]
+    vtkfilename = f"./plot_data/trace_simsopt_particle_{ii:05d}.vtu"
+    vtk_writer.snapshot(vtkfilename, txyz[:,1],txyz[:,2],txyz[:,3],colors=txyz[:,0])
+  # make the pvd
+  pvd_filename = f"./plot_data/trajectories_simsopt.pvd"
+else:
+  """
+  Trace all particle simultaneously. Each vtk file contains a time slice.
+  """
+  times = np.arange(0,tmax,dt)
+  for n_step,t in enumerate(times):
+    print("t = ",t)
+    # make a paraview file
+    if n_step % n_skip == 0:
+      vtkfilename = f"./plot_data/trace_{n_step:09d}.vtu"
+      xyz = GC.cyl_to_cart(X[:,:-1])
+      vtk_writer.snapshot(vtkfilename, xyz[:,0],xyz[:,1],xyz[:,2])
+    # take a step
+    if method == 'euler':
+      g =  GC.GC_rhs(X)
+      Xtp1 = np.copy(X + dt*g)
+    elif method == 'midpoint':
+      g =  GC.GC_rhs(X)
+      Xstar = np.copy(X + dt*g/2)
+      g =  GC.GC_rhs(Xstar)
+      Xtp1 = np.copy(X + dt*g)
+    X = np.copy(Xtp1)
+
+  # make the pvd
+  pvd_filename = f"./plot_data/trajectories.pvd"
 vtk_writer.writePVD(pvd_filename)
   
