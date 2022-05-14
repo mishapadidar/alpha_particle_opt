@@ -429,8 +429,6 @@ class STELLA:
     # phi periodic on [phimin,phimax)... (assumes phimin = 0)
     X_feas[:,1] %= self.phimax # phi in [-phimax,phimax]
     X_feas[:,1][X_feas[:,1]<0] += self.phimax # correct negatives
-    print(np.max(X_feas[:,1])%np.pi)
-    print(np.min(X_feas[:,1])%np.pi)
 
     ## cap vpar to not exceed v0,-v0 so that energy is not created.
     #idx_up =  X_feas[:,3] > np.sqrt(self.FUSION_ALPHA_SPEED_SQUARED)
