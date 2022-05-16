@@ -4,11 +4,8 @@ from bfield import load_field,compute_rz_bounds,compute_plasma_volume,make_surfa
 import time 
 
 """
-Track a blob of probability mass through space.
-
-We initialize a blob of probability mass spatially with
-parallel velocities distributed near v0, so that vperp is nearly
-zero.
+Track a blob of probability mass through the reactor-scaled
+QA-LP bfield.
 """
 
 # load constants
