@@ -3,11 +3,10 @@
 
 
 ### TODO
-- Run Test 2, the driftless axisymmetry test.
-- Write a README for this stella and trace.
-- Update overleaf document with Stella algorithm details.
 - Implement strang splitting... this will allow us to reduce our interpolation to one 3-dimensional and one 1-dimensional while giving us second order time accuracy.
 - Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Remember that periodic directions can be interpolated with spectral accuracy using trig polynomials. For cubic interpolation we can use the eqtools package (https://eqtools.readthedocs.io/en/latest/eqtools.html#eqtools.trispline.Spline) or we can implement the somewhat cheaper cubic interpolation by Ritchie.
+- Update overleaf document with Stella algorithm details.
+- Run Test 2, the axisymmetry test.
 - Implement MPI parallelism
 - Switch to boozer/VMEC coordinates.
 
@@ -66,3 +65,4 @@
 - [x] vectorize midpoint method integrator.
 - [x] set up scipy Nd integrator to compute integral over volume.
 - [x] set up scipy integrator to compute marginal over `x,y,z`.
+- [x] Write a README for this stella and trace.
