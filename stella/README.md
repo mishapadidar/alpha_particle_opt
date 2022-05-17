@@ -9,6 +9,12 @@ generate coils for this configuration as well as
 a biotsavart field. It will also rescale the coil currents to reactor 
 level toroidal flux, and plot the surface and initial coils.
 
+`bfield.py` contains functions to generate a bfield for the scaled LP QA
+configuration. It also contains runctions to generate a surface classifier
+and compute the plasma volume.
+
+`bfield_axisymmetry.py` contains an axisymmetric bfield class. This is used
+in `ex3_track_blob_axisymmetry.py`.
 
 Running the examples should populate `plot_data` with vtk files for paraview.
 To visualize these files run `python3 write_pvd.py` to generate a `.pvd` file.
