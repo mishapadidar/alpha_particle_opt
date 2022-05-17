@@ -29,6 +29,7 @@ if __name__=="__main__":
   import sys
   dirname = sys.argv[1]
   filenames = glob.glob(dirname + "/*.vts")
+  filenames = [ff.split("/")[-1] for ff in filenames]
   writePVD(dirname + "/u_spatial_marginal.pvd",filenames)
   #filenames = glob.glob(dirname + "plot_data/*.vts")
   #writePVD("./u_spatial_marginal.pvd",filenames)
