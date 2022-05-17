@@ -38,7 +38,7 @@ class AxisymmetricField():
 
     R = np.sqrt(xyz[:,0]**2 + xyz[:,1]**2)
     a = (2*xyz[:,2] + self.G)/R
-    ret = np.vstack((-a*xyz[:,1]/R,a*xyz[:,0]/R, 2*(R-R0)/R)).T
+    ret = np.vstack((-a*xyz[:,1]/R,a*xyz[:,0]/R, 2*(R-self.R0)/R)).T
     return  ret
 
   def AbsB(self,xyz):
@@ -82,8 +82,8 @@ class AxisymmetricField():
                 )).T
     # grad(psi) term
     last = np.vstack((
-           2*2*(R-R0)*xyz[:,0]/R/absB,
-           2*2*(R-R0)*xyz[:,1]/R/absB,
+           2*2*(R-self.R0)*xyz[:,0]/R/absB,
+           2*2*(R-self.R0)*xyz[:,1]/R/absB,
            2*2*xyz[:,2]/absB,
            )).T
     # divide by R^2
@@ -95,6 +95,7 @@ class AxisymmetricField():
       """
       Test the gradAbsB computation against finite difference.
       """
+      assert rmin > 0, "axisymmetric field doesnt exist at rmin=0"
       rs = np.linspace(rmin, rmax, nr, endpoint=True)
       phis = np.linspace(0, 2*np.pi, nphi, endpoint=True)
       zs = np.linspace(zmin, zmax, nz, endpoint=True)
@@ -119,6 +120,7 @@ class AxisymmetricField():
 
   def to_vtk(self, filename, nr=10, nphi=10, nz=10, rmin=1.0, rmax=2.0, zmin=-0.5, zmax=0.5):
       """Export the field evaluated on a regular grid for visualisation with e.g. Paraview."""
+      assert rmin > 0, "axisymmetric field doesnt exist at rmin=0"
       from pyevtk.hl import gridToVTK
       rs = np.linspace(rmin, rmax, nr, endpoint=True)
       phis = np.linspace(0, 2*np.pi, nphi, endpoint=True)
