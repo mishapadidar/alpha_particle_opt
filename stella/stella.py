@@ -31,7 +31,8 @@ class STELLA:
     dt,tmax,integration_method,
     mesh_type="uniform",
     include_drifts=True,
-    interp_type="linear"):
+    interp_type="linear",
+    outputdir="./plot_data"):
 
     # initial distribution u0(r,phi,z,vpar)
     self.u0 = u0
@@ -79,6 +80,9 @@ class STELLA:
     # for interpolation
     assert interp_type in ['linear', 'cubic']
     self.interp_type = interp_type
+
+    # for plotting
+    self.outputdir = outputdir
 
     self.PROTON_MASS = 1.67262192369e-27  # kg
     self.NEUTRON_MASS = 1.67492749804e-27  # kg
@@ -299,7 +303,7 @@ class STELLA:
       # reshape like spatial grid
       U_slice = np.copy(np.reshape(U_slice,np.shape(r_grid)))
       # write the vtk
-      path = f"plot_data/u_mesh_time_{tau}_vpar_{ii}"
+      path = self.outputdir + f"/u_mesh_time_{tau}_vpar_{ii}"
       gridToVTK(path, X,Y,Z,pointData= {'u':U_slice})
 
   def write_spatial_marginal_vtk(self,tau=0.0):
@@ -322,7 +326,7 @@ class STELLA:
     # transform density to cartesian; det(jac) = 1/r
     U_marg = U_marg*(1.0/r_grid)
     # write the vtk
-    path = f"plot_data/u_spatial_marginal_time_{tau:08d}"
+    path = self.outputdir + f"/u_spatial_marginal_time_{tau:08d}"
     gridToVTK(path, X,Y,Z,pointData= {'u':U_marg})
 
     

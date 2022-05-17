@@ -27,6 +27,7 @@ R0 = 10.0 # meters
 B0 = 5.0 # Tesla
 bs = ToroidalField(R0,B0)
 
+outputdir = "./plot_data_ex2"
 # set discretization sizes
 n_r = 128
 n_phi = 4
@@ -113,6 +114,7 @@ solver = STELLA(u0,bfield,gradAbsB,
     dt,tmax,integration_method,
     mesh_type=mesh_type,
     include_drifts=include_drifts,
-    interp_type=interp_type)
+    interp_type=interp_type,
+    outputdir=outputdir)
 
 solver.solve()

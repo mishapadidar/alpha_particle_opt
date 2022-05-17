@@ -10,6 +10,7 @@ ALPHA_PARTICLE_MASS = 2*PROTON_MASS + 2*NEUTRON_MASS
 FUSION_ALPHA_PARTICLE_ENERGY = 3.52e6 *ONE_EV # Ekin
 FUSION_ALPHA_SPEED_SQUARED = 2*FUSION_ALPHA_PARTICLE_ENERGY/ALPHA_PARTICLE_MASS
 
+outputdir = "./plot_data_ex0"
 # load the plasma volume, classifier and bfield
 nfp = 2 # number field periods
 ntheta=nphi=128
@@ -84,6 +85,7 @@ solver = STELLA(u0,bfield,gradAbsB,
     rmin,rmax,n_r,n_phi,nfp,
     zmin,zmax,n_z,
     vparmin,vparmax,n_vpar,
-    dt,tmax,integration_method)
+    dt,tmax,integration_method,
+    outputdir=outputdir)
 
 solver.solve(classifier=classifier)
