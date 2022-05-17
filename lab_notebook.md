@@ -1,6 +1,8 @@
 
 ## Lab Notebook
 
+### Status of Project at end of summer 5/17/22
+The stella code seems to work... but is not able to achieve good results on stellarator configurations because the mesh in cylindrical coordinates cannot capture the highly curved stellarator geometry without increasing the mesh density beyond current computational capability. We have seen expected behavior in the axisymmetric examples, such as `ex2_track_blob_toroidal.py`, since in this case we can increase the resolution parameters significantly. Another major problem is that linear interpolation is far too dissapative. The next stage of the project involves switching our coordinate representation to Boozer or VMEC coordinates and implement cubic interpolation (by Ritchie), then parallelize our code and ultimately build a c++ version with the help of Steve Lantz.
 
 ### TODO
 - Implement strang splitting... this will allow us to reduce our interpolation to one 3-dimensional and one 1-dimensional while giving us second order time accuracy.
