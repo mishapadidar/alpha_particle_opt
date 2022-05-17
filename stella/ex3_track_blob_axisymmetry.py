@@ -38,10 +38,10 @@ bs = AxisymmetricField(R0,B0)
 outputdir = "./plot_data_ex3"
 
 # set discretization sizes
-n_r = 32
+n_r = 128
 n_phi = 4
-n_z = 32
-n_vpar = 32
+n_z = 128
+n_vpar = 128
 dt = 1e-8
 tmax = 1e-5
 integration_method='midpoint'
