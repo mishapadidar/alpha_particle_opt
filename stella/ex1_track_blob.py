@@ -38,13 +38,14 @@ zmin = zmin - 0.3*delta_z
 # set discretization sizes
 n_r = 64
 n_phi = 64
-n_z = 75
+n_z = 64
 n_vpar = 40
 dt = 5e-8
 tmax = 1e-5
 integration_method='midpoint'
 mesh_type = "chebyshev"
 include_drifts = False
+interp_type = "cubic"
 # set the initial density bounds for vpar
 vpar0_lb = -1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
 vpar0_ub = 1.0*np.sqrt(FUSION_ALPHA_SPEED_SQUARED)
@@ -112,7 +113,8 @@ solver = STELLA(u0,bfield,gradAbsB,
     vparmin,vparmax,n_vpar,
     dt,tmax,integration_method,
     mesh_type=mesh_type,
-    include_drifts=include_drifts)
+    include_drifts=include_drifts,
+    interp_type=interp_type)
 
 #solver.solve(classifier=classifier)
 solver.solve()

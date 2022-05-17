@@ -37,8 +37,9 @@ tmax = 1e-5
 integration_method='midpoint'
 mesh_type = "chebyshev"
 include_drifts = False
+interp_type = "cubic"
 # set the bounds, these define the plasma
-nfp = 100
+nfp = 128 # large b/c axisymmetry
 R_minor = 2.0
 rmax = R0 + R_minor
 rmin = R0 - R_minor
@@ -111,6 +112,7 @@ solver = STELLA(u0,bfield,gradAbsB,
     vparmin,vparmax,n_vpar,
     dt,tmax,integration_method,
     mesh_type=mesh_type,
-    include_drifts=include_drifts)
+    include_drifts=include_drifts,
+    interp_type=interp_type)
 
 solver.solve()
