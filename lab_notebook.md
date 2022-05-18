@@ -6,7 +6,8 @@ The stella code seems to work... but is not able to achieve good results on stel
 
 ### TODO
 - Update overleaf document with Stella algorithm details.
-- Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. Remember that periodic directions can be interpolated with spectral accuracy using trig polynomials. For cubic interpolation we can use the eqtools package (https://eqtools.readthedocs.io/en/latest/eqtools.html#eqtools.trispline.Spline) or we can implement the somewhat cheaper cubic interpolation by Ritchie.
+- The axisymmetric bfield computation is wrong. We should see the field rotating around the magnetic axis.
+- Implement cubic interpolation that leverages the time splitting to do lower dimension interpolation. For cubic interpolation use the simsopt cubic interpolatror (https://simsopt.readthedocs.io/en/latest/simsoptpp.html#simsoptpp.RegularGridInterpolant3D). Ask Florian about its usage b/c documentation is limited.
 - Switch to boozer/VMEC coordinates.
 - Implement MPI parallelism
 
