@@ -24,9 +24,10 @@ class AxisymmetricField():
     Evaluate the B field.
 
     B simplies to 
-      B = (2*Z + G)*e_phi/R + 2*(R-R0)*e_z/R
+      B = -(z/R)*grad(R) + 2*((R-R0)/R)*e_z + G*grad(phi)
     where 
-      e_phi = (-sin(phi),cos(phi),0) = (-y/R,x/R,0)
+      grad(R) = (x/R,y/R,0)
+      grad(phi) = (-y/R^2, x/R^2,0)
       e_z = (0,0,1)
 
     input
@@ -37,13 +38,23 @@ class AxisymmetricField():
     """ 
 
     R = np.sqrt(xyz[:,0]**2 + xyz[:,1]**2)
-    a = (2*xyz[:,2] + self.G)/R
-    ret = np.vstack((-a*xyz[:,1]/R,a*xyz[:,0]/R, 2*(R-self.R0)/R)).T
+    ret = np.vstack((-xyz[:,0]*xyz[:,2]/R/R - self.G*xyz[:,1]/R/R,
+                     -xyz[:,1]*xyz[:,2]/R/R + self.G*xyz[:,0]/R/R, 
+                     2*(R-self.R0)/R)).T
     return  ret
 
   def AbsB(self,xyz):
     b = self.B(xyz)
-    return np.sqrt(b[:,0]**2 + b[:,1]**2 + b[:,2]**2)
+    ret =  np.sqrt(b[:,0]**2 + b[:,1]**2 + b[:,2]**2)
+
+    #R = np.sqrt(xyz[:,0]**2 + xyz[:,1]**2)
+    #two = np.sqrt(xyz[:,2]**2 + 4*(R-self.R0)**2 + self.G**2)/R
+    #diff = two - ret
+    #print(diff)
+    #print(np.max(np.abs(diff),axis=0))
+    #quit()
+    return ret
+    
 
   def GradAbsB(self,xyz):
     """
@@ -51,19 +62,6 @@ class AxisymmetricField():
 
     |B| satisfies the equality
 
-      |B|^2 = 1/R^2 *[G^2 + 4*Z*G + 4*psi]
-
-    so then grad(|B|) can be expressed as
-      2*|B|*grad(|B|) = (-2/R^3)(grad(R))*[G^2 + 4*Z*G + 4*psi] + (4/R^2)*[G*e_z + grad(psi)]
-                      = (-2/R)(grad(R))|B|^2 + (4/R^2)*[G*e_z + grad(psi)]
-    simplifying gives us
-      grad(|B|) = -1/R*grad(R)|B| + (2/R^2)*[G*e_z + grad(psi)]/|B|
-    where 
-      e_z = (0,0,1), 
-      grad(R) = (x/R,y/R,0) = (cos(phi),sin(phi),0)
-    and 
-      grad(psi) = 2*((R-R0)cos(phi),(R-R0)sin(phi),z)
-                = 2*((R-R0)x/R,(R-R0)y/R,z)
 
     input
     xyz: 2d array of shape (N,3) Cartesian points.
@@ -72,24 +70,20 @@ class AxisymmetricField():
     1d array of shape (N,3) of grad(|B|) values.
     """
     R = np.sqrt(xyz[:,0]**2 + xyz[:,1]**2)
-    psi = (R - self.R0)**2 + xyz[:,2]**2
-    absB = np.sqrt(self.G**2 + 4*xyz[:,2]*self.G + 4*psi)/R
-    # gradR and e_z term
-    first = np.vstack((
-                -xyz[:,0]*absB,
-                -xyz[:,1]*absB,
-                2*self.G/absB
-                )).T
-    # grad(psi) term
-    last = np.vstack((
-           2*2*(R-self.R0)*xyz[:,0]/R/absB,
-           2*2*(R-self.R0)*xyz[:,1]/R/absB,
-           2*2*xyz[:,2]/absB,
-           )).T
+    absB = self.AbsB(xyz)
+    gradR = np.vstack((
+                xyz[:,0]/R,
+                xyz[:,1]/R,
+                np.zeros(len(absB))
+                ))
+    # gradR terms
+    ret = ((-absB/R + 4*(R-self.R0)/R/R/absB)*gradR).T
+    # gradZ term
+    last = xyz[:,2]/R/R/absB
     # divide by R^2
-    ret = (first + last).T/R/R
+    ret[:,2] += last
     
-    return ret.T
+    return ret
   
   def verify(self,nr=10, nphi=10, nz=10, rmin=1.0, rmax=2.0, zmin=-0.5, zmax=0.5):
       """
@@ -141,5 +135,5 @@ if __name__=="__main__":
   R0 = 10.0
   B0 = 1.0
   bs = AxisymmetricField(R0,B0)
-  bs.to_vtk('magnetic_field_axisymmetry')
-  bs.verify(rmin=0.1,rmax=R0,zmin=0.0,zmax=R0)
+  bs.to_vtk('magnetic_field_axisymmetry',rmin=2.0,rmax=2*R0,nphi=50,zmin=-R0,zmax=R0,nr = 50,nz=50)
+  #bs.verify(rmin=0.1,rmax=2*R0,nphi=50,zmin=-R0,zmax=R0,nr = 50,nz=50)
