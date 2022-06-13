@@ -78,7 +78,7 @@ class STELLA:
     self.mesh_type = mesh_type
 
     # for interpolation
-    assert interp_type in ['linear', 'cubic']
+    assert interp_type in ['nearest','linear']
     self.interp_type = interp_type
 
     # for plotting
@@ -349,30 +349,12 @@ class STELLA:
     # backwards integrate the points
     if self.integration_method == "euler":
       G =  self.GC_rhs(X)
-      Xtm1 = np.copy(X)
-      Vtm1 = np.copy(X)
-      # step in spatial
-      Xtm1[:,:-1] = X[:,:-1]- self.dt*G[:,:-1]
-      # step in vpar
-      Vtm1[:,-1] = X[:,-1]- self.dt*G[:,-1]/2
+      Xtm1 = X - self.dt*G
     elif self.integration_method == "midpoint":
       G =  self.GC_rhs(X)
-      Xstar = np.copy(X)
-      Vstar = np.copy(X)
-      # compute midpoints
-      Xstar[:,:-1] = np.copy(X[:,:-1] - self.dt*G[:,:-1]/2)
-      Vstar[:,-1]  = np.copy(X[:,-1] - self.dt*G[:,-1]/4)
-      # take step in spatial
-      # TODO: improve efficiency by only computing the GC equations for spatial.
-      G1 =  self.GC_rhs(Xstar)
-      Xtm1 = np.copy(X)
-      Xtm1[:,:-1] = np.copy(X[:,:-1] - self.dt*G1[:,:-1])
-      # take step in vpar
-      # TODO: improve efficiency by reusing B from first G computation
-      # TODO: improve efficiency by only computing the GC equations for vpar.
-      G2 =  self.GC_rhs(Vstar) 
-      Vtm1 = np.copy(X)
-      Vtm1[:,-1] = np.copy(X[:,-1] - self.dt*G2[:,-1]/2)
+      Xstar = np.copy(X - self.dt*G/2)
+      G =  self.GC_rhs(Xstar)
+      Xtm1 = np.copy(X - self.dt*G)
 
     elif self.integration_method == "rk4":
       print("rk4 not functional")
@@ -388,9 +370,9 @@ class STELLA:
       k4 = np.copy(self.dt*G)
       Xtm1 = np.copy(X -(k1+2*k2+2*k3+k4)/6)
 
-    return Xtm1,Vtm1
+    return Xtm1
 
-  def interpolate_linear(self,X):
+  def interpolate(self,X):
     """
     Interpolate the value of u(r,theta,phi,vpar) from grid points to 
     the set of points X.
@@ -402,53 +384,8 @@ class STELLA:
     U: (N,) array, interpolated values of u(state) for state in X.
     """
     interpolator = RegularGridInterpolator((self.r_lin,self.phi_lin,
-                   self.z_lin,self.vpar_lin), self.U_grid)
+                   self.z_lin,self.vpar_lin), self.U_grid,method=self.interp_type)
     UX = interpolator(X)
-    return np.copy(UX)
-
-  #def interpolate_spatial(self,X_feas,idx_feas):
-  #  """
-  #  Interpolate over the vpar dimension. We assume that the first three
-  #  columns of V, (r,phi,z), are grid values. This allows us to only
-  #  interpolate over the fourth dimension, vpar.
-
-  #  input:
-  #  X: (N,4) array, points at which to interpolate the value of u(x,y,z,vpar)
-
-  #  return: 
-  #  U: (N,) array, interpolated values of u(state) for state in X.
-  #  """
-  #  UX = np.zeros(len(X))
-  #  block_size = self.n_r*self.n_phi*self.n_vpar
-  #  for ii in range(self.n_vpar):
-  #    # integrate over all grid points with the same (r,phi,z) values
-  #    interpolator = eqSpline((self.r_lin,self.phi_lin,
-  #                 self.z_lin), self.U_grid[:,:,:,ii])
-  #    idx = ii*block_size
-  #    UX[idx:idx + block_size] = interpolator(X[idx:idx + block_size,:-1])
-  #  return np.copy(UX)
-
-  def interpolate_vpar(self,V):
-    """
-    Interpolate over the vpar dimension. We assume that the first three
-    columns of V, (r,phi,z), are grid values. This allows us to only
-    interpolate over the fourth dimension, vpar.
-
-    input:
-    X: (N,4) array, points at which to interpolate the value of u(x,y,z,vpar)
-
-    return: 
-    U: (N,) array, interpolated values of u(state) for state in X.
-    """
-    UX = np.zeros(len(V))
-    for ii in range(self.n_r):
-      for jj in range(self.n_phi):
-        for kk in range(self.n_z):
-          # integrate over all grid points with the same (r,phi,z) values
-          # TODO: allow for linear interpolation of vpar here as well.
-          interpolator = interp1d(self.vpar_lin,self.U_grid[ii,jj,kk,:],kind='cubic')
-          idx = (ii*self.n_phi*self.n_z + jj *self.n_z + kk)*self.n_vpar
-          UX[idx:idx + self.n_vpar] = interpolator(V[idx:idx + self.n_vpar,-1])
     return np.copy(UX)
 
   def update_U_grid(self,UX):
@@ -465,7 +402,7 @@ class STELLA:
     self.U_grid = np.copy(np.reshape(UX,np.shape(self.U_grid)))
     return 
 
-  def apply_boundary_conds(self,X,V):
+  def apply_boundary_conds(self,X):
     """
     Apply the boundary conditions. 
     If a departure point is outside of the mesh, then we have to apply
@@ -506,12 +443,12 @@ class STELLA:
 
     # vpar periodic
     vpardiff = self.vparmax - self.vparmin
-    idx_up =  V[:,3] > self.vparmax
-    V[:,3][idx_up] = self.vparmin + (V[:,3][idx_up]-self.vparmax)%vpardiff
-    idx_down =  V[:,3] < self.vparmin
-    V[:,3][idx_down] = self.vparmax - (self.vparmin-V[:,3][idx_down])%vpardiff
+    idx_up =  X_feas[:,3] > self.vparmax
+    X_feas[:,3][idx_up] = self.vparmin + (X_feas[:,3][idx_up]-self.vparmax)%vpardiff
+    idx_down =  X_feas[:,3] < self.vparmin
+    X_feas[:,3][idx_down] = self.vparmax - (self.vparmin-X_feas[:,3][idx_down])%vpardiff
 
-    return np.copy(X_feas),idx_feas,np.copy(V)
+    return np.copy(X_feas),idx_feas
     
 
   def solve(self,classifier=None):
@@ -526,7 +463,7 @@ class STELLA:
 
     # only backwards integrate once b/c time independent
     t0 = time.time()
-    X,V = self.backstep()
+    X = self.backstep()
     print('backstep time',time.time()-t0)
 
     # allocate space for density values
@@ -534,8 +471,7 @@ class STELLA:
 
     # collect departure points within the meshed volume
     t0 = time.time()
-    X_feas,idx_feas,V = self.apply_boundary_conds(X,V)
-    idx_infeas = (idx_feas == False)
+    X_feas,idx_feas = self.apply_boundary_conds(X)
     print('bndry cond time',time.time()-t0)
 
     times = np.arange(self.tmin,self.tmax,self.dt)
@@ -550,25 +486,9 @@ class STELLA:
       # intepolate the values of the departure points
       # this step assumes the dirichlet boundary conditions
       # i.e. that UX[not idx_feas] == 0
-      #UX = self.interpolate(V)
+      UX[idx_feas] = self.interpolate(X_feas)
 
-      # take half step in vpar
-      if self.interp_type == "linear":
-        UX = self.interpolate_linear(V)
-      elif self.interp_type == "cubic":
-        UX = self.interpolate_vpar(V)
-      self.update_U_grid(UX)
-
-      # take full step in spatial
-      UX[idx_feas] = self.interpolate_linear(X_feas)
-      UX[idx_infeas] = 0.0 # departure points outside of the mesh
-      self.update_U_grid(UX)
-
-      # take second half step in vpar
-      if self.interp_type == "linear":
-        UX = self.interpolate_linear(V)
-      elif self.interp_type == "cubic":
-        UX = self.interpolate_vpar(V)
+      # forward step: set U(grid,t+1) from UX
       self.update_U_grid(UX)
 
     return self.U_grid
