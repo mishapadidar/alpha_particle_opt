@@ -124,9 +124,9 @@ def compute_plasma_volume(vmec_input = "./input.new_QA_scaling",nphi=64,ntheta=6
   s = SurfaceRZFourier.from_vmec_input(vmec_input, range="field period", nphi=nphi, ntheta=ntheta)
   return s.volume()
 
-def make_surface_classifier(vmec_input = "./input.new_QA_scaling",nphi=64,ntheta=64):
+def make_surface_classifier(vmec_input = "./input.new_QA_scaling",rng="full torus",nphi=64,ntheta=64):
   from simsopt.field.tracing import SurfaceClassifier
-  s = SurfaceRZFourier.from_vmec_input(vmec_input, range="field period", nphi=nphi, ntheta=ntheta)
+  s = SurfaceRZFourier.from_vmec_input(vmec_input, range=rng, nphi=nphi, ntheta=ntheta)
   sc_particle = SurfaceClassifier(s, h=0.1, p=2)
   return sc_particle
 
