@@ -23,10 +23,10 @@ simsopt each frame of the pvd will be an individual particles
 trajectory. In either case, make a glyph of the pvd with spheres
 to visualize.
 """
-n_particles = 10000
+n_particles = 1000
 tmax = 1e-6
 dt = 1e-9
-n_skip = 10
+n_skip = np.inf
 trace_simsopt = True
 method = 'midpoint' # euler or midpoint
 include_drifts = True
@@ -105,22 +105,35 @@ if trace_simsopt:
   stopping_criteria=[LevelsetStoppingCriterion(classifier.dist)]
   loss_count = 0
   for ii in range(n_particles):
-    #print("tracing particle ",ii)
+    print("tracing particle ",ii)
     xyz = xyz_inits[ii].reshape((1,-1))
     vpar = [X[ii,-1]]
+
+    # method 1
     res_tys, res_phi_hits= trace_particles(bs, xyz, vpar, tmax=tmax, mass=ALPHA_PARTICLE_MASS,
                  charge=ALPHA_PARTICLE_CHARGE, Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
-                 tol=1e-09, stopping_criteria=stopping_criteria, mode='gc_vac',
+                 tol=1e-10, stopping_criteria=stopping_criteria, mode='gc_vac',
                   forget_exact_path=False)
     txyz = res_tys[0] # trajectory [t,x,y,z,vpar]
     final_xyz = np.atleast_2d(txyz[-1,1:4])
 
     # loss fraction
     if len(res_phi_hits[0])>0:
+      print(res_phi_hits)
       loss_count += 1
 
+    ## method 2: just check the endpoints
+    #res_tys, res_phi_hits= trace_particles(bs, xyz, vpar, tmax=tmax, mass=ALPHA_PARTICLE_MASS,
+    #             charge=ALPHA_PARTICLE_CHARGE, Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
+    #             tol=1e-09, mode='gc_vac',
+    #              forget_exact_path=False)
+    #txyz = res_tys[0] # trajectory [t,x,y,z,vpar]
+    #final_xyz = np.atleast_2d(txyz[-1,1:4])
+    #if classifier.evaluate(final_xyz)[0].item() <0:
+    #  loss_count += 1
+
     vtkfilename = f"./plot_data/trace_simsopt_particle_{ii:05d}.vtu"
-    vtk_writer.snapshot(vtkfilename, txyz[:,1],txyz[:,2],txyz[:,3],colors=txyz[:,0])
+    #vtk_writer.snapshot(vtkfilename, txyz[:,1],txyz[:,2],txyz[:,3],colors=txyz[:,0])
 
   print("loss fraction:", loss_count/n_particles)
   # make the pvd
@@ -130,14 +143,21 @@ else:
   Trace all particle simultaneously. Each vtk file contains a time slice.
   """
 
+  # method 1: 
+  # time spent in plasma
+  ejected = np.zeros(len(X),dtype=bool)
+
+  # trace the particles
   times = np.arange(0,tmax,dt)
   for n_step,t in enumerate(times):
+    print("t = ",t)
     # make a paraview file
     if n_step % n_skip == 0:
       #print("t = ",t)
       vtkfilename = f"./plot_data/trace_{method}_{n_step:09d}.vtu"
-      xyz = GC.cyl_to_cart(X[:,:-1])
+      xyz = X[:,:-1]
       vtk_writer.snapshot(vtkfilename, xyz[:,0],xyz[:,1],xyz[:,2])
+
     # take a step
     if method == 'euler':
       g =  GC.GC_rhs(X)
@@ -147,15 +167,57 @@ else:
       Xstar = np.copy(X + dt*g/2)
       g =  GC.GC_rhs(Xstar)
       Xtp1 = np.copy(X + dt*g)
+
     X = np.copy(Xtp1)
 
+    # check the level set stopping criteria
+    xyz = GC.cyl_to_cart(X[:,:-1])
+    #in_plasma = classifier.evaluate(xyz).flatten()
+    in_plasma= np.array([classifier.evaluate(x.reshape((1,-1)))[0].item() for x in xyz])
+    just_ejected = in_plasma < 0
+
+    # update ejected particles
+    ejected[~ejected] = np.copy(just_ejected)
+
+    # update the time in plasma for particles that have left
+    #tau_in_plasma[ejected] = np.minimum(tau_in_plasma[ejected],t)
+
+    # only trace particles still in the plasma
+    X = X[~just_ejected]
+ 
+    if len(X) == 0:
+      break
+
+  print('loss fraction:',1-len(X)/n_particles) 
+
+
+  # method 2: only check endpoints of trajectories
+  #times = np.arange(0,tmax,dt)
+  #for n_step,t in enumerate(times):
+  #  # make a paraview file
+  #  if n_step % n_skip == 0:
+  #    #print("t = ",t)
+  #    vtkfilename = f"./plot_data/trace_{method}_{n_step:09d}.vtu"
+  #    xyz = GC.cyl_to_cart(X[:,:-1])
+  #    vtk_writer.snapshot(vtkfilename, xyz[:,0],xyz[:,1],xyz[:,2])
+  #  # take a step
+  #  if method == 'euler':
+  #    g =  GC.GC_rhs(X)
+  #    Xtp1 = np.copy(X + dt*g)
+  #  elif method == 'midpoint':
+  #    g =  GC.GC_rhs(X)
+  #    Xstar = np.copy(X + dt*g/2)
+  #    g =  GC.GC_rhs(Xstar)
+  #    Xtp1 = np.copy(X + dt*g)
+  #  X = np.copy(Xtp1)
+
   # make the pvd
-  pvd_filename = f"./plot_data/trajectories_{method}.pvd"
+  #pvd_filename = f"./plot_data/trajectories_{method}.pvd"
 
-  # check the particle losses
-  xyz = GC.cyl_to_cart(X[:,:-1])
-  c= np.array([classifier.evaluate(x.reshape((1,-1)))[0].item() for x in xyz])
-  print("loss fraction: ", np.mean(c < 0.0))
+  ## check the particle losses
+  #xyz = GC.cyl_to_cart(X[:,:-1])
+  #c= np.array([classifier.evaluate(x.reshape((1,-1)))[0].item() for x in xyz])
+  #print("loss fraction: ", np.mean(c < 0.0))
 
-vtk_writer.writePVD(pvd_filename)
+#vtk_writer.writePVD(pvd_filename)
   
