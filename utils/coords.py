@@ -33,65 +33,78 @@ def tor_to_cart(r,theta,phi,R0=1.):
   z = r*np.sin(theta)
   return x,y,z
 
-def plot_tor_to_cart():
-  """
-  Plot the torus that results from meshing r,theta,phi and 
-  mapping back to cartesian space.
-  """
-  from mpl_toolkits.mplot3d import axes3d
-  import matplotlib.pyplot as plt
+def cart_to_cyl(xyz):
+  """ cartesian to cylindrical coordinates
+  input:
+  xyz: (N,3) array of points (x,y,z)
 
-  # choose a minor radius
-  r = 0.5
+  return
+  rphiz: (N,3) array of point (r,phi,z)
+  """
+  x = xyz[:,0]
+  y = xyz[:,1]
+  z = xyz[:,2]
+  return np.vstack((np.sqrt(x**2+y**2),np.mod(np.arctan2(y,x),2*np.pi),z)).T
 
-  # choose a major radius
-  R0 = 1.0
-  dtheta = 0.2
-  Theta,Phi = np.meshgrid(np.arange(0.0, 2*np.pi+dtheta,dtheta),
-                        np.arange(0.0, 2*np.pi+dtheta,dtheta),indexing='ij')
-  
-  X = np.zeros_like(Theta)
-  Y = np.zeros_like(Theta)
-  Z = np.zeros_like(Theta)
-  for ii,theta in enumerate(Theta):
-    for jj,phi in enumerate(Phi):
-      theta,phi = Theta[ii,jj],Phi[ii,jj]
-      x,y,z = tor_to_cart(r,theta,phi,R0)
-      X[ii,jj] = x
-      Y[ii,jj] = y
-      Z[ii,jj] = z
-  
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
-  ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
-                cmap='viridis', edgecolor='none')
-  plt.show()
+def cyl_to_cart(r_phi_z):
+  """ cylindrical to cartesian coordinates 
+  input:
+  r_phi_z: (N,3) array of points (r,phi,z)
+
+  return
+  xyz: (N,3) array of point (x,y,z)
+  """
+  r = r_phi_z[:,0]
+  phi = r_phi_z[:,1]
+  z = r_phi_z[:,2]
+  return np.vstack((r*np.cos(phi),r*np.sin(phi),z)).T
+
+def jac_cart_to_cyl(r_phi_z,D):
+  """
+  Compute the jacobian vector product of the jacobian of the coordinate 
+  transformation from cartesian to cylindrical with a set of vectors.
+  The Jacobian 
+    J = [[cos(phi), sin(phi),0]
+         [-sin(phi),cos(phi),0]/r
+         [0,0,1]]
+  is evaluated at the points in r_phi_z, then the product is computed against
+  the vectors in D.
+ 
+  input:
+  r_phi_z: (N,3) array of points in cylindrical coordinates, (r,phi,z)
+  D: (N,3) array of vectors in xyz coordinates to compute the directional derivatives.
   return 
-
-
-def verify_coordinate_change():
+  JD: (N,3) array of jacobian vector products, J @ D
   """
-  Map from toroidal to cartesian then back to toroidal to check
-  if our coordinate change works
+  #J = np.array([[np.cos(phi),np.sin(phi),0.],[-np.sin(phi)/r,np.cos(phi)/r,0.0],[0,0,1.0]])
+  r = r_phi_z[:,0]
+  phi = r_phi_z[:,1]
+  JD = np.vstack((np.cos(phi)*D[:,0] + np.sin(phi)*D[:,1],
+                 (-np.sin(phi)*D[:,0] + np.cos(phi)*D[:,1])/r,
+                 D[:,2])).T
+  return JD
+
+def jac_cart_to_cyl(r_phi_z,D):
   """
-  from mpl_toolkits.mplot3d import axes3d
-  import matplotlib.pyplot as plt
-
-  # choose a major radius
-  R0 = 1.0
-  dtheta = 0.17
-  # Inverse is undefined for r=0
-  R,Theta,Phi = np.meshgrid(np.arange(0.1,R0,0.1),np.arange(0.0, 2*np.pi+dtheta,dtheta),
-                        np.arange(0.0, 2*np.pi+dtheta,dtheta),indexing='ij')
-  
-  for ii,r in enumerate(R):
-    for jj,theta in enumerate(Theta):
-      for kk,phi in enumerate(Phi):
-        r,theta,phi = R[ii,jj,kk],Theta[ii,jj,kk],Phi[ii,jj,kk]
-        x,y,z = tor_to_cart(r,theta,phi,R0)
-        rh,th,ph = cart_to_tor(x,y,z,R0)
-        assert np.isclose(rh,r,atol=1e-10)
-        assert np.isclose(th,theta,atol=1e-10)
-        assert np.isclose(ph,phi,atol=1e-10)
-verify_coordinate_change() 
-
+  Compute the jacobian vector product of the jacobian of the coordinate 
+  transformation from cartesian to cylindrical with a set of vectors.
+  The Jacobian 
+    J = [[cos(phi), sin(phi),0]
+         [-sin(phi),cos(phi),0]/r
+         [0,0,1]]
+  is evaluated at the points in r_phi_z, then the product is computed against
+  the vectors in D.
+ 
+  input:
+  r_phi_z: (N,3) array of points in cylindrical coordinates, (r,phi,z)
+  D: (N,3) array of vectors in xyz coordinates to compute the directional derivatives.
+  return 
+  JD: (N,3) array of jacobian vector products, J @ D
+  """
+  #J = np.array([[np.cos(phi),np.sin(phi),0.],[-np.sin(phi)/r,np.cos(phi)/r,0.0],[0,0,1.0]])
+  r = r_phi_z[:,0]
+  phi = r_phi_z[:,1]
+  JD = np.vstack((np.cos(phi)*D[:,0] + np.sin(phi)*D[:,1],
+                 (-np.sin(phi)*D[:,0] + np.cos(phi)*D[:,1])/r,
+                 D[:,2])).T
+  return JD
