@@ -14,6 +14,7 @@ import vtkClass
 import matplotlib.pyplot as plt
 
 # TODO: ask David about setting the interval spacing.
+# TODO: ask David about floating point errors in the roots computation.
 
 
 # tracing parameters
@@ -168,6 +169,9 @@ def compute_vpar_roots(coeff1,coeff2,coeff3):
   # stack the roots
   roots = np.vstack((root1,root2)).T
 
+  # sort the roots, smallest to largest
+  roots = np.sort(roots,axis=1)
+
   # check n_roots
   n_roots_calc = 2 - np.isnan(roots).sum(axis=1) 
   assert np.sum(np.abs(n_roots - n_roots_calc)) == 0.0, "n roots computed incorrectly"
@@ -235,10 +239,10 @@ def compute_vpar_bounds(roots,n_roots,coeff1,coeff2,coeff3):
           intervals = []
         elif left_root <= vpar_lb and right_root >=vpar_lb:
           # single interval [vpar_lb,right_root]
-          invervals = [[vpar_lb,right_root]]
+          intervals = [[vpar_lb,right_root]]
         elif left_root <= vpar_ub and right_root >=vpar_ub:
           # single interval [left_root,vpar_ub]
-          invervals = [[left_root,vpar_ub]]
+          intervals = [[left_root,vpar_ub]]
         elif left_root >= vpar_lb and right_root <= vpar_ub:
           # single interval [left_root,right_root]
           intervals = [[left_root,right_root]]
@@ -316,12 +320,16 @@ loss_fraction = 0.0
 
 for ii,xx in enumerate(xyz):
   print("")
-  print(f"{ii})")
+  #print(f"{ii})")
 
   # get the vpar integration bounds
   bounds = vpar_bounds[ii]
   n_bounds = len(bounds)
 
+  #np.set_printoptions(precision=16)
+  #print(xx)
+  #print(normals[ii])
+  #np.set_printoptions(precision=8)
   print('coeff1',coeff1[ii])
   print('coeff2',coeff2[ii])
   print('coeff3',coeff3[ii])
@@ -333,20 +341,11 @@ for ii,xx in enumerate(xyz):
     continue
 
   for jj,interval in enumerate(bounds):
-    print(f"point {ii} - interval {jj})")
+    print(f"point {ii}, interval {jj})")
   
     ### TODO: some points return nan for roots. 
     ### They should have a lot of flux to contribute b/c the 
     ### entire interval is being integrated over.
-    #np.set_printoptions(precision=16)
-    #print(xx)
-    #print(normals[ii])
-    #np.set_printoptions(precision=8)
-    #print('coeff1',coeff1[ii])
-    #print('coeff2',coeff2[ii])
-    #print('coeff3',coeff3[ii])
-    #print('n_roots',n_roots[ii])
-    #print('roots',roots[ii])
     #quadratic = lambda xx: coeff1[ii]*(xx**2) + coeff2[ii]*xx + coeff3[ii]
     #print('quadratic(left root)',quadratic(roots[ii][0]))
     #print('quadratic(right root)',quadratic(roots[ii][1]))
@@ -371,6 +370,17 @@ for ii,xx in enumerate(xyz):
       print('WARNING: Negative v_gc * normal')
       print(v_gcn[v_gcn<0])
       print('number of roots',n_roots[ii]) 
+      print('roots',roots[ii])
+      print('vpar interval',interval)
+      print('vparlb, ub',vpar_lb,vpar_ub)
+      print('coeff 1',coeff1[ii])
+      print('coeff 2',coeff2[ii])
+      print('coeff 3',coeff3[ii])
+      quadratic = lambda x: coeff1[ii]*x**2 + coeff2[ii]*x + coeff3[ii]
+      print(quadratic(roots[ii][0]))
+      print(quadratic(roots[ii][1]))
+      print(quadratic(vpar_lb))
+      print(quadratic(vpar_ub))
       quit()
 
     # TODO: should my area element be for trapezoidal integration?
