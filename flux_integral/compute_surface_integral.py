@@ -1,5 +1,6 @@
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
+from simsopt.geo.surface import signed_distance_from_surface
 from guiding_center_eqns_cartesian import *
 from trace_particles import *
 import sys
@@ -7,57 +8,53 @@ sys.path.append("../stella")
 from bfield import load_field,compute_rz_bounds,compute_plasma_volume,make_surface_classifier
 sys.path.append("../utils")
 from constants import *
+from grids import *
+from concentricSurfaceClassifier import concentricSurfaceClassifier
 import vtkClass
 import matplotlib.pyplot as plt
 
-# TODO: work out the math for this integral before continuing
-# on the numerics. Are we sure that the integral reduces to using
-# the time inside the plasma.
-# We can also compute the integral the other way by integrating 
-# the length of characteristics.
+# TODO: ask David about setting the interval spacing.
+
 
 # tracing parameters
 tmax = 1e-6
-dt = 1e-9
+dt = 1e-8
 n_skip = np.inf
 method = 'midpoint' # euler or midpoint
 include_drifts = True
+eps_classifier = 1e-3
 
 # surface discretization
-ntheta=nphi=64
-
-# TODO: Warning: spacing is non-uniform since interval
-# TODO: size varies. Ask David about this.
+ntheta=nphi=32
 # vpar discretization
-n_vpar = 128
+n_vpar = 32
 assert n_vpar % 2 == 0, "must use even number of points"
 
 
 # load the plasma 
 vmec_input="../stella/input.new_QA_scaling"
-surf = SurfaceRZFourier.from_vmec_input(vmec_input, range="half period", nphi=nphi, ntheta=ntheta)
+surf = SurfaceRZFourier.from_vmec_input(vmec_input, range="field period", nphi=nphi, ntheta=ntheta)
 
 # multiplier for number of field periods
 nfp = surf.nfp
-period_mult = 2 # because we are using a half period
+period_mult = 1 # 2 if we are using a half period
 # multiply integrals by this to get total over entire stellarator
 symmetry_mult = nfp*period_mult 
 
-# load the plasma volume, classifier
+# load the plasma volume
 plasma_vol = compute_plasma_volume(vmec_input,ntheta=ntheta,nphi=nphi)
 
-# TODO: use a classifier for a slightly enlarged surface
-# TODO: this will improve the accuracy in the ODE tracing.
-classifier = make_surface_classifier(vmec_input=vmec_input, rng="full torus",ntheta=ntheta,nphi=nphi)
+# build the surface classifier
+classifier = concentricSurfaceClassifier(vmec_input, nphi=512, ntheta=512,eps=eps_classifier)
 
 # compute the initial state volume
 vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
 vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)
 vpar_vol = vpar_ub - vpar_lb
 prob_const = 1/plasma_vol/vpar_vol
-print(plasma_vol)
-print(vpar_vol)
-print(prob_const)
+print('plasma vol:',plasma_vol)
+print('vpar vol:',vpar_vol)
+print('prob const:',prob_const)
 
 # load the bfield
 bs_path="../stella/bs.new_QA_scaling"
@@ -94,185 +91,308 @@ normals = (normals.T/area_elements).T # unit normals
 
 # sanity check: compute the area from the area_elements
 print("")
-print('surface area check')
-print(np.sum(area_elements*dtheta*dphi)*symmetry_mult,surf.area())
+print('our surface area',np.sum(area_elements*dtheta*dphi)*symmetry_mult)
+print('simsopt surface area:',surf.area())
+print("")
 
+def compute_quadratic_coeffs(xyz,normals):
+  """
+  Compute the coefficients of the outward flux quadratic. 
 
-def compute_vpar_roots(xyz,normals,flag_plot=False):
+  xyz: array point points, shape (N,3)
+  normals: array of outward facing normals, shape (N,3)
+  return: three (N,) arrays of coefficients: coeff1,coeff2,coeff3.
+  """
   # compute B on grid
   Bb = bfield(xyz) # shape (N,3)
   # compute Bg on grid
   Bg = gradAbsB(xyz) # shape (N,3)
   # field values
   B = np.linalg.norm(Bb,axis=1) # shape (N,)
-  b = (Bb.T/B).T # shape (N,3)
-  c = ALPHA_PARTICLE_MASS /ALPHA_PARTICLE_CHARGE/B/B/B # shape (N,)
+  b = np.copy((Bb.T/B).T) # shape (N,3)
+  c = np.copy(ALPHA_PARTICLE_MASS /ALPHA_PARTICLE_CHARGE/B/B/B) # shape (N,)
   # compute first coeff in quadratic
-  coeff1 = c*np.sum(np.cross(Bb,Bg) * normals,axis=1)/ 2
+  coeff1 = np.copy(c*np.sum(np.cross(Bb,Bg) * normals,axis=1)/ 2)
   # b.n
-  coeff2 = np.sum(b*normals,axis=1)
+  coeff2 = np.copy(np.sum(b*normals,axis=1))
   # coeff1* v**2
-  coeff3 = coeff1*FUSION_ALPHA_SPEED_SQUARED
-  # get the discriminant
-  discriminant = coeff2**2 - 4*coeff1*coeff3
+  coeff3 = np.copy(coeff1*FUSION_ALPHA_SPEED_SQUARED)
 
-  # get the sign of the convexity coefficient
-  sgn_a = np.sign(coeff1)
+  # zero out small coefficients
+  coeff1_tol = 1e-14
+  coeff2_tol = 1e-14
+  idx_no_coeff1 = np.abs(coeff1) <= coeff1_tol
+  idx_no_coeff2 = np.abs(coeff2) <= coeff2_tol
+  coeff1[idx_no_coeff1] = 0.0
+  coeff2[idx_no_coeff2] = 0.0
+
+  return coeff1,coeff2,coeff3
+
+def compute_vpar_roots(coeff1,coeff2,coeff3):
+  """
+  Compute the roots of the outward flux quadratic.
+  
+  coeff1,coeff2,coeff3: (N,) arrays of quadratic coefficients
+
+  return: 
+    roots: (N,2) array of possible roots. 
+          np.nan will be used is less than 2 roots exist
+    n_roots: (N,) array containing the number of roots.
+  """
+  # TODO: stabilize root computation.
+
+  # get the discriminant
+  discriminant = np.copy(coeff2**2 - 4*coeff1*coeff3)
+
   # get the number of roots
   n_roots = np.sign(discriminant) + 1
-  
-  # get the roots
+
+  # get the roots of the quadratic polynomials
   root1 = (-coeff2 - np.sqrt(discriminant))/2/coeff1
   root2 = (-coeff2 + np.sqrt(discriminant))/2/coeff1
+
+  # correct the roots of the linear polynomials
+  idx_no_coeff1 = (coeff1 == 0.0)
+  idx_no_coeff2 = (coeff2 == 0.0)
+  idx_linear = idx_no_coeff1 & (~idx_no_coeff2) # linear with non-zero slope
+  idx_constant = idx_no_coeff1 & idx_no_coeff2
+  # 1 root
+  n_roots[idx_linear] = 1
+  root1[idx_linear] = -coeff3[idx_linear]/coeff2[idx_linear]
+  root2[idx_linear] = np.nan
+  # 0 roots
+  n_roots[idx_constant] = 0
+  root1[idx_constant] = np.nan
+  root2[idx_constant] = np.nan
+
+  # stack the roots
   roots = np.vstack((root1,root2)).T
-  
-  # dont keep points that are concave down and have 1 or less intercepts
-  idx_drop = (coeff1 < 0) & (n_roots <= 1)
 
-  # drop some points
-  xyz = xyz[(~idx_drop)]
-  normals = normals[(~idx_drop)]
-  roots = roots[(~idx_drop)]
-  sgn_a = sgn_a[(~idx_drop)]
-  n_roots = n_roots[(~idx_drop)]
-
-  if flag_plot:
-    #ls = np.logspace(0,np.log(vpar_ub),100)
-    #xxx = np.hstack((-ls,ls))
-    quadratic = lambda xx: coeff1*xx**2 + coeff2*xx + coeff3
-    #plt.plot(xxx,quadratic(xxx))
-    #plt.yscale('symlog')
-    #plt.show()
-    print(roots)
-    print(vpar_lb,vpar_ub)
-    print(quadratic(np.linspace(root2[0],vpar_ub,100)))
-    print(quadratic(np.linspace(vpar_lb,root1[0],100)))
+  # check n_roots
+  n_roots_calc = 2 - np.isnan(roots).sum(axis=1) 
+  assert np.sum(np.abs(n_roots - n_roots_calc)) == 0.0, "n roots computed incorrectly"
   
-  return xyz,normals,roots,sgn_a,n_roots
+  return roots,n_roots
+
+def compute_vpar_bounds(roots,n_roots,coeff1,coeff2,coeff3):
+  """
+  For each spatial points xyz compute the integration bounds 
+  on vpar. We return a list containing lists of bounds for each point. 
+
+  return: 
+  List containing list of intervals for each point. An interval
+  contains a start point, end point.
+          [
+           [[a1,b1],[a2,b2]], # point 1; 2 intervals
+           [[a1,b1]], # point 2; 1 interval
+           [], # point 3; no intervals
+           ...
+           [[a1,b1],[a2,b2]], # point n; 2 intervals
+          ]
+  """
+  # storage
+  vpar_bounds = []
+
+  sgn_coeff1 = np.sign(coeff1)
+
+  for ii in range(len(roots)):
+
+    if n_roots[ii] == 2:
+      left_root = roots[ii][0]
+      right_root = roots[ii][1]
+
+      # convex quadratic 
+      if sgn_coeff1[ii]>0:
+        if left_root <= vpar_lb and right_root >= vpar_ub:
+          # no points to integrate
+          intervals = []
+        elif left_root <= vpar_lb and right_root <=vpar_lb:
+          # no points to integrate
+          intervals = []
+        elif left_root >= vpar_ub and right_root >=vpar_ub:
+          # no points to integrate
+          intervals = []
+        elif left_root <= vpar_lb and right_root >=vpar_lb:
+          # single interval [right_root,vpar_ub]
+          intervals = [[right_root,vpar_ub]]
+        elif left_root <= vpar_ub and right_root >=vpar_ub:
+          # single interval [vpar_lb,left_root]
+          intervals = [[vpar_lb,left_root]]
+        else:
+          # two intervals 
+          intervals = [[vpar_lb,left_root],[right_root,vpar_ub]]
+
+      # concave quadratic
+      else:
+        if left_root <= vpar_lb and right_root >= vpar_ub:
+          # single interval [vpar_lb,vpar_ub]
+          intervals = [[vpar_lb,vpar_ub]]
+        elif left_root <= vpar_lb and right_root <=vpar_lb:
+          # no points to integrate
+          intervals = []
+        elif left_root >= vpar_ub and right_root >=vpar_ub:
+          # no points to integrate
+          intervals = []
+        elif left_root <= vpar_lb and right_root >=vpar_lb:
+          # single interval [vpar_lb,right_root]
+          invervals = [[vpar_lb,right_root]]
+        elif left_root <= vpar_ub and right_root >=vpar_ub:
+          # single interval [left_root,vpar_ub]
+          invervals = [[left_root,vpar_ub]]
+        elif left_root >= vpar_lb and right_root <= vpar_ub:
+          # single interval [left_root,right_root]
+          intervals = [[left_root,right_root]]
+        else:
+          print("")
+          print("WARNING: we hit an unknown case")
+          print("What case is this catching?")
+          print(left_root,right_root)
+          print(vpar_lb,vpar_ub)
+          quit()
+
+    elif n_roots[ii] == 1:
+      one_root = roots[ii][0]
+
+      # convex quadratic with 1 root
+      if sgn_coeff1[ii]>0:
+        # single interval [vpar_lb,vpar_ub]
+        intervals = [[vpar_lb,vpar_ub]]
+      
+      # linear function with nonzero slope
+      elif coeff1[ii] == 0.0:
+        slope = coeff2[ii]
+
+        if one_root <= vpar_ub and slope>0:
+          # one interval
+          intervals = [[max(one_root,vpar_lb),vpar_ub]]
+        elif one_root >= vpar_lb and slope<0:
+          # one interval
+          intervals = [[vpar_lb,min(one_root,vpar_ub)]]
+      
+      else: 
+        # no interval
+        intervals = []
+
+    # no roots
+    else:
+      # convex quadratic 
+      if sgn_coeff1[ii]>0:
+        # single interval [vpar_lb,vpar_ub]
+        intervals = [[vpar_lb,vpar_ub]]
+
+      # concave quadratic
+      elif sgn_coeff1[ii]< 0:
+        # no interval
+        intervals = []
+
+      # constant quadratic
+      else: 
+        if np.sign(coeff3[ii])>0:
+          # single interval [vpar_lb,vpar_ub]
+          intervals = [[vpar_lb,vpar_ub]]
+        else:
+          # no interval
+          intervals = []
+     
+    # save the intervals
+    vpar_bounds.append(intervals)
+
+  return vpar_bounds
+
+# get the quadratic coeffs
+coeff1,coeff2,coeff3 = compute_quadratic_coeffs(xyz,normals)
+
+print('num linear funcs',np.sum(coeff1 == 0))
+print('num constant funcs',np.sum((coeff1 == 0) & (coeff2 == 0.0)))
 
 # compute the roots of the vpar quadratic
-xyz,normals,roots,sgn_a,n_roots = compute_vpar_roots(xyz,normals)
+roots,n_roots = compute_vpar_roots(coeff1,coeff2,coeff3)
 
-
-
-"""
-Loop through the boundary points xyz.
-Discretize the vpar intervals.
-Backtrace the trajectories.
-"""
+# get the vpar integration bounds
+vpar_bounds = compute_vpar_bounds(roots,n_roots,coeff1,coeff2,coeff3)
 
 # accumulator for the loss fraction
 loss_fraction = 0.0
 
 for ii,xx in enumerate(xyz):
+  print("")
+  print(f"{ii})")
 
-  # TODO: use a chebyshev grid or other grid that does not
-  # include the endpoint, b/c the endpoints are roots of the 
-  # quadratic which dot not have positive flux.
+  # get the vpar integration bounds
+  bounds = vpar_bounds[ii]
+  n_bounds = len(bounds)
 
-  # determine the vpar interval
-  if sgn_a[ii]>0:
-    # convex quadratic 
-    if n_roots[ii] == 2:
-      # intervals are [vpar_lb,roots[ii][0]] and [roots[ii][1],vpar_ub]
+  print('coeff1',coeff1[ii])
+  print('coeff2',coeff2[ii])
+  print('coeff3',coeff3[ii])
+  print('n_roots',n_roots[ii])
+  print('roots',roots[ii])
 
-      # restrict the roots to the interval
-      left_root = roots[ii][0]
-      right_root = roots[ii][1]
-      if left_root <= vpar_lb and right_root >= vpar_ub:
-        # no points to integrate
-        continue
-      elif left_root <= vpar_lb and right_root <=vpar_lb:
-        # no points to integrate
-        continue
-      elif left_root >= vpar_ub and right_root >=vpar_ub:
-        # no points to integrate
-        continue
-      elif left_root <= vpar_lb and right_root >=vpar_lb:
-        # single interval [right_root,vpar_ub]
-        vpar_disc = np.linspace(right_root,vpar_ub,n_vpar)
-      elif left_root <= vpar_ub and right_root >=vpar_ub:
-        # single interval [vpar_lb,left_root]
-        vpar_disc = np.linspace(vpar_lb,left_root,n_vpar)
-      else:
-        # two intervals 
-        T1 = np.linspace(vpar_lb,left_root,int(n_vpar/2))
-        T2 = np.linspace(right_root,vpar_ub,int(n_vpar/2))
-        vpar_disc = np.hstack((T1,T2))
+  # skip points with no integration intervals.
+  if n_bounds == 0:
+    continue
 
-    # TODO: consider the case with 1 root.
-    else:
-      # single interval [vpar_lb,vpar_ub]
-      vpar_disc = np.linspace(vpar_lb,vpar_ub,n_vpar)
+  for jj,interval in enumerate(bounds):
+    print(f"point {ii} - interval {jj})")
+  
+    ### TODO: some points return nan for roots. 
+    ### They should have a lot of flux to contribute b/c the 
+    ### entire interval is being integrated over.
+    #np.set_printoptions(precision=16)
+    #print(xx)
+    #print(normals[ii])
+    #np.set_printoptions(precision=8)
+    #print('coeff1',coeff1[ii])
+    #print('coeff2',coeff2[ii])
+    #print('coeff3',coeff3[ii])
+    #print('n_roots',n_roots[ii])
+    #print('roots',roots[ii])
+    #quadratic = lambda xx: coeff1[ii]*(xx**2) + coeff2[ii]*xx + coeff3[ii]
+    #print('quadratic(left root)',quadratic(roots[ii][0]))
+    #print('quadratic(right root)',quadratic(roots[ii][1]))
 
-  elif sgn_a[ii] == 0:
-    # quadratic is linear
-    print("")
-    print("Warning: Quadratic is Linear")
-    raise ValueError
+    # discretize the interval
+    vpar_disc = loglin_grid(interval[0],interval[1],int(n_vpar/n_bounds))
 
-  else:
-    # concave quadratic 
+    # form the set of points X in 4d state space
+    yy = np.tile(xx,len(vpar_disc)).reshape((-1,dim_xyz))
+    X = np.hstack((yy,vpar_disc.reshape((-1,1)) ))
 
-    if n_roots[ii] == 2:
-      left_root = roots[ii][0]
-      right_root = roots[ii][1]
-      
-      # restrict roots to interval
-      if left_root <= vpar_lb and right_root >= vpar_ub:
-        # single interval [vpar_lb,vpar_ub]
-        vpar_disc = np.linspace(vpar_lb,vpar_ub,n_vpar)
-      elif left_root <= vpar_lb and right_root <=vpar_lb:
-        # no points to integrate
-        continue
-      elif left_root >= vpar_ub and right_root >=vpar_ub:
-        # no points to integrate
-        continue
-      elif left_root <= vpar_lb and right_root >=vpar_lb:
-        # single interval [vpar_lb,right_root]
-        vpar_disc = np.linspace(vpar_lb,right_root,n_vpar)
-      elif left_root <= vpar_ub and right_root >=vpar_ub:
-        # single interval [left_root,vpar_ub]
-        vpar_disc = np.linspace(left_root,vpar_ub,n_vpar)
-      else:
-        # single interval [left_root,right_root]
-        vpar_disc = np.linspace(left_root,right_root, n_vpar)
+    # get the guiding center velocity at the points
+    v_gc = GC.GC_rhs(X)[:,:-1] # just keep the spatial part
 
-  # form the set of points X in 4d state space
-  yy = np.tile(xx,len(vpar_disc)).reshape((-1,dim_xyz))
-  X = np.hstack((yy,vpar_disc.reshape((-1,1)) ))
+    # v_gc * normal
+    v_gcn = v_gc @ normals[ii]
 
-  # get the guiding center velocity at the points
-  v_gc = GC.GC_rhs(X)[:,:-1] # just keep the spatial part
+    # safety check that we are integrating outward flux
+    vgcn_tol = -1e-10
+    if np.any(v_gcn < vgcn_tol):
+      print("")
+      print('WARNING: Negative v_gc * normal')
+      print(v_gcn[v_gcn<0])
+      print('number of roots',n_roots[ii]) 
+      quit()
 
-  # v_gc * normal
-  v_gcn = v_gc @ normals[ii]
+    # TODO: should my area element be for trapezoidal integration?
+    # area element
+    dA = area_elements[ii]*dtheta*dphi
 
-  # safety check that we are integrating outward flux
-  if np.any(v_gcn < -1e-8):
-    print("")
-    print('negative vgcn')
-    print(v_gcn[v_gcn<0])
-    print(n_roots[ii]) 
-    print(sgn_a[ii]) 
-    compute_vpar_roots(np.atleast_2d(xx),np.atleast_2d(normals[ii]),flag_plot=True)
-    quit()
+    # line elements for trapezoidal integration
+    dvpar = vpar_disc[1:] - vpar_disc[:-1]
 
-  # area element
-  dA = area_elements[ii]
+    # volume element
+    dV = dA*dvpar
 
-  # line element
-  dvpar = vpar_disc[1] - vpar_disc[0]
+    # TODO: verify accuracy of tau_in_plasma.
+    tau_in_plasma  = trace_particles(X,GC,tmax,dt,classifier=classifier,
+                method=method,n_skip=n_skip,direction='backward')
 
-  # volume element
-  dV = dA*dtheta*dphi*dvpar
+    print('tau in plasma')
+    print(tau_in_plasma)
 
-  ## trace the particles.
-  tau_in_plasma  = trace_particles(X,GC,tmax,dt,classifier=classifier,
-              method=method,n_skip=n_skip,direction='backward')
-
-  # TODO: use higher order integration
-  # accumulate the loss fraction
-  loss_fraction += prob_const*np.sum(tau_in_plasma*v_gcn*dV)*symmetry_mult
-  print(loss_fraction)
+    # accumulate the loss fraction; trapezoidal integration 
+    fx = v_gcn*tau_in_plasma
+    fx_avg = (fx[1:] + fx[:-1])/2 # trapezoidal
+    loss_fraction += prob_const*np.sum(fx_avg*dV)*symmetry_mult
+    print('loss fraction:',loss_fraction)
   
