@@ -320,7 +320,7 @@ loss_fraction = 0.0
 
 for ii,xx in enumerate(xyz):
   print("")
-  #print(f"{ii})")
+  print(f"{ii})")
 
   # get the vpar integration bounds
   bounds = vpar_bounds[ii]
@@ -394,7 +394,7 @@ for ii,xx in enumerate(xyz):
     dV = dA*dvpar
 
     # TODO: verify accuracy of tau_in_plasma.
-    tau_in_plasma  = trace_particles(X,GC,tmax,dt,classifier=classifier,
+    _, tau_in_plasma  = trace_particles(X,GC,tmax,dt,classifier=classifier,
                 method=method,n_skip=n_skip,direction='backward')
 
     print('tau in plasma')

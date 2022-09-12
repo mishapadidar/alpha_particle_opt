@@ -68,10 +68,10 @@ def trace_particles(X,GC,tmax,dt,classifier=None,
       X = X[~just_ejected]
  
       if len(X) == 0:
-        return tau_in_plasma
+        return X, tau_in_plasma
     
   if classifier is not None:
-    return tau_in_plasma
+    return X, tau_in_plasma
   else:
     return X
 
@@ -84,9 +84,9 @@ if __name__=="__main__":
   from grids import loglin_grid
   from concentricSurfaceClassifier import concentricSurfaceClassifier
 
-  tmax = 1e-5
+  tmax = 1e-6
   dt = 1e-8
-  n_skip = 10
+  n_skip = np.inf
   method = 'midpoint' # euler or midpoint
   include_drifts = True
 
@@ -121,6 +121,6 @@ if __name__=="__main__":
 
   # trace
   #X = trace_particles(X,GC,tmax,dt,method=method,n_skip=n_skip,direction='backward')
-  tau_in_plasma = trace_particles(X,GC,tmax,dt,method=method,classifier=classifier,n_skip=n_skip,direction='backward')
+  X,tau_in_plasma = trace_particles(X,GC,tmax,dt,method=method,classifier=classifier,n_skip=n_skip,direction='backward')
   print(tau_in_plasma)
 
