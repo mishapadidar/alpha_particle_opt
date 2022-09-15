@@ -9,7 +9,7 @@ from bfield import load_field,compute_rz_bounds,compute_plasma_volume,make_surfa
 sys.path.append("../utils")
 from constants import *
 from grids import *
-from concentricSurfaceClassifier import concentricSurfaceClassifier
+#from concentricSurfaceClassifier import concentricSurfaceClassifier
 import vtkClass
 import matplotlib.pyplot as plt
 
@@ -26,9 +26,9 @@ include_drifts = True
 eps_classifier = 1e-3
 
 # surface discretization
-ntheta=nphi=32
+ntheta=nphi=64
 # vpar discretization
-n_vpar = 32
+n_vpar = 64
 assert n_vpar % 2 == 0, "must use even number of points"
 
 
@@ -46,7 +46,8 @@ symmetry_mult = nfp*period_mult
 plasma_vol = compute_plasma_volume(vmec_input,ntheta=ntheta,nphi=nphi)
 
 # build the surface classifier
-classifier = concentricSurfaceClassifier(vmec_input, nphi=512, ntheta=512,eps=eps_classifier)
+#classifier = concentricSurfaceClassifier(vmec_input, nphi=512, ntheta=512,eps=eps_classifier)
+classifier = make_surface_classifier(vmec_input=vmec_input, rng="full torus",ntheta=512,nphi=512)
 
 # compute the initial state volume
 vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
@@ -363,25 +364,25 @@ for ii,xx in enumerate(xyz):
     # v_gc * normal
     v_gcn = v_gc @ normals[ii]
 
-    # safety check that we are integrating outward flux
-    vgcn_tol = -1e-10
-    if np.any(v_gcn < vgcn_tol):
-      print("")
-      print('WARNING: Negative v_gc * normal')
-      print(v_gcn[v_gcn<0])
-      print('number of roots',n_roots[ii]) 
-      print('roots',roots[ii])
-      print('vpar interval',interval)
-      print('vparlb, ub',vpar_lb,vpar_ub)
-      print('coeff 1',coeff1[ii])
-      print('coeff 2',coeff2[ii])
-      print('coeff 3',coeff3[ii])
-      quadratic = lambda x: coeff1[ii]*x**2 + coeff2[ii]*x + coeff3[ii]
-      print(quadratic(roots[ii][0]))
-      print(quadratic(roots[ii][1]))
-      print(quadratic(vpar_lb))
-      print(quadratic(vpar_ub))
-      quit()
+    ## safety check that we are integrating outward flux
+    #vgcn_tol = -1e-8
+    #if np.any(v_gcn < vgcn_tol):
+    #  print("")
+    #  print('WARNING: Negative v_gc * normal')
+    #  print(v_gcn[v_gcn<0])
+    #  print('number of roots',n_roots[ii]) 
+    #  print('roots',roots[ii])
+    #  print('vpar interval',interval)
+    #  print('vparlb, ub',vpar_lb,vpar_ub)
+    #  print('coeff 1',coeff1[ii])
+    #  print('coeff 2',coeff2[ii])
+    #  print('coeff 3',coeff3[ii])
+    #  quadratic = lambda x: coeff1[ii]*x**2 + coeff2[ii]*x + coeff3[ii]
+    #  print(quadratic(roots[ii][0]))
+    #  print(quadratic(roots[ii][1]))
+    #  print(quadratic(vpar_lb))
+    #  print(quadratic(vpar_ub))
+    #  quit()
 
     # TODO: should my area element be for trapezoidal integration?
     # area element

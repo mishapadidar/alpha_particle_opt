@@ -3,7 +3,7 @@ import sys
 sys.path.append('../utils')
 import vtkClass 
 
-def trace_particles(X,GC,tmax,dt,classifier=None,
+def trace_particles(X,GC,tmax,dt,classifier=None,eps=1e-5,
   method='midpoint',n_skip=1,direction='forward'):
   """
   Trace a particle backwards in time until they hit the boundary or until the 
@@ -13,7 +13,8 @@ def trace_particles(X,GC,tmax,dt,classifier=None,
   GC: guiding center object
   tmax: float, max time
   dt: float,timestep size
-  classifier: concentricSurfaceClassifier object
+  classifier: SurfaceClassifier object
+  eps: a tolerance to relax the surface classifier.
   method: 'euler' or 'midpoint'
   n_skip: number of files to skip when writing files, 
           use np.inf to never drop a file
@@ -53,9 +54,10 @@ def trace_particles(X,GC,tmax,dt,classifier=None,
 
     X = np.copy(Xtp1)
 
-    if classifier is not None:
+    if classifier is not None and n_step > 0:
       # check the level set stopping criteria
-      in_plasma = classifier(X[:,:-1],return_type=bool)
+      in_plasma = (classifier.evaluate(X[:,:-1]) >= -eps).flatten()
+      #in_plasma = classifier(X[:,:-1],return_type=bool)
       just_ejected = (in_plasma == False)
 
       # update ejected particles
@@ -82,7 +84,7 @@ if __name__=="__main__":
   sys.path.append("../stella")
   from bfield import load_field,compute_rz_bounds,compute_plasma_volume,make_surface_classifier
   from grids import loglin_grid
-  from concentricSurfaceClassifier import concentricSurfaceClassifier
+  #from concentricSurfaceClassifier import concentricSurfaceClassifier
 
   tmax = 1e-6
   dt = 1e-8
@@ -113,8 +115,9 @@ if __name__=="__main__":
     return bs.GradAbsB()
   
   # classifier object
-  eps = 1e-3 # relax the exit tolerance
-  classifier = concentricSurfaceClassifier(vmec_input, nphi=256, ntheta=256,eps=eps)
+  #eps = 1e-3 # relax the exit tolerance
+  #classifier = concentricSurfaceClassifier(vmec_input, nphi=256, ntheta=256,eps=eps)
+  classifier = make_surface_classifier(vmec_input=vmec_input, rng="full torus",ntheta=512,nphi=512)
 
   # build a guiding center object
   GC = GuidingCenter(bfield,gradAbsB,include_drifts=include_drifts)
