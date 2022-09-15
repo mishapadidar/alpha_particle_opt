@@ -395,7 +395,7 @@ for ii,xx in enumerate(xyz):
     dV = dA*dvpar
 
     # TODO: verify accuracy of tau_in_plasma.
-    _, tau_in_plasma  = trace_particles(X,GC,tmax,dt,classifier=classifier,
+    _, tau_in_plasma  = trace_particles(X,GC,tmax,dt,classifier=classifier,eps=eps_classifier,
                 method=method,n_skip=n_skip,direction='backward')
 
     print('tau in plasma')
