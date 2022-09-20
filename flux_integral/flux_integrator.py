@@ -1,7 +1,7 @@
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.geo.surface import signed_distance_from_surface
-from scipy.integrate import simpson
+from scipy.integrate import simpson,romberg
 from guiding_center_eqns_cartesian import *
 from trace_particles import *
 import sys
@@ -11,6 +11,28 @@ sys.path.append("../utils")
 from constants import *
 from grids import *
 import vtkClass
+
+# TODO
+# [ ] switch to a scipy ODE integrator to solve the IVP
+# [ ] fix problem with SurfaceClassifier being false on first step or two
+#     and then set epsSurfaceClassifier=0. We may be artificially decreasing
+#     our losses because of this.
+# [ ] Use a log2 grid for vpar integral and composite simpsons rule
+# [ ] current v_gcn is different from the v_gcn used for the quadratic bc we change
+#     coeffs.use the quadratic coefficients to compute v_gcn instead of calling GC
+#     or dont alter the quadratic coeffs.
+# [ ] make sure the tau for the quadratic roots is 0, since v_gcn = 0
+# [ ] switch to a scipy integrator that automates the discretization of vpar
+# [ ] could setting the roots to zero cause the problems?
+# [ ] do we need higher classifier ntheta,nphi?
+# [ ] do we need a more accurate particle tracing? lower dt?
+# [ ] do we need to use a different h,p on the interpolator for the surfaceClassifier?
+# [ ] We may need low order quadrature over the boundary or high discretization 
+#     bc of discontinuities.
+# [ ] stabilize root computation
+# [x] use simpson to perform the vpar integral
+# [x] check if not discretizing the whole torus is causing the problem
+#
 
 class FluxIntegrator:
   """
@@ -302,20 +324,17 @@ class FluxIntegrator:
   
     return vpar_bounds
 
-  def integrate_vpar(self,xyz,normal,bounds):
+  def integrate_vpar(self,xx,unit_normal,bounds):
     """
     Compute the vpar integral and time integral
       int_{I(x)} int_0^T f(t,x,vpar) dt v_{gc}*unit_normal dvpar
         =  int_{I(x)} min{T,tau(x,vpar)}*C_{P}*v_{gc}*unit_normal dvpar
     for a given Cartesian point x.
 
-    xyz: array, Cartesian point shape (3,)
-    normal: array, Normal vector at xyz, shape (3,)
+    xx: array, Cartesian point shape (3,)
+    unit_normal: array, Normal vector at xyz, shape (3,)
     bounds: list of integration bounds
     """
-    # TODO
-    # [ ] switch to a scipy integrator that automates the discretization of vpar
-    # [ ] switch to a scipy ODE integrator to solve the IVP
 
     tot = 0.0
   
@@ -325,32 +344,43 @@ class FluxIntegrator:
     for ii_bounds,interval in enumerate(bounds):
       #print(f"interval {ii_bounds})")
     
-      # discretize the interval
-      vpar_disc = loglin_grid(interval[0],interval[1],int(self.nvpar/n_bounds))
+      flag_method1 = True
+      if flag_method1:
+        # METHOD 1: manual integration
+        # discretize the interval
+        vpar_disc = loglin_grid(interval[0],interval[1],int(self.nvpar/n_bounds))
   
-      # form the set of points X in 4d state space
-      yy = np.tile(xyz,len(vpar_disc)).reshape((-1,self.dim_xyz))
-      X = np.hstack((yy,vpar_disc.reshape((-1,1)) ))
+        # form the set of points X in 4d state space
+        yy = np.tile(xx,len(vpar_disc)).reshape((-1,self.dim_xyz))
+        X = np.hstack((yy,vpar_disc.reshape((-1,1)) ))
   
-      # get the guiding center velocity at the points
-      v_gc = self.GC.GC_rhs(X)[:,:-1] # just keep the spatial part
+        # get the guiding center velocity at the points
+        v_gc = self.GC.GC_rhs(X)[:,:-1] # just keep the spatial part
   
-      # v_gc * normal
-      v_gcn = v_gc @ normal
+        # v_gc * normal
+        v_gcn = v_gc @ unit_normal
   
-      # trace; tau_in_plasma = min(T,tau)
-      _, tau_in_plasma  = trace_particles(X,self.GC,self.tmax,self.dt,classifier=self.classifier,
-                  eps=self.eps_classifier,method=self.ode_method,n_skip=np.inf,direction='backward')
+        # trace; tau_in_plasma = min(T,tau)
+        _, tau_in_plasma  = trace_particles(X,self.GC,self.tmax,self.dt,classifier=self.classifier,
+                    eps=self.eps_classifier,method=self.ode_method,n_skip=np.inf,direction='backward')
 
-      # line elements for trapezoidal integration
-      dvpar = vpar_disc[1:] - vpar_disc[:-1]
+        # function values for integration
+        integrand = self.prob_const*tau_in_plasma*v_gcn
 
-      # function values for trapezoid
-      integrand = self.prob_const*tau_in_plasma*v_gcn
-      integrand_avg = (integrand[1:] + integrand[:-1])/2
-
-      # accumulate
-      tot += np.sum(integrand_avg*dvpar)
+        # accumulate
+        tot += simpson(integrand,vpar_disc)
+      else:
+        # METHOD 2: Adaptive quadrature
+        # This does not seem to be accurate. maybe there is too much noise in the trace function.
+        def obj(vpar):
+          X = np.atleast_2d(np.append(xx,vpar))
+          v_gc = self.GC.GC_rhs(X)[:,:-1] # just keep the spatial part
+          v_gcn = v_gc @ unit_normal
+          _, tau_in_plasma  = trace_particles(X,self.GC,self.tmax,self.dt,classifier=self.classifier,
+                      eps=self.eps_classifier,method=self.ode_method,n_skip=np.inf,direction='backward')
+          integrand = self.prob_const*tau_in_plasma*v_gcn
+          return integrand
+        tot += romberg(obj,interval[0],interval[1])
     
     return tot
 
@@ -411,10 +441,7 @@ class FluxIntegrator:
           vpar_integrals[ii_phi,ii_theta] = self.integrate_vpar(xx,unit_normal,bounds)
     
     # integrate over theta with simpsons rule
-    theta_integrals = np.zeros(self.nphi)
-    for ii_phi in range(self.nphi):
-      # integrate over theta; include the area element
-      theta_integrals[ii_phi] = simpson(vpar_integrals[ii_phi]*self.area_elements[ii_phi],self.quadpoints_theta)
+    theta_integrals = simpson(vpar_integrals*self.area_elements,self.quadpoints_theta,axis=1)
     
     # now integrate over phi with simpsons rule
     loss_fraction = simpson(theta_integrals,self.quadpoints_phi)
