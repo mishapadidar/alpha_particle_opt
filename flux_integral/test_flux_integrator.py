@@ -10,7 +10,7 @@ nvpar = 64
 # classifier
 nphi_classifier = 512
 ntheta_classifier = 512
-eps_classifier = 1e-4
+eps_classifier = 0 # 1e-4 good for 512 nphi_classifier
 # tracing parameters
 tmax = 1e-6
 dt = 1e-8

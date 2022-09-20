@@ -1,7 +1,7 @@
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.geo.surface import signed_distance_from_surface
-from scipy.integrate import simpson,romberg
+from scipy.integrate import simpson,romberg,solve_ivp
 from guiding_center_eqns_cartesian import *
 from trace_particles import *
 import sys
@@ -360,9 +360,27 @@ class FluxIntegrator:
         # v_gc * normal
         v_gcn = v_gc @ unit_normal
   
-        # trace; tau_in_plasma = min(T,tau)
-        _, tau_in_plasma  = trace_particles(X,self.GC,self.tmax,self.dt,classifier=self.classifier,
-                    eps=self.eps_classifier,method=self.ode_method,n_skip=np.inf,direction='backward')
+        flag_scipy_ivp = True
+        if not flag_scipy_ivp:
+          # trace; tau_in_plasma = min(T,tau)
+          _, tau_in_plasma  = trace_particles(X,self.GC,self.tmax,self.dt,classifier=self.classifier,
+                      eps=self.eps_classifier,method=self.ode_method,n_skip=np.inf,direction='backward')
+        else:
+          # use scipy integration
+          def func(t,x):
+            x = np.reshape(x,(1,4))
+            return - self.GC.GC_rhs(x).flatten()
+          def event(t,x):
+            x = np.reshape(x,(1,4))
+            return self.classifier.evaluate(x).flatten().item() + self.eps_classifier
+          event.direction = -1
+          tspan = (0,self.tmax)
+          tau_in_plasma = self.tmax*np.ones(len(X))
+          for ii,y in enumerate(X):
+            ret = solve_ivp(func, tspan,y,events=event,vectorized=True)
+            if len(ret.t_events[0]) > 0:
+              # there can be multiple exit events, we choose the largest time.
+              tau_in_plasma[ii] = ret.t_events[0][-1]
 
         # function values for integration
         integrand = self.prob_const*tau_in_plasma*v_gcn
