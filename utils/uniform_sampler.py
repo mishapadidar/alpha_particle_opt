@@ -4,7 +4,7 @@ from coords import *
 from constants import *
 import sys
 sys.path.append("../field")
-from bfield import compute_rz_bounds
+from biot_savart_field import compute_rz_bounds
 
 class UniformSampler:
   """
@@ -12,7 +12,7 @@ class UniformSampler:
   volume using rejection sampling.
   """
 
-  def __init__(surf,classifier):
+  def __init__(self,surf,classifier):
     self.surf = surf
     self.classifier = classifier
     # set the bounds
@@ -48,10 +48,10 @@ class UniformSampler:
       # sample uniformly from z
       z = np.random.uniform(self.lb_z,self.ub_z)
       cyl  = np.array([r,phi,z])
-      xyz = cyl_to_cart(cyl.reshape((1,-1))
+      xyz = cyl_to_cart(cyl.reshape((1,-1)))
       # check if particle is in plasma
-      if classifier.evaluate(xyz) > 0:
+      if self.classifier.evaluate(xyz) > 0:
         vpar = np.random.uniform(self.lb_vpar,self.ub_vpar,1)
         point = np.append(xyz.flatten(),vpar)
         X =np.vstack((X,point)) # [x,y,z, vpar]
-    return xyz
+    return X
