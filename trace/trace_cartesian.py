@@ -28,7 +28,7 @@ def compute_loss_times(X,bs,classifier,tmax):
     #print("tracing particle ",ii)
   
     # get the particle
-    xyz = X[ii].reshape((1,-1))
+    xyz = X[ii,:-1].reshape((1,-1))
     vpar = [X[ii,-1]]
   
     # trace
