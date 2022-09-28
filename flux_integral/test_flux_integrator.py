@@ -1,16 +1,14 @@
 from flux_integrator import FluxIntegrator
 
 # plasma and bfield
-vmec_input="../stella/input.new_QA_scaling"
-bs_path="../stella/bs.new_QA_scaling"
+vmec_input="../vmec_input_files/input.new_QA_scaling"
+bs_path="../field/bs.new_QA_scaling"
 # surface discretization
-nphi = 64
-ntheta = 64
-nvpar = 64
+nphi = ntheta = 32
+nvpar = 32
 # classifier
-nphi_classifier = 512
-ntheta_classifier = 512
-eps_classifier = 0 # 1e-4 good for 512 nphi_classifier
+nphi_classifier = ntheta_classifier = 512
+eps_classifier = 0 
 # tracing parameters
 tmax = 1e-6
 dt = 1e-8

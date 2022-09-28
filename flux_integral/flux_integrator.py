@@ -1,38 +1,16 @@
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
-from simsopt.geo.surface import signed_distance_from_surface
 from scipy.integrate import simpson,romberg,solve_ivp
-from guiding_center_eqns_cartesian import *
-from trace_particles import *
+from simsopt.field.tracing import SurfaceClassifier
 import sys
-sys.path.append("../stella")
-from bfield import load_field,compute_rz_bounds,compute_plasma_volume,make_surface_classifier
+sys.path.append("../field")
+from biot_savart_field import load_field
 sys.path.append("../utils")
 from constants import *
 from grids import *
-import vtkClass
+sys.path.append("../trace")
+from guiding_center_cartesian import *
 
-# TODO
-# [ ] switch to a scipy ODE integrator to solve the IVP
-# [ ] fix problem with SurfaceClassifier being false on first step or two
-#     and then set epsSurfaceClassifier=0. We may be artificially decreasing
-#     our losses because of this.
-# [ ] Use a log2 grid for vpar integral and composite simpsons rule
-# [ ] current v_gcn is different from the v_gcn used for the quadratic bc we change
-#     coeffs.use the quadratic coefficients to compute v_gcn instead of calling GC
-#     or dont alter the quadratic coeffs.
-# [ ] make sure the tau for the quadratic roots is 0, since v_gcn = 0
-# [ ] switch to a scipy integrator that automates the discretization of vpar
-# [ ] could setting the roots to zero cause the problems?
-# [ ] do we need higher classifier ntheta,nphi?
-# [ ] do we need a more accurate particle tracing? lower dt?
-# [ ] do we need to use a different h,p on the interpolator for the surfaceClassifier?
-# [ ] We may need low order quadrature over the boundary or high discretization 
-#     bc of discontinuities.
-# [ ] stabilize root computation
-# [x] use simpson to perform the vpar integral
-# [x] check if not discretizing the whole torus is causing the problem
-#
 
 class FluxIntegrator:
   """
@@ -76,12 +54,14 @@ class FluxIntegrator:
     self.nfp = surf.nfp
   
     # load the plasma volume
-    self.plasma_vol = compute_plasma_volume(vmec_input,nphi=nphi,ntheta=ntheta)
+    self.plasma_vol = surf.volume()
     # build the surface classifier
-    self.classifier = make_surface_classifier(vmec_input=vmec_input,rng="full torus",
-                      nphi=nphi_classifier,ntheta=ntheta_classifier)
+    sclass = SurfaceRZFourier.from_vmec_input(vmec_input, range="full torus",
+                       nphi=nphi_classifier, ntheta=ntheta_classifier)
+    self.classifier = SurfaceClassifier(sclass, h=0.1, p=2)
+
     # load the bfield
-    self.bs = load_field(vmec_input,bs_path,nphi=nphi,ntheta=ntheta)
+    self.bs = load_field(bs_path,surf.nfp)
   
     # compute the initial state volume
     self.vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
@@ -431,6 +411,7 @@ class FluxIntegrator:
 
         # convert the theta, phi indexes to linear
         ii_x = ii_phi*self.nphi + ii_theta
+        print(f"point {ii_x}")
     
         # get the surface point
         xx = xyz[ii_x]
