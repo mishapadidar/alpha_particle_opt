@@ -1,4 +1,5 @@
 import numpy as np
+from mpi4py import MPI
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from scipy.integrate import simpson,romberg,solve_ivp
 from simsopt.field.tracing import SurfaceClassifier
@@ -8,6 +9,7 @@ from biot_savart_field import load_field
 sys.path.append("../utils")
 from constants import *
 from grids import *
+from divide_work import divide_work
 sys.path.append("../trace")
 from guiding_center_cartesian import *
 
@@ -384,16 +386,30 @@ class FluxIntegrator:
 
 
   def solve(self):
+
+    # get the MPI info
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+    np.random.seed(0) # precaution
   
     # get the quadrature points
     xyz = np.copy(self.xyz.reshape((-1,self.dim_xyz)))
     unit_normals = np.copy(self.unit_normals.reshape((-1,self.dim_xyz)))
 
+    # divide the point set
+    work_idxs,work_counts = divide_work(len(xyz),size)
+    my_work_idxs = work_idxs[rank]
+
+    # only select the points you are working on
+    xyz = xyz[my_work_idxs]
+    unit_normals = unit_normals[my_work_idxs]
+
     # get the quadratic coeffs
     coeff1,coeff2,coeff3 = self.compute_quadratic_coeffs(xyz,unit_normals)
     
-    print('num linear funcs',np.sum(coeff1 == 0))
-    print('num constant funcs',np.sum((coeff1 == 0) & (coeff2 == 0.0)))
+    #print('num linear funcs',np.sum(coeff1 == 0))
+    #print('num constant funcs',np.sum((coeff1 == 0) & (coeff2 == 0.0)))
     
     # compute the roots of the vpar quadratic
     roots,n_roots = self.compute_vpar_roots(coeff1,coeff2,coeff3)
@@ -402,42 +418,31 @@ class FluxIntegrator:
     vpar_bounds = self.compute_vpar_bounds(roots,n_roots,coeff1,coeff2,coeff3)
 
     # storage
-    vpar_integrals = np.zeros((self.nphi,self.ntheta))
+    v_ints = np.zeros(len(xyz))
     
     print('starting integration')
-    # compute the vpar integral over all theta and phi
-    for ii_phi,phi in enumerate(self.quadpoints_phi):
-      for ii_theta,theta in enumerate(self.quadpoints_theta):
+    for ii_x,xx in enumerate(xyz):
 
-        # convert the theta, phi indexes to linear
-        ii_x = ii_phi*self.nphi + ii_theta
-        print(f"point {ii_x}")
-    
-        # get the surface point
-        xx = xyz[ii_x]
+        # get the normal
         unit_normal = unit_normals[ii_x]
     
         # get the vpar integration bounds
         bounds = vpar_bounds[ii_x]
         n_bounds = len(bounds)
     
-        #print("")
-        #print(f"{ii_x})")
-        #np.set_printoptions(precision=16)
-        #print(xx)
-        #print(normals[ii_x])
-        #np.set_printoptions(precision=8)
-        #print('coeff1',coeff1[ii_x])
-        #print('coeff2',coeff2[ii_x])
-        #print('coeff3',coeff3[ii_x])
-        #print('n_roots',n_roots[ii_x])
-        #print('roots',roots[ii_x])
-    
         # integrate over vpar
         if n_bounds == 0:
-          vpar_integrals[ii_phi,ii_theta] = 0.0
+          v_ints[ii_x] = 0.0
         else:
-          vpar_integrals[ii_phi,ii_theta] = self.integrate_vpar(xx,unit_normal,bounds)
+          v_ints[ii_x] = self.integrate_vpar(xx,unit_normal,bounds)
+
+    # now broadcast the results
+    vpar_integrals = np.zeros(self.nphi*self.ntheta)
+    comm.Gatherv(v_ints,(vpar_integrals,work_counts),root=0)
+    comm.Bcast(vpar_integrals,root=0)
+
+    # now reshape 
+    vpar_integrals = vpar_integrals.reshape((self.nphi,self.ntheta))
     
     # integrate over theta with simpsons rule
     theta_integrals = simpson(vpar_integrals*self.area_elements,self.quadpoints_theta,axis=1)
