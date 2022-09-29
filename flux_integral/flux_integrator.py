@@ -12,6 +12,7 @@ from grids import *
 from divide_work import divide_work
 sys.path.append("../trace")
 from guiding_center_cartesian import *
+import time
 
 
 class FluxIntegrator:
@@ -355,7 +356,8 @@ class FluxIntegrator:
           def event(t,x):
             x = np.reshape(x,(1,4))
             return self.classifier.evaluate(x).flatten().item() + self.eps_classifier
-          event.direction = -1
+          event.direction = -1 # must cross outwards
+          event.terminal = True # terminate integration after event
           tspan = (0,self.tmax)
           tau_in_plasma = self.tmax*np.ones(len(X))
           for ii,y in enumerate(X):
@@ -421,7 +423,12 @@ class FluxIntegrator:
     v_ints = np.zeros(len(xyz))
     
     print('starting integration')
+    t0 = time.time()
     for ii_x,xx in enumerate(xyz):
+        if ii_x > 0:
+          print(rank,ii_x,'loop time',time.time()-t0)
+          sys.stdout.flush()
+          t0 = time.time()
 
         # get the normal
         unit_normal = unit_normals[ii_x]
