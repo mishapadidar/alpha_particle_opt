@@ -7,15 +7,17 @@ from simsopt.mhd import Vmec
 import sys
 sys.path.append("../../utils")
 from constants import *
+from grids import symlog_grid
 sys.path.append("../../trace")
 from trace_boozer import trace_boozer
 
 """
 Compute particle losses with MC tracing
 """
+np.random.seed(0)
 
 
-n_particles = 100
+n_particles = 2**3
 tmax = 1e-2
 # starting point
 vmec_input="../../vmec_input_files/input.nfp2_QA"
@@ -37,19 +39,22 @@ surf.fix("rc(0,0)") # fix the Major radius
 x0 = surf.x # nominal starting point
 dim_x = len(surf.x) # dimension
 
-# use fixed particle locations
-np.random.seed(0)
+# bounds
 vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
 vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
-root_n_particles = int(np.sqrt(n_particles))
+
+# use fixed particle locations
+s_label = 0.2 # fixed surface
+root_n_particles = int(np.cbrt(n_particles))
 thetas = np.linspace(0, 2*np.pi, root_n_particles)
-s = np.linspace(0.05, 0.95, root_n_particles)
-[s, thetas] = np.meshgrid(s, thetas)
+zetas = np.linspace(0,2*np.pi/surf.nfp, root_n_particles)
+vpars = symlog_grid(vpar_lb,vpar_ub,root_n_particles)
+[thetas,zetas,vpars] = np.meshgrid(thetas, zetas,vpars)
 stz_inits = np.zeros((n_particles, 3))
-stz_inits[:, 0] = s.flatten()
+stz_inits[:, 0] = s_label
 stz_inits[:, 1] = thetas.flatten()
-stz_inits[:, 2] = np.zeros_like(s.flatten())
-vpar_inits = np.random.uniform(vpar_lb,vpar_ub,n_particles)
+stz_inits[:, 2] = zetas.flatten()
+vpar_inits = vpars.flatten()
 
 # set up the objective
 def objective(x):
