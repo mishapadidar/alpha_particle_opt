@@ -10,7 +10,8 @@ Compute particle losses with MC tracing
 """
 
 
-n_particles = 10**3
+ns=ntheta=nzeta = 10
+nvpar=10
 tmax = 1e-2
 vmec_input="../../vmec_input_files/input.nfp2_QA"
 n_partitions = 1
@@ -21,8 +22,8 @@ tracer = TraceBoozer(vmec_input,n_partitions=n_partitions,max_mode=max_mode)
 tracer.sync_seeds(0)
 x0 = tracer.x0
 dim_x = tracer.dim_x
-ntheta=nzeta=nvpar = int(np.cbrt(n_particles))
-stz_inits,vpar_inits = tracer.surface_grid(0.4,ntheta,nzeta,nvpar)
+#stz_inits,vpar_inits = tracer.surface_grid(0.4,ntheta,nzeta,nvpar)
+stz_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
 
 # set up the objective
 def objective(x):

@@ -135,6 +135,27 @@ class TraceBoozer:
     self.comm.comm_world.Bcast(seed,root=0)
     np.random.seed(int(seed[0]))
     return int(seed[0])
+
+  def flux_grid(self,ns,ntheta,nzeta,nvpar):
+    """
+    Build a 4d grid over the flux coordinates and vpar.
+    """
+    # bounds
+    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
+    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
+    # use fixed particle locations
+    surfaces = np.linspace(0.01,0.98, ns)
+    thetas = np.linspace(0, 2*np.pi, ntheta)
+    zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
+    vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    # build a mesh
+    [surfaces,thetas,zetas,vpars] = np.meshgrid(surfaces,thetas, zetas,vpars)
+    stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
+    stz_inits[:, 0] = surfaces.flatten()
+    stz_inits[:, 1] = thetas.flatten()
+    stz_inits[:, 2] = zetas.flatten()
+    vpar_inits = vpars.flatten()
+    return stz_inits,vpar_inits
     
   def surface_grid(self,s_label,ntheta,nzeta,nvpar):
     """
