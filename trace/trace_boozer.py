@@ -101,7 +101,7 @@ class TraceBoozer:
   more convenient.
   """
 
-  def __init__(self,vmec_input,n_partitions=1,max_mode=1):
+  def __init__(self,vmec_input,n_partitions=1,max_mode=1,major_radius=None):
     
     self.vmec_input = vmec_input
     self.max_mode = max_mode
@@ -115,6 +115,10 @@ class TraceBoozer:
     self.surf.fix_all()
     self.surf.fixed_range(mmin=0, mmax=max_mode,
                      nmin=-max_mode, nmax=max_mode, fixed=False)
+    if major_radius:
+      # rescale the major radius
+      self.surf.x = self.surf.x*major_radius/self.surf.get("rc(0,0)")
+
     self.surf.fix("rc(0,0)") # fix the Major radius
     
     # variables
@@ -191,24 +195,19 @@ class TraceBoozer:
   
 
 if __name__ == "__main__":
-  from simsopt.util.mpi import MpiPartition
 
   vmec_input = '../vmec_input_files/input.nfp2_QA'
-  n_partitions = 1
-  comm = MpiPartition(n_partitions)
-  vmec = Vmec(vmec_input, mpi=comm,keep_all_files=False,verbose=False)
-  vmec.run()
+  tracer = TraceBoozer(vmec_input,n_partitions=1,max_mode=1,major_radius=10)
+  tracer.sync_seeds(0)
+  x0 = tracer.x0
+  dim_x = tracer.dim_x
+  tmax = 1e-2
 
-  n_particles = 1000
-  stz_inits = np.array([np.random.uniform(0,1,n_particles),
-                        np.random.uniform(0,2*np.pi,n_particles),
-                        np.random.uniform(0,2*np.pi,n_particles)]).T
-  vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-  vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
-  vpar_inits = np.random.uniform(vpar_lb,vpar_ub,n_particles)
+  # tracing points
+  ntheta=nzeta = 10
+  nvpar=10
+  stz_inits,vpar_inits = tracer.surface_grid(0.4,ntheta,nzeta,nvpar)
 
-  import time
-  t0 = time.time()
-  exit_times = trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2)
-  print(exit_times)
-  print(time.time() - t0)
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  print(c_times)
+  print(np.mean(c_times))
