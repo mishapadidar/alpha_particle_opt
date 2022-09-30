@@ -30,19 +30,21 @@ dim_x = tracer.dim_x
 
 # discretization parameters
 n_directions = dim_x
-n_points_per = 10 # total points per direction
+n_points_per = 50 # total points per direction
 
 # make the discretization
-max_pert = 0.5
+max_pert = 0.1
 ub = max_pert
 lb = -max_pert
 n1 = int(n_points_per/2)
 T1 = np.linspace(lb,ub,n1)
-min_log,max_log = -5,-2
+min_log,max_log = -6,-2
 n2 = int((n_points_per - n1)/2)
 T2 = np.logspace(min_log,max_log,n2)
 T2 = np.hstack((-T2,T2))
 T = np.sort(np.unique(np.hstack((T1,T2))))
+# just in case np.unique drops points.
+n_points_per = len(T)
 
 # use an orthogonal frame
 Q = np.eye(dim_x)
