@@ -2,10 +2,12 @@ import numpy as np
 from simsopt.field.boozermagneticfield import BoozerRadialInterpolant, InterpolatedBoozerField
 from simsopt.field.tracing import trace_particles_boozer, MinToroidalFluxStoppingCriterion, \
     MaxToroidalFluxStoppingCriterion,  ToroidalTransitStoppingCriterion
+from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
 from mpi4py import MPI
 import sys
 sys.path.append("../utils")
+from grids import symlog_grid
 from constants import *
 from divide_work import *
 
@@ -92,6 +94,74 @@ def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
   comm.Bcast(exit_times,root=0)
 
   return exit_times
+
+class TraceBoozer:
+  """
+  A class to make tracing from a vmec configuration a bit 
+  more convenient.
+  """
+
+  def __init__(self,vmec_input,n_partitions=1,max_mode=1):
+    
+    self.vmec_input = vmec_input
+    self.max_mode = max_mode
+
+    # load vmec and mpi
+    self.comm = MpiPartition(n_partitions)
+    self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    
+    # define parameters
+    self.surf = self.vmec.boundary
+    self.surf.fix_all()
+    self.surf.fixed_range(mmin=0, mmax=max_mode,
+                     nmin=-max_mode, nmax=max_mode, fixed=False)
+    self.surf.fix("rc(0,0)") # fix the Major radius
+    
+    # variables
+    self.x0 = np.copy(self.surf.x) # nominal starting point
+    self.dim_x = len(self.x0) # dimension
+
+  def sync_seeds(self,sd=None):
+    """
+    Sync the np.random.seed of the various worker groups.
+    The seed is a random number <1e6.
+    """
+    seed = np.zeros(1)
+    if self.comm.proc0_world:
+      if sd:
+        seed = sd*np.ones(1)
+      else:
+        seed = np.random.randint(int(1e6))*np.ones(1)
+    self.comm.comm_world.Bcast(seed,root=0)
+    np.random.seed(int(seed[0]))
+    return int(seed[0])
+    
+  def surface_grid(self,s_label,ntheta,nzeta,nvpar):
+    """
+    Builds a grid on a single surface.
+    """
+    # bounds
+    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
+    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
+    # use fixed particle locations
+    thetas = np.linspace(0, 2*np.pi, ntheta)
+    zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
+    vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    # build a mesh
+    [thetas,zetas,vpars] = np.meshgrid(thetas, zetas,vpars)
+    stz_inits = np.zeros((ntheta*nzeta*nvpar, 3))
+    stz_inits[:, 0] = s_label
+    stz_inits[:, 1] = thetas.flatten()
+    stz_inits[:, 2] = zetas.flatten()
+    vpar_inits = vpars.flatten()
+    return stz_inits,vpar_inits
+    
+  # set up the objective
+  def compute_confinement_times(self,x,stz_inits,vpar_inits,tmax):
+    self.surf.x = np.copy(x)
+    self.vmec.run()
+    exit_times = trace_boozer(self.vmec,stz_inits,vpar_inits,tmax=tmax)
+    return exit_times
 
   
 
