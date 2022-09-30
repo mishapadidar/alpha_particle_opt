@@ -3,9 +3,11 @@ from simsopt.field.boozermagneticfield import BoozerRadialInterpolant, Interpola
 from simsopt.field.tracing import trace_particles_boozer, MinToroidalFluxStoppingCriterion, \
     MaxToroidalFluxStoppingCriterion,  ToroidalTransitStoppingCriterion
 from simsopt.mhd import Vmec
+from mpi4py import MPI
 import sys
 sys.path.append("../utils")
 from constants import *
+from divide_work import *
 
 def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
   """
@@ -16,6 +18,7 @@ def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
   vpar_inits: (n,) array of vpar values
   tmax: max tracing time
   """
+  n_particles = len(stz_inits)
 
   # Construct radial interpolant of magnetic field
   order = 3
@@ -35,19 +38,25 @@ def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
   #                     MinToroidalFluxStoppingCriterion(0.01),
   #                     ToroidalTransitStoppingCriterion(100,True)]
   stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99)]
-  
-  # storage
-  exit_times = np.zeros((0))
-  exit_states = np.zeros((0,4))
-  loss_count = 0
- 
-  n_particles = len(stz_inits)
-  for ii in range(n_particles):
-    #print("tracing particle ",ii)
+   
+
+  # divide the work
+  comm = MPI.COMM_WORLD
+  size = comm.Get_size()
+  rank = comm.Get_rank()
+  work_intervals,work_counts = divide_work(n_particles,size)
+  my_work = work_intervals[rank]
+  my_counts = work_counts[rank]
+  print("")
+  print(my_counts)
+
+  my_times = np.zeros(my_counts)
+
+  for idx,point_idx in enumerate(my_work):
   
     # get the particle
-    stz = stz_inits[ii].reshape((1,-1))
-    vpar = [vpar_inits[ii]]
+    stz = stz_inits[point_idx].reshape((1,-1))
+    vpar = [vpar_inits[point_idx]]
 
     # trace
     res_tys, res_zeta_hits = trace_particles_boozer(
@@ -68,44 +77,36 @@ def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
     tstz = res_tys[0] # trajectory [t,x,y,z,vpar]
     final_stz = np.atleast_2d(tstz[-1,1:4])
   
-    # loss fraction
+    # lost particle
     if len(res_zeta_hits[0])>0:
       # exit time.
       tau = res_zeta_hits[0].flatten()[0]
       # exit state
       state = res_zeta_hits[0].flatten()[2:]
-      
-      ## print some stuff
-      #loss_count += 1
-      #print("lost particle ",ii)
-      #print(res_zeta_hits)
-      #print('exit time',tau)
-      #print('loss fraction', loss_count/(ii+1))
-     
-      # save it
-      exit_times = np.append(exit_times,tau)
-      exit_states = np.vstack((exit_states,state))
+    else:
+      tau = tmax
+    # save it
+    my_times[idx] = tau
   
-  #print("")
-  #print('loss fraction', loss_count/n_particles)
-  #print('exit times')
-  #print(exit_times)
+  # broadcast the values
+  exit_times = np.zeros(n_particles)
+  comm.Gatherv(my_times,(exit_times,work_counts),root=0)
+  comm.Bcast(exit_times,root=0)
 
-  return exit_states,exit_times
+  return exit_times
 
-  #3print(gc_zeta_hits)
-  #3exit_times  = np.array([xx.flatten()[0] for xx in gc_zeta_hits])
-
-  #3return exit_states,exit_times
   
 
 if __name__ == "__main__":
+  from simsopt.util.mpi import MpiPartition
 
   vmec_input = '../vmec_input_files/input.nfp2_QA'
-  vmec = Vmec(vmec_input)
+  n_partitions = 1
+  comm = MpiPartition(n_partitions)
+  vmec = Vmec(vmec_input, mpi=comm,keep_all_files=False,verbose=False)
   vmec.run()
 
-  n_particles = 10
+  n_particles = 1000
   stz_inits = np.array([np.random.uniform(0,1,n_particles),
                         np.random.uniform(0,2*np.pi,n_particles),
                         np.random.uniform(0,2*np.pi,n_particles)]).T
@@ -113,5 +114,8 @@ if __name__ == "__main__":
   vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
   vpar_inits = np.random.uniform(vpar_lb,vpar_ub,n_particles)
 
-  exit_states,exit_times = trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-6)
+  import time
+  t0 = time.time()
+  exit_times = trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2)
   print(exit_times)
+  print(time.time() - t0)
