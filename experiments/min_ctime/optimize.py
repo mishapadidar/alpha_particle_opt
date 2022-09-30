@@ -4,6 +4,7 @@ import sys
 sys.path.append("../../utils")
 sys.path.append("../../trace")
 from trace_boozer import TraceBoozer
+from pdfo import pdfo
 
 """
 Compute particle losses with MC tracing
@@ -35,7 +36,7 @@ def objective(x):
   return res
 
 # optimize
-from pdfo import pdfo
-res = pdfo(objective, x0, method='cobyla', options={'maxfev': 200, 'ftarget': 0.0,'rhobeg':1e-1,'rhoend':1e-6})
+maxfev = 1000
+res = pdfo(objective, x0, method='cobyla', options={'maxfev': maxfev, 'ftarget': 0.0,'rhobeg':1e-1,'rhoend':1e-6})
 print(res)
 
