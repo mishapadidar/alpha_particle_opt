@@ -47,8 +47,6 @@ def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
   work_intervals,work_counts = divide_work(n_particles,size)
   my_work = work_intervals[rank]
   my_counts = work_counts[rank]
-  print("")
-  print(my_counts)
 
   my_times = np.zeros(my_counts)
 
