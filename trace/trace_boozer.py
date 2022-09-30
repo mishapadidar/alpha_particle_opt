@@ -159,7 +159,11 @@ class TraceBoozer:
   # set up the objective
   def compute_confinement_times(self,x,stz_inits,vpar_inits,tmax):
     self.surf.x = np.copy(x)
-    self.vmec.run()
+    try:
+      self.vmec.run()
+    except:
+      # VMEC failure!
+      return -np.inf*np.ones(len(stz_inits)) 
     exit_times = trace_boozer(self.vmec,stz_inits,vpar_inits,tmax=tmax)
     return exit_times
 
