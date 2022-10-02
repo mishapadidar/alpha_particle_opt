@@ -117,7 +117,10 @@ class TraceBoozer:
                      nmin=-max_mode, nmax=max_mode, fixed=False)
     if major_radius:
       # rescale the major radius
-      self.surf.x = self.surf.x*major_radius/self.surf.get("rc(0,0)")
+      factor = major_radius/self.surf.get("rc(0,0)")
+      self.surf.x = self.surf.x*factor
+      # rescale the toroidal flux by factor**2
+      self.vmec.indata.phiedge = self.vmec.indata.phiedge*(factor**2)
 
     self.surf.fix("rc(0,0)") # fix the Major radius
     
