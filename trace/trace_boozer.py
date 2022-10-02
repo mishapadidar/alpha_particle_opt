@@ -70,7 +70,7 @@ def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
         tol=1e-8, 
         mode='gc_vac',
         stopping_criteria=stopping_criteria,
-        forget_exact_path=False
+        forget_exact_path=True
         )
 
     # get the final state at end of trace
@@ -211,6 +211,9 @@ if __name__ == "__main__":
   nvpar=10
   stz_inits,vpar_inits = tracer.surface_grid(0.4,ntheta,nzeta,nvpar)
 
+  import time
+  t0  = time.time()
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  print(c_times)
+  print('time',time.time() - t0)
+  #print(c_times)
   print(np.mean(c_times))
