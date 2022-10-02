@@ -9,7 +9,7 @@
 - [ ] make 1D plots
   - [ ] analyze effect on sensitivity of adding more points to objective
 - [ ] Write up a deterministic optimization formulation
-  - [ ] choose a few objectives
+  - [ ] choose a few objectives based on the energy formulation.
   - [ ] choose constraints
   - [ ] choose variable set size
 - [ ] solve a deterministic optimization problem
@@ -22,7 +22,9 @@
 
 
 ### Extensions
-- [ ] gradients
-- [ ] collisionallity
+- [ ] objectives based off destroying wall.
+- [ ] stochastic optimization and importance sampling.
+- [ ] gradients.
+- [ ] collisionallity.
 - [ ] pressure (non-vacuum)
 - [ ] standard, non-guiding center, tracing
