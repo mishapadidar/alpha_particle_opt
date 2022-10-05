@@ -1,7 +1,7 @@
 
 import numpy as np
 
-class eval_wrapper:
+class EvalWrapper:
   """
   Class for wrapping a function call so that we can 
   save evaluations.
