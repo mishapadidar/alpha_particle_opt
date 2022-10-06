@@ -23,7 +23,7 @@ class TraceSimple:
 
     # load vmec and mpi
     self.comm = MpiPartition(n_partitions)
-    self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=True,verbose=False)
     
     # define parameters
     self.surf = self.vmec.boundary
@@ -130,8 +130,18 @@ class TraceSimple:
 
     # set the trace time
     simple_params.trace_time = tmax
+
+    # divide the particles
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+    work_intervals,work_counts = divide_work(n_particles,size)
+    my_work = work_intervals[rank]
+    my_counts = work_counts[rank]
+
     # set n particles
-    simple_params.ntestpart = n_particles
+    #simple_params.ntestpart = n_particles
+    simple_params.ntestpart = my_counts
 
     simple_params.params_init()
     # normalize the velocities
@@ -139,10 +149,17 @@ class TraceSimple:
     vpar_normalized = vpar_inits.reshape((-1,1))/np.sqrt(FUSION_ALPHA_SPEED_SQUARED) 
     # s, th_vmec, ph_vmec, v/v0, v_par/v
     zstart = np.hstack((stp_inits,v_normalized,vpar_normalized)).T
-    simple_params.zstart = zstart
+    simple_params.zstart = zstart[:,my_work]
     # trace
     simple_main.run(self.tracy)
-    return simple_params.times_lost
+    #return simple_params.times_lost
+
+    my_times= simple_params.times_lost
+    # broadcast the values
+    exit_times = np.zeros(n_particles)
+    comm.Gatherv(my_times,(exit_times,work_counts),root=0)
+    comm.Bcast(exit_times,root=0)
+    return exit_times
 
 
 
@@ -164,5 +181,5 @@ if __name__ == "__main__":
   t0  = time.time()
   c_times = tracer.compute_confinement_times(x0,stp_inits,vpar_inits,tmax)
   print('time',time.time() - t0)
+  print('mean',np.mean(c_times))
   #print(c_times)
-  print(np.mean(c_times))
