@@ -44,7 +44,7 @@ class TraceSimple:
     self.dim_x = len(self.x0) # dimension
 
     # pysimple stuff
-    stuff.multharm = 3     # Fast but inaccurate splines
+    stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
     #simple_params.ntestpart = 32
     #simple_params.trace_time = 1e-3
     simple_params.contr_pp = -1e10     # Trace all passing passing
