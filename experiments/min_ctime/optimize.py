@@ -65,7 +65,8 @@ def objective(x):
   # minimize negative confinement time
   res = tmax-np.mean(c_times)
   loss_frac = np.mean(res<tmax)
-  print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
+  if rank == 0:
+    print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
   sys.stdout.flush()
   return res
 
