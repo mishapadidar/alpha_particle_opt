@@ -24,10 +24,13 @@ Compute particle losses with MC tracing
 ns=ntheta=nzeta = 10
 nvpar=10
 tmax = 1e-4
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
 n_partitions = 1
 max_mode = 1
 major_radius = 5
+vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
+
+if not debug:
+  vmec_input="../" + vmec_input
 
 # optimization params
 maxfev = 1000
