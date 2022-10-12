@@ -4,7 +4,7 @@ from simsopt.mhd import Vmec
 from mpi4py import MPI
 import sys
 sys.path.append("../../SIMPLE/build")
-from pysimple import simple, simple_main, params as simple_params, new_vmec_stuff_mod as stuff
+from pysimple import simple, simple_main, params as simple_params, new_vmec_stuff_mod as stuff, velo_mod
 sys.path.append("../utils")
 from grids import symlog_grid
 from constants import *
@@ -43,12 +43,15 @@ class TraceSimple:
     self.x0 = np.copy(self.surf.x) # nominal starting point
     self.dim_x = len(self.x0) # dimension
 
-    # pysimple stuff
+    # pysimple stuff; see SIMPLE/examples/simple.in
     stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
-    #simple_params.ntestpart = 32
-    #simple_params.trace_time = 1e-3
     simple_params.contr_pp = -1e10     # Trace all passing passing
-    simple_params.startmode = -1       # Manual start conditions
+    simple_params.notrace_passing = 0      # leave at 0! set to 1 to skip passing particles
+    simple_params.startmode = -1       # -1 Manual, 1 generate on surface
+    simple_params.sbeg = 0.5 # surface to generate on
+    velo_mod.isw_field_type = 0 # 0 trace in canonical
+    simple_params.ntimstep = 10000 # number of timesteps; increase for accuracy
+    simple_params.npoiper2 = 256	 # points per period for integrator step; increase for accuracy
     self.tracy = simple_params.Tracer()
 
   def sync_seeds(self,sd=None):
@@ -97,7 +100,8 @@ class TraceSimple:
     # use fixed particle locations
     thetas = np.linspace(0, 1.0, ntheta)
     zetas = np.linspace(0,1.0, nzeta)
-    vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
     [thetas,zetas,vpars] = np.meshgrid(thetas, zetas,vpars)
     stz_inits = np.zeros((ntheta*nzeta*nvpar, 3))
@@ -155,6 +159,10 @@ class TraceSimple:
     #return simple_params.times_lost
 
     my_times= simple_params.times_lost
+
+    # correct the -1 values
+    my_times[my_times < 0] = tmax
+
     # broadcast the values
     exit_times = np.zeros(n_particles)
     comm.Gatherv(my_times,(exit_times,work_counts),root=0)
@@ -170,11 +178,11 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-2
+  tmax = 1e-4
 
   # tracing points
-  ntheta=nzeta = 10
-  nvpar=10
+  ntheta=nzeta = 5
+  nvpar=5
   stp_inits,vpar_inits = tracer.surface_grid(0.4,ntheta,nzeta,nvpar)
 
   import time
