@@ -45,6 +45,8 @@ class TraceSimple:
 
     # pysimple stuff; see SIMPLE/examples/simple.in
     stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
+    simple_params.n_e =  2 # helium charge in elementary charge
+    simple_params.n_d =  4 # helium mass in atomic units (2 proton + 2 neutrons)
     simple_params.contr_pp = -1e14     # Trace all passing passing
     simple_params.notrace_passing = 0      # leave at 0! set to 1 to skip passing particles
     simple_params.startmode = -1       # -1 Manual, 1 generate on surface
@@ -159,7 +161,7 @@ class TraceSimple:
     simple_main.run(self.tracy)
     #return simple_params.times_lost
 
-    my_times= simple_params.times_lost
+    my_times= np.copy(simple_params.times_lost)
 
     # correct the -1 values
     my_times[my_times < 0] = tmax
