@@ -154,7 +154,7 @@ class TraceSimple:
     vpar_normalized = vpar_inits.reshape((-1,1))/np.sqrt(FUSION_ALPHA_SPEED_SQUARED) 
     # s, th_vmec, ph_vmec, v/v0, v_par/v
     zstart = np.hstack((stp_inits,v_normalized,vpar_normalized)).T
-    simple_params.zstart = zstart[:,my_work]
+    simple_params.zstart = np.copy(zstart[:,my_work])
     # trace
     simple_main.run(self.tracy)
     #return simple_params.times_lost
