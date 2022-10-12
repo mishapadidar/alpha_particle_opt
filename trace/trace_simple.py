@@ -45,7 +45,7 @@ class TraceSimple:
 
     # pysimple stuff; see SIMPLE/examples/simple.in
     stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
-    simple_params.contr_pp = -1e10     # Trace all passing passing
+    simple_params.contr_pp = -1e14     # Trace all passing passing
     simple_params.notrace_passing = 0      # leave at 0! set to 1 to skip passing particles
     simple_params.startmode = -1       # -1 Manual, 1 generate on surface
     simple_params.sbeg = 0.5 # surface to generate on
@@ -80,7 +80,8 @@ class TraceSimple:
     surfaces = np.linspace(0.01,0.98, ns)
     thetas = np.linspace(0, 1.0, ntheta)
     zetas = np.linspace(0,1.0, nzeta)
-    vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
     [surfaces,thetas,zetas,vpars] = np.meshgrid(surfaces,thetas, zetas,vpars)
     stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
