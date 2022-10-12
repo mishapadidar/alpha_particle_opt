@@ -3,7 +3,7 @@ from mpi4py import MPI
 import sys
 import pickle
 from pdfo import pdfo
-debug = True
+debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
@@ -24,16 +24,17 @@ Compute particle losses with MC tracing
 quantile = 0.1 
 ns=ntheta=nzeta = 10
 nvpar=10
-tmax = 1e-3
+tmax = 1e-4
 n_partitions = 1
 max_mode = 1
 major_radius = 5
 vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
+#vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
 
 if not debug:
   vmec_input="../" + vmec_input
 
-# optimization params
+# optimizer params
 maxfev = 1000
 rhobeg = 1.0
 rhoend = 1e-8
