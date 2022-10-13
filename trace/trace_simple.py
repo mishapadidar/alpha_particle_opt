@@ -16,7 +16,11 @@ class TraceSimple:
   Class for tracing in simple using a VMEC boundary.
   """
 
-  def __init__(self,vmec_input,n_partitions=1,max_mode=1,major_radius=None):
+  def __init__(self,vmec_input,
+              n_partitions=1,
+              max_mode=1,
+              major_radius=None,
+              contr_pp = -1e-14):
     
     self.vmec_input = vmec_input
     self.max_mode = max_mode
@@ -47,7 +51,7 @@ class TraceSimple:
     stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
     simple_params.n_e =  2 # helium charge in elementary charge
     simple_params.n_d =  4 # helium mass in atomic units (2 proton + 2 neutrons)
-    simple_params.contr_pp = -1e14     # Trace all passing passing
+    simple_params.contr_pp = contr_pp     # Trace all passing passing
     simple_params.notrace_passing = 0      # leave at 0! set to 1 to skip passing particles
     simple_params.startmode = -1       # -1 Manual, 1 generate on surface
     simple_params.sbeg = 0.5 # surface to generate on
@@ -71,7 +75,7 @@ class TraceSimple:
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
-  def flux_grid(self,ns,ntheta,nzeta,nvpar):
+  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98):
     """
     Build a 4d grid over the flux coordinates and vpar.
     """
@@ -79,7 +83,7 @@ class TraceSimple:
     vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
     vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
-    surfaces = np.linspace(0.01,0.98, ns)
+    surfaces = np.linspace(0.01,s_max, ns)
     thetas = np.linspace(0, 1.0, ntheta)
     zetas = np.linspace(0,1.0, nzeta)
     #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
@@ -111,6 +115,26 @@ class TraceSimple:
     stz_inits[:, 0] = s_label
     stz_inits[:, 1] = thetas.flatten()
     stz_inits[:, 2] = zetas.flatten()
+    vpar_inits = vpars.flatten()
+    return stz_inits,vpar_inits
+
+  def poloidal_grid(self,phi_label,ns,ntheta,nvpar,s_max=0.98):
+    """
+    Builds a grid on a poloidal cross section
+    """
+    # bounds
+    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
+    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
+    # use fixed particle locations
+    surfaces = np.linspace(0.01,s_max, ns)
+    thetas = np.linspace(0, 1.0, ntheta)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
+    # build a mesh
+    [surfaces,thetas,vpars] = np.meshgrid(surfaces,thetas, vpars)
+    stz_inits = np.zeros((ns*ntheta*nvpar, 3))
+    stz_inits[:, 0] = surfaces.flatten()
+    stz_inits[:, 1] = thetas.flatten()
+    stz_inits[:, 2] = phi_label
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
 
