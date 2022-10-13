@@ -1,6 +1,6 @@
 &INDATA
 !----- Runtime Parameters -----
-  DELT =   9.00E-01
+  DELT =   5.00E-01
   NITER = 10000
   NSTEP =  200
   TCON0 =   2.00E+00
