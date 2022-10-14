@@ -28,8 +28,9 @@ tmax = 1e-4
 n_partitions = 1
 max_mode = 1
 major_radius = 5
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
-#vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+#vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
+vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+contr_pp = -1e16
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -37,12 +38,16 @@ if not debug:
 # optimizer params
 maxfev = 1000
 rhobeg = 1.0
-rhoend = 1e-8
+rhoend = 1e-6
 ftarget = -tmax
 
 
 # build a tracer object
-tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
+tracer = TraceSimple(vmec_input,
+                    n_partitions=n_partitions,
+                    max_mode=max_mode,
+                    major_radius=major_radius,
+                    contr_pp=contr_pp)
 tracer.sync_seeds(0)
 x0 = tracer.x0
 dim_x = tracer.dim_x
@@ -79,10 +84,14 @@ def objective(x):
 
 # optimize
 res = pdfo(objective, x0, method='bobyqa', options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-print(res)
+#from scipy.optimize import minimize
+#res = minimize(objective, x0, method='L-BFGS-B', options={'maxfun': maxfev, 'gtol':1e-8,
+#'eps':1e-2})
 xopt = res.x
 
 if rank == 0:
+  print(res)
+
   outfile = f"./data_opt_surface_{s_label}_tmax_{tmax}.pickle"
   outdata = {}
   outdata['X'] = evw.X
