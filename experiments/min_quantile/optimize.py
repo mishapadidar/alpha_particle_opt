@@ -3,7 +3,7 @@ from mpi4py import MPI
 import sys
 import pickle
 from pdfo import pdfo
-debug = False
+debug = True
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
@@ -28,9 +28,10 @@ tmax = 1e-4
 n_partitions = 1
 max_mode = 1
 major_radius = 5
-#vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
 vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
-contr_pp = -1e16
+# bounding away from sensitive paths
+#vpar_lb = -0.5e7
+#vpar_ub = 0.5e7
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -43,20 +44,18 @@ ftarget = -tmax
 
 
 # build a tracer object
-tracer = TraceSimple(vmec_input,
-                    n_partitions=n_partitions,
-                    max_mode=max_mode,
-                    major_radius=major_radius,
-                    contr_pp=contr_pp)
+tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
 tracer.sync_seeds(0)
 x0 = tracer.x0
 dim_x = tracer.dim_x
 
 s_label = sys.argv[1]
 if s_label == "full":
-  stz_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
+  #stz_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar,vpar_lb=vpar_lb,vpar_ub=vpar_ub)
+  stz_inits,vpar_inits = tracer.flux_grid(s_label,ntheta,nzeta,nvpar)
 else:
   s_label = float(s_label)
+  #stz_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar,vpar_lb=vpar_lb,vpar_ub=vpar_ub)
   stz_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
 n_particles = len(stz_inits)
 
@@ -64,6 +63,7 @@ n_particles = len(stz_inits)
 def get_ctimes(x):
   return tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
 evw = EvalWrapper(get_ctimes,dim_x,n_particles)
+
 
 # set up the objective
 def objective(x):
