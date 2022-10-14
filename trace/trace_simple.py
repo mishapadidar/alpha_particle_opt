@@ -60,6 +60,7 @@ class TraceSimple:
     simple_params.npoiper2 = 256	 # points per period for integrator step; increase for accuracy
     self.tracy = simple_params.Tracer()
 
+
   def sync_seeds(self,sd=None):
     """
     Sync the np.random.seed of the various worker groups.
@@ -75,13 +76,10 @@ class TraceSimple:
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
-  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98):
+  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=V_MAX,vpar_ub=V_MAX):
     """
     Build a 4d grid over the flux coordinates and vpar.
     """
-    # bounds
-    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
     surfaces = np.linspace(0.01,s_max, ns)
     thetas = np.linspace(0, 1.0, ntheta)
@@ -97,13 +95,10 @@ class TraceSimple:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
     
-  def surface_grid(self,s_label,ntheta,nzeta,nvpar):
+  def surface_grid(self,s_label,ntheta,nzeta,nvpar,vpar_lb=V_MAX,vpar_ub=V_MAX):
     """
     Builds a grid on a single surface.
     """
-    # bounds
-    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
     thetas = np.linspace(0, 1.0, ntheta)
     zetas = np.linspace(0,1.0, nzeta)
@@ -192,6 +187,7 @@ class TraceSimple:
 
     # broadcast the values
     exit_times = np.zeros(n_particles)
+    my_times = np.array(my_times)
     comm.Gatherv(my_times,(exit_times,work_counts),root=0)
     comm.Bcast(exit_times,root=0)
     return exit_times
