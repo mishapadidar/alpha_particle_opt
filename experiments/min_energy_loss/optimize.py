@@ -21,7 +21,8 @@ Compute particle losses with MC tracing
 """
 
 
-ns=ntheta=nzeta = 30
+ns = 10
+ntheta=nzeta = 30
 nvpar=30
 tmax = 1e-4
 n_partitions = 1
