@@ -20,7 +20,7 @@ class TraceSimple:
               n_partitions=1,
               max_mode=1,
               major_radius=None,
-              contr_pp = -1e-14):
+              contr_pp = -1e16):
     
     self.vmec_input = vmec_input
     self.max_mode = max_mode
@@ -48,7 +48,7 @@ class TraceSimple:
     self.dim_x = len(self.x0) # dimension
 
     # pysimple stuff; see SIMPLE/examples/simple.in
-    stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
+    stuff.multharm = 7     # 3=fast/inacurate, 5=normal,7=very accurate
     simple_params.n_e =  2 # helium charge in elementary charge
     simple_params.n_d =  4 # helium mass in atomic units (2 proton + 2 neutrons)
     simple_params.contr_pp = contr_pp     # Trace all passing passing
@@ -56,8 +56,8 @@ class TraceSimple:
     simple_params.startmode = -1       # -1 Manual, 1 generate on surface
     simple_params.sbeg = 0.5 # surface to generate on
     velo_mod.isw_field_type = 0 # 0 trace in canonical
-    simple_params.ntimstep = 10000 # number of timesteps; increase for accuracy
-    simple_params.npoiper2 = 256	 # points per period for integrator step; increase for accuracy
+    simple_params.ntimstep = 40000 # number of timesteps; increase for accuracy
+    simple_params.npoiper2 = 512	 # points per period for integrator step; increase for accuracy
     self.tracy = simple_params.Tracer()
 
 
