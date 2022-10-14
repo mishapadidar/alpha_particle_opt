@@ -25,7 +25,10 @@ major_radius = 5
 tmax = 1e-2
 n_partitions = 1
 max_mode = 1
-tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
+tracer = TraceSimple(vmec_input,
+                    n_partitions=n_partitions,
+                    max_mode=max_mode,
+                    major_radius=major_radius)
 tracer.sync_seeds(0)
 
 # particle locations
@@ -57,7 +60,7 @@ ub = max_pert
 lb = -max_pert
 n1 = int(n_points_per/2)
 T1 = np.linspace(lb,ub,n1)
-min_log,max_log = -5,-1
+min_log,max_log = -3,0
 n2 = int((n_points_per - n1)/2)
 T2 = np.logspace(min_log,max_log,n2)
 T2 = np.hstack((-T2,T2))
