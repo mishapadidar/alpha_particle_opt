@@ -76,7 +76,7 @@ class TraceSimple:
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
-  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=V_MAX,vpar_ub=V_MAX):
+  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Build a 4d grid over the flux coordinates and vpar.
     """
@@ -95,7 +95,7 @@ class TraceSimple:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
     
-  def surface_grid(self,s_label,ntheta,nzeta,nvpar,vpar_lb=V_MAX,vpar_ub=V_MAX):
+  def surface_grid(self,s_label,ntheta,nzeta,nvpar,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Builds a grid on a single surface.
     """
@@ -201,7 +201,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-4
+  tmax = 1e-2
 
   # tracing points
   ntheta=nzeta = 5
@@ -211,6 +211,7 @@ if __name__ == "__main__":
   import time
   t0  = time.time()
   c_times = tracer.compute_confinement_times(x0,stp_inits,vpar_inits,tmax)
+  print(np.unique(c_times))
   print('time',time.time() - t0)
   print('mean',np.mean(c_times))
   #print(c_times)
