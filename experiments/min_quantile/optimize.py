@@ -3,7 +3,7 @@ from mpi4py import MPI
 import sys
 import pickle
 from pdfo import pdfo
-debug = True
+debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
@@ -21,8 +21,9 @@ Compute particle losses with MC tracing
 """
 
 
-quantile = 0.1 
-ns=ntheta=nzeta = 10
+quantile = 0.5
+ns = 10
+ntheta=nzeta = 10
 nvpar=10
 tmax = 1e-4
 n_partitions = 1
