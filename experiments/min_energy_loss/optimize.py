@@ -21,21 +21,23 @@ Compute particle losses with MC tracing
 """
 
 
-ns=ntheta=nzeta = 10
-nvpar=10
+ns = 10
+ntheta=nzeta = 30
+nvpar=30
 tmax = 1e-4
 n_partitions = 1
 max_mode = 1
 major_radius = 5
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
+vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
 
 if not debug:
   vmec_input="../" + vmec_input
 
-# optimization params
+# optimizer params
 maxfev = 1000
 rhobeg = 1.0
-rhoend = 1e-8
+rhoend = 1e-6
+ftarget = 0.0
 
 # build a tracer object
 tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
@@ -59,23 +61,24 @@ evw = EvalWrapper(get_ctimes,dim_x,n_particles)
 # set up the objective
 def objective(x):
   c_times = evw(x)
-  if np.any(c_times < 0):
-    # safegaurd against return of -1 from simple
-    return np.inf
-  # minimize negative confinement time
-  res = tmax-np.mean(c_times)
-  loss_frac = np.mean(res<tmax)
+  if np.any(~np.isfinite(c_times)):
+    # vmec failed here
+    res = tmax # worst possible trace time
+  else:
+    # minimize negative confinement time
+    res = tmax-np.mean(c_times)
+  loss_frac = np.mean(c_times<tmax)
   if rank == 0:
     print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
   sys.stdout.flush()
   return res
 
 # optimize
-res = pdfo(objective, x0, method='bobyqa', options={'maxfev': maxfev, 'ftarget': 0.0,'rhobeg':rhobeg,'rhoend':rhoend})
-print(res)
+res = pdfo(objective, x0, method='bobyqa', options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
 xopt = res.x
 
 if rank == 0:
+  print(res)
   outfile = f"./data_opt_surface_{s_label}_tmax_{tmax}.pickle"
   outdata = {}
   outdata['X'] = evw.X

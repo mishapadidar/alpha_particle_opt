@@ -20,7 +20,7 @@ class TraceSimple:
               n_partitions=1,
               max_mode=1,
               major_radius=None,
-              contr_pp = -1e-14):
+              contr_pp = -1e16):
     
     self.vmec_input = vmec_input
     self.max_mode = max_mode
@@ -48,7 +48,7 @@ class TraceSimple:
     self.dim_x = len(self.x0) # dimension
 
     # pysimple stuff; see SIMPLE/examples/simple.in
-    stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
+    stuff.multharm = 7     # 3=fast/inacurate, 5=normal,7=very accurate
     simple_params.n_e =  2 # helium charge in elementary charge
     simple_params.n_d =  4 # helium mass in atomic units (2 proton + 2 neutrons)
     simple_params.contr_pp = contr_pp     # Trace all passing passing
@@ -56,9 +56,10 @@ class TraceSimple:
     simple_params.startmode = -1       # -1 Manual, 1 generate on surface
     simple_params.sbeg = 0.5 # surface to generate on
     velo_mod.isw_field_type = 0 # 0 trace in canonical
-    simple_params.ntimstep = 10000 # number of timesteps; increase for accuracy
-    simple_params.npoiper2 = 256	 # points per period for integrator step; increase for accuracy
+    simple_params.ntimstep = 40000 # number of timesteps; increase for accuracy
+    simple_params.npoiper2 = 512	 # points per period for integrator step; increase for accuracy
     self.tracy = simple_params.Tracer()
+
 
   def sync_seeds(self,sd=None):
     """
@@ -75,13 +76,10 @@ class TraceSimple:
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
-  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98):
+  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Build a 4d grid over the flux coordinates and vpar.
     """
-    # bounds
-    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
     surfaces = np.linspace(0.01,s_max, ns)
     thetas = np.linspace(0, 1.0, ntheta)
@@ -97,13 +95,10 @@ class TraceSimple:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
     
-  def surface_grid(self,s_label,ntheta,nzeta,nvpar):
+  def surface_grid(self,s_label,ntheta,nzeta,nvpar,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Builds a grid on a single surface.
     """
-    # bounds
-    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
     thetas = np.linspace(0, 1.0, ntheta)
     zetas = np.linspace(0,1.0, nzeta)
@@ -192,6 +187,7 @@ class TraceSimple:
 
     # broadcast the values
     exit_times = np.zeros(n_particles)
+    my_times = np.array(my_times)
     comm.Gatherv(my_times,(exit_times,work_counts),root=0)
     comm.Bcast(exit_times,root=0)
     return exit_times
@@ -205,7 +201,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-4
+  tmax = 1e-2
 
   # tracing points
   ntheta=nzeta = 5
@@ -215,6 +211,7 @@ if __name__ == "__main__":
   import time
   t0  = time.time()
   c_times = tracer.compute_confinement_times(x0,stp_inits,vpar_inits,tmax)
+  print(np.unique(c_times))
   print('time',time.time() - t0)
   print('mean',np.mean(c_times))
   #print(c_times)
