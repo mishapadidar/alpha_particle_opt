@@ -36,14 +36,14 @@ ntheta=nzeta=10
 nvpar = 10
 #s_label = 0.4
 s_label = float(sys.argv[1])
-stz_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
-n_particles = len(stz_inits)
+stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
+n_particles = len(stp_inits)
 
 
 # set up the objective
 def objective(x):
   # return confinement times (n_particles,)
-  c_times = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
+  c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
   return c_times
 
 # get the starting piont
@@ -94,9 +94,12 @@ for ii in range(n_directions):
   outdata['n_points_per'] = n_points_per
   outdata['Q'] = Q
   outdata['T'] = T
+  outdata['stp_inits'] = stp_inits
+  outdata['vpar_inits'] = vpar_inits
   outdata['max_mode'] = max_mode
   outdata['major_radius'] = major_radius
   outdata['vmec_input'] = vmec_input
   outdata['tmax'] = tmax
   outdata['s_label'] = s_label
+  outdata['phi_label'] = phi_label
   pickle.dump(outdata,open(outfile,"wb"))
