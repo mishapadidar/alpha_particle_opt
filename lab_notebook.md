@@ -6,6 +6,7 @@
   - include the exponential energy loss 
 - set up exponential energy loss objective
 - set up new radial density
+- set up SAA sampling.
 - determine sample sizes required to dampen noise
 - set up iterative increase of tmax.
 - set up a direct search method
