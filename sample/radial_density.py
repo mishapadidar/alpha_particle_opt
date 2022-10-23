@@ -61,19 +61,27 @@ class RadialDensity:
       x_{i+1} = x_i + (1/n_tabs)/pdf(x_i)
     This is as accurate as the Reimann sum approximation to the integral.
 
+    This method does not place many samples in areas where the PDF is 
+    flat. So we accomodate for this by adding some points manually to
+    this interval.
+
     n_tabs: integer, number of points to use in the tabulation. 
             Recommend at least 1000
     """
-    if n_tabs < 500
+    if n_tabs < 500:
       # just use a linspace
       dx = (self.ub-self.lb)/n_tabs
       s_vals = np.arange(self.lb,self.ub+dx/2, dx)
     else:
       # adaptive spacing
-      dy = 1.0/n_tabs    
-      s_vals = np.zeros(n_tabs)
+      dy = 1.0/n_tabs
+      n_pad = int(0.1*n_tabs)
+      s_vals = np.zeros(n_tabs+n_pad)
       for ii in range(1,n_tabs):
         s_vals[ii] = s_vals[ii-1] + dy/self._pdf(s_vals[ii-1])
+      # mix with linspace
+      diff = (self.ub - np.max(s_vals))/n_pad/2
+      s_vals[n_tabs:] = np.linspace(np.max(s_vals)+diff,self.ub,n_pad)
 
     # evaluate the CDF
     cdf_vals = np.array([self._cdf(s) for s in s_vals])
@@ -95,14 +103,17 @@ class RadialDensity:
 
 if __name__=="__main__":
   import matplotlib.pyplot as plt
-  n_tabs = 100
+  n_tabs = 10000
   sampler = RadialDensity(n_tabs)
 
   # plot the pdf
-  x = sampler.s_vals
+  x = np.linspace(0,1,100)
   y = sampler._pdf(x)
   plt.plot(x,y,'-o',markersize=5)
-  #plt.yscale('log')
+  # plot a histogram of samples
+  n_samples = 50000
+  s = sampler.sample(n_samples)
+  plt.hist(s,bins=100,density=True)
   plt.title("probability density")
   plt.xlabel("radial coordinate")
   plt.show()
