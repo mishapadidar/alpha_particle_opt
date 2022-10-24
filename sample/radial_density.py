@@ -2,7 +2,6 @@
 import numpy as np
 from scipy.integrate import quad as sp_quad
 from scipy.interpolate import interp1d as sp_interp
-from scipy.interpolate import UnivariateSpline as sp_univ
 
 class RadialDensity:
   """
