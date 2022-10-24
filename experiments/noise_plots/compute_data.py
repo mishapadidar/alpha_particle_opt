@@ -2,7 +2,7 @@ import numpy as np
 from mpi4py import MPI
 import pickle
 import sys
-debug = True
+debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
