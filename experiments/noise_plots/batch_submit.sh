@@ -38,7 +38,7 @@ do
   printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97]" >> ${SUB}
-  #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
+  printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
   printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${surf} ${nparticles}" >> ${SUB}
   
   ## submit
