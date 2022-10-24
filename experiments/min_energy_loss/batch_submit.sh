@@ -1,5 +1,11 @@
 
+SAMPLINGTYPE='SAA'
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
+OBJECTIVE='mean_energy'
+NS=10
+NTHETA=10
+NPHI=10
+NVPAR=10
 NODES=1
 CORES=12
 for idx in ${!SURFS[@]}
@@ -7,20 +13,21 @@ do
   surf=${SURFS[idx]}
 
   # make a dir
-  mkdir "_batch_surf_${surf}"
+  dir="_batch_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}"
+  mkdir $dir
 
   # copy the compute data
-  cp "./optimize.py" "_batch_surf_${surf}/optimize.py"
+  cp "./optimize.py" "${dir}/optimize.py"
 
   # write the run file
-  RUN="_batch_surf_${surf}/run.sh"
+  RUN="${dir}/run.sh"
   if [ ! -f "${RUN}" ]; then
     printf '%s\n' "sbatch --requeue submit.sub" >> ${RUN}
     chmod +x ${RUN}
   fi
 
   # write the submit file
-  SUB="_batch_surf_${surf}/submit.sub"
+  SUB="${dir}/submit.sub"
   if [ -f "${SUB}" ]; then
     rm "${SUB}"
   fi
@@ -38,10 +45,10 @@ do
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97]" >> ${SUB}
   printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${surf}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
-  cd "./_batch_surf_${surf}"
+  cd "./${dir}"
   "./run.sh"
   cd ..
 
