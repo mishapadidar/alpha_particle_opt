@@ -1,9 +1,8 @@
 
 import numpy as np
 from scipy.integrate import quad as sp_quad
-import sys
-sys.path.append("../utils")
-from grids import loglin_grid
+from scipy.interpolate import interp1d as sp_interp
+from scipy.interpolate import UnivariateSpline as sp_univ
 
 class RadialDensity:
   """
@@ -11,20 +10,20 @@ class RadialDensity:
     p(s,theta,phi) = (1-s^5)^2 (1-s)^(-2/3) exp(-19.94 (1-s)^(-1/3))
   where s in (0,1).
 
-  Sampling is done via the inverse transform method through a tabulated CDF.
+  Sampling is done via the inverse transform method through an interpolant
+  of the inverse cdf.
   """
 
-  def __init__(self,n_tabs=10000):
+  def __init__(self,n_points=1000):
     """
-    n_tabs: number of points to tagbulate the CDF at.
-            Use at least 1000.
+    n_points: number of points used to interpolate the inverse cdf.
     """
     # support
     self.lb = 0.0
     self.ub = 1.0
-    # tabulate the cdf
-    self.n_tabs = n_tabs
-    self.s_vals,self.cdf_vals = self.tabulate_cdf(n_tabs)
+    # compute the inverse cdf
+    self.n_points = n_points
+    self._cdf_inv = self.build_inverse_cdf(n_points)
 
   def _pdf(self,s):
     const = 0.21636861430315135e5
@@ -42,52 +41,29 @@ class RadialDensity:
     else:
       return sp_quad(self._pdf,self.lb,s)[0]
 
-  def tabulate_cdf(self,n_tabs):
+  def build_inverse_cdf(self,n_points=1000):
     """
-    Tabulate CDF values.
-    We space the x values out so that the spacing in CDF space
-    is approximately uniform. In other words we try to select 
-    {x_i} so that F(x_{i+1}) - F(x_i) = 1/n_tabs where n_tabs is 
-    the number of points we are tabulating the cdf at. The advantage
-    of this is improved inverse sampling accuracy.
-
-    Notice that F(x_{i+1})  = 1/n_tabs + F(x_i). Also the CDF value
-    can be computed by 
-      F(x_{i+1})  = integral_0^x_{i+1} pdf(x) dx 
-                  = F(x_i) + integral_{x_i}^{x_{i+1}} pdf(x) dx 
-                  ~ F(x_i) + pdf(x_i)*(x_{i+1} - x_i) 
-    where the last approximation is a Reimann sum approximation.
-    Substituting the two equations gives us the selection rule
-      x_{i+1} = x_i + (1/n_tabs)/pdf(x_i)
-    This is as accurate as the Reimann sum approximation to the integral.
-
-    This method does not place many samples in areas where the PDF is 
-    flat. So we accomodate for this by adding some points manually to
-    this interval.
-
-    n_tabs: integer, number of points to use in the tabulation. 
-            Recommend at least 1000
+    Build an interpolant of the inverse cdf.
+      X = F^{-1}(u)
+    n_points: number of points used in interpolation.
     """
-    if n_tabs < 500:
-      # just use a linspace
-      dx = (self.ub-self.lb)/n_tabs
-      s_vals = np.arange(self.lb,self.ub+dx/2, dx)
-    else:
-      # adaptive spacing
-      dy = 1.0/n_tabs
-      n_pad = int(0.1*n_tabs)
-      s_vals = np.zeros(n_tabs+n_pad)
-      for ii in range(1,n_tabs):
-        s_vals[ii] = s_vals[ii-1] + dy/self._pdf(s_vals[ii-1])
-      # mix with linspace
-      diff = (self.ub - np.max(s_vals))/n_pad/2
-      s_vals[n_tabs:] = np.linspace(np.max(s_vals)+diff,self.ub,n_pad)
+    #s_vals = np.linspace(self.lb,self.ub,n_points)
+
+    # adaptive spacing
+    dy = 1.0/n_points
+    n_pad = int(0.1*n_points)
+    s_vals = np.zeros(n_points+n_pad)
+    for ii in range(1,n_points):
+      s_vals[ii] = s_vals[ii-1] + dy/self._pdf(s_vals[ii-1])
+    # mix with linspace
+    diff = (self.ub - np.max(s_vals))/n_pad/2
+    s_vals[n_points:] = np.linspace(np.max(s_vals)+diff,self.ub,n_pad)
 
     # evaluate the CDF
     cdf_vals = np.array([self._cdf(s) for s in s_vals])
-
-
-    return s_vals,cdf_vals
+    # interpolate x = F^-1(u)
+    interpolant = sp_interp(cdf_vals,s_vals,kind='cubic')
+    return interpolant
 
   def sample(self,n_points):
     """
@@ -95,47 +71,35 @@ class RadialDensity:
     """
     # generate uniform random variables
     unif = np.random.uniform(0,1,n_points)
-    # find the nearest cdf value
-    snap = np.array([np.argmin(np.abs(self.cdf_vals - u)) for u in unif])
-    # return the points
-    return self.s_vals[snap]
+
+    # evaluate the inverse CDF
+    return self._cdf_inv(unif)
 
 
 if __name__=="__main__":
   import matplotlib.pyplot as plt
-  n_tabs = 10000
-  sampler = RadialDensity(n_tabs)
+  n_points = 1000
+  sampler = RadialDensity(n_points)
 
   # plot the pdf
-  x = np.linspace(0,1,100)
+  x = np.linspace(0,1,1000)
   y = sampler._pdf(x)
-  plt.plot(x,y,'-o',markersize=5)
+  plt.plot(x,y)
   # plot a histogram of samples
-  n_samples = 50000
+  n_samples = 200000
   s = sampler.sample(n_samples)
   plt.hist(s,bins=100,density=True)
   plt.title("probability density")
   plt.xlabel("radial coordinate")
   plt.show()
 
-  # plot the tabulated cdf values
-  x = sampler.s_vals
-  y = sampler.cdf_vals
-  plt.plot(x,y,'-o',markersize=5)
-  plt.yscale('log')
-  plt.title("cumulative density")
-  plt.xlabel("radial coordinate")
-  plt.show()
-
-  # plot the change in the cdf values from the tabulation
-  # should be roughly constant b/c of our step size rule
-  x = sampler.s_vals[:-1]
-  y = n_tabs*(sampler.cdf_vals[1:]- sampler.cdf_vals[:-1])
-  plt.plot(x,y,'-o',markersize=5)
-  plt.title("normalized change in cumulative density")
-  plt.xlabel("radial coordinate")
-  plt.ylabel("change in CDF times number of samples")
-  plt.ylim(0.7,1.3)
+  # plot the inverse CDF
+  x = np.linspace(0,1,10000)
+  y = [sampler._cdf(xi) for xi in x] 
+  plt.plot(y,x,'-o',markersize=3,label='inverse cdf')
+  y = np.linspace(0,1,100000)
+  plt.plot(y,sampler._cdf_inv(y),label='interpolant')
+  plt.legend(loc='upper left')
   plt.show()
 
   
