@@ -2,7 +2,6 @@
 ## Lab Notebook
 
 ### TODO:
-- set up SAA sampling.
 - determine sample sizes required to dampen noise
 - set up a direct search method
 - optimize energy and confinement time objectives with SAA
