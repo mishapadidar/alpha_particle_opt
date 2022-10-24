@@ -188,6 +188,9 @@ for tmax in tmax_list:
   # optimize
   res = pdfo(objective, x0, method='bobyqa', options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = res.x
+
+  # reset x0 for next iter
+  x0 = np.copy(xopt)
   
   # save results
   if rank == 0:
