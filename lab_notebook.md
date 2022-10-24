@@ -2,7 +2,6 @@
 ## Lab Notebook
 
 ### TODO:
-- set up new radial density
 - set up SAA sampling.
 - determine sample sizes required to dampen noise
 - set up a direct search method
