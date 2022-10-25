@@ -3,9 +3,9 @@
 
 ### TODO:
 - determine sample sizes required to dampen deterministic noise
-- set up aspect ratio constraint
 - set up a direct search method
 - optimize energy and confinement time objectives
+- set up ECNoise algorithm
 - set up post optimization diagnostics
   - determine finite difference step size through ECNoise algorithm.
   - Make 1d plots at optima to visually measure noise at solution.
