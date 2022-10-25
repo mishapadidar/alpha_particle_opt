@@ -2,7 +2,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 import pickle
-from pdfo import pdfo
+from pdfo import pdfo,NonlinearConstraint
 debug = False
 if debug:
   sys.path.append("../../utils")
@@ -116,6 +116,29 @@ assert n_particles == len(stp_inits), "n_particles does not equal length of poin
 # sync seeds again
 tracer.sync_seeds()
 
+# aspect constraint
+def aspect_ratio(x):
+  """
+  Compute the aspect ratio
+  """
+  # update the surface
+  tracer.surf.x = np.copy(x)
+
+  # evaluate the objectives
+  try:
+    asp = tracer.surf.aspect_ratio()
+  except:
+    asp = np.inf
+
+  # catch partial failures
+  if np.isnan(asp):
+    asp = np.inf
+
+  return asp
+aspect_lb = 4.0
+aspect_ub = 8.0
+aspect_constraint = NonlinearConstraint(aspect_ratio, aspect_lb,aspect_ub)
+
 # wrap the tracer object
 def get_ctimes(x):
   return tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
@@ -186,7 +209,7 @@ for tmax in tmax_list:
     ftarget = 0.0
 
   # optimize
-  res = pdfo(objective, x0, method='bobyqa', options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+  res = pdfo(objective, x0, method='cobyla', constraints=[aspect_constraint],options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = res.x
 
   # reset x0 for next iter
