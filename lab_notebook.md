@@ -2,10 +2,10 @@
 ## Lab Notebook
 
 ### TODO:
-- determine sample sizes required to dampen deterministic noise
-- set up a direct search method
-- optimize energy and confinement time objectives
 - set up ECNoise algorithm
+  - determine sample sizes required to dampen deterministic noise
+  - make plot of noise vs sample size and trace time.
+- optimize energy and confinement time objectives
 - set up post optimization diagnostics
   - determine finite difference step size through ECNoise algorithm.
   - Make 1d plots at optima to visually measure noise at solution.
@@ -14,6 +14,7 @@
   - look at out of sample performance.
   - look at quasisymmetry objective.
   - look at plots from Matts plotting script.
+- write a direct search method
 - look at sensitivity to constraint and distribution parameters.
 
 - look into variance reduction
