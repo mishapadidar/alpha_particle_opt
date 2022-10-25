@@ -22,7 +22,7 @@ rank = comm.Get_rank()
 
 # configuration parameters
 major_radius = 5
-tmax = 1e-1
+tmax = 1e-1 
 n_partitions = 1
 max_mode = 1
 vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
@@ -96,12 +96,12 @@ n_directions = dim_x
 n_points_per = 25 # total points per direction
 
 # make the discretization
-max_pert = 0.2
+max_pert = 0.1
 ub = max_pert
 lb = -max_pert
 n1 = int(n_points_per/2)
 T1 = np.linspace(lb,ub,n1)
-min_log,max_log = -3,-1
+min_log,max_log = -4,-1
 n2 = int((n_points_per - n1)/2)
 T2 = np.logspace(min_log,max_log,n2)
 T2 = np.hstack((-T2,T2))
@@ -127,7 +127,7 @@ for ii in range(n_directions):
   FX[ii] = np.copy(fY)
 
   # dump a pickle file
-  outfile = f"./data_surface_{sampling_type}_tmax_{tmax}.pickle"
+  outfile = f"./data_surface_{sampling_level}_tmax_{tmax}.pickle"
   outdata = {}
   outdata['X'] = X
   outdata['FX'] = FX
