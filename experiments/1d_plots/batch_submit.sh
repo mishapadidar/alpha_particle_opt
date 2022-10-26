@@ -1,5 +1,10 @@
 
-SURFS=('0.2' '0.4' '0.6' '0.8') 
+SAMPLINGTYPE='SAA'
+SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
+NS=10
+NTHETA=10
+NPHI=10
+NVPAR=10
 NODES=1
 CORES=12
 for idx in ${!SURFS[@]}
@@ -7,20 +12,21 @@ do
   surf=${SURFS[idx]}
 
   # make a dir
-  mkdir "_batch_surf_${surf}"
+  dir="_batch_${SAMPLINGTYPE}_surf_${surf}"
+  mkdir $dir
 
   # copy the compute data
-  cp "./compute_data.py" "_batch_surf_${surf}/compute_data.py"
+  cp "./compute_data.py" "${dir}/compute_data.py"
 
   # write the run file
-  RUN="_batch_surf_${surf}/run.sh"
+  RUN="${dir}/run.sh"
   if [ ! -f "${RUN}" ]; then
     printf '%s\n' "sbatch --requeue submit.sub" >> ${RUN}
     chmod +x ${RUN}
   fi
 
   # write the submit file
-  SUB="_batch_surf_${surf}/submit.sub"
+  SUB="${dir}/submit.sub"
   if [ -f "${SUB}" ]; then
     rm "${SUB}"
   fi
@@ -33,15 +39,15 @@ do
   printf '%s\n' "#SBATCH --ntasks-per-node ${CORES}    # Total number of cores requested" >> ${SUB}
   printf '%s\n' "#SBATCH --get-user-env     # Tells sbatch to retrieve the users login environment" >> ${SUB}
   printf '%s\n' "#SBATCH -t 96:00:00        # Time limit (hh:mm:ss)" >> ${SUB}
-  printf '%s\n' "#SBATCH --mem-per-cpu=2000   # Memory required per allocated CPU" >> ${SUB}
+  printf '%s\n' "#SBATCH --mem-per-cpu=4000   # Memory required per allocated CPU" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
-  printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
+  #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97]" >> ${SUB}
-  #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${surf}" >> ${SUB}
+  printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${SAMPLINGTYPE} ${surf} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
-  cd "./_batch_surf_${surf}"
+  cd "./${dir}"
   "./run.sh"
   cd ..
 

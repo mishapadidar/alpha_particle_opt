@@ -6,38 +6,108 @@ debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
+  sys.path.append("../../sample")
   sys.path.append("../../../SIMPLE/build/")
 else:
   sys.path.append("../../../utils")
   sys.path.append("../../../trace")
+  sys.path.append("../../../sample")
   sys.path.append("../../../../SIMPLE/build/")
-#from trace_boozer import TraceBoozer
 from trace_simple import TraceSimple
+from radial_density import RadialDensity
+from constants import V_MAX
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+
+"""
+Compute data for 1d plots
+
+ex.
+  mpiexec -n 1 python3 compute_data.py SAA 0.5 10 10 10 10
+"""
 
 
-# load the problem
-if debug:
-  vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
-else:
-  vmec_input="../../../vmec_input_files/input.nfp2_QA_high_res"
-
-major_radius = 5
+# tracing parameters
 tmax = 1e-2
+# configuration parmaeters
 n_partitions = 1
 max_mode = 1
-tracer = TraceSimple(vmec_input,
-                    n_partitions=n_partitions,
-                    max_mode=max_mode,
-                    major_radius=major_radius)
-tracer.sync_seeds(0)
+major_radius = 5
+vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
 
-# particle locations
-ntheta=nzeta=10
-nvpar = 10
-#s_label = 0.4
-s_label = float(sys.argv[1])
-stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
-n_particles = len(stp_inits)
+if not debug:
+  vmec_input="../" + vmec_input
+
+# read inputs
+sampling_type = sys.argv[1] # SAA or grid
+sampling_level = sys.argv[2] # "full" or a float surface label
+ns = int(sys.argv[3])  # number of surface samples
+ntheta = int(sys.argv[4]) # num theta samples
+nphi = int(sys.argv[5]) # num phi samples
+nvpar = int(sys.argv[6]) # num vpar samples
+assert sampling_type in ['SAA' or "grid"]
+
+# number of tracers
+n_particles = ns*ntheta*nphi*nvpar
+
+# build a tracer object
+tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
+tracer.sync_seeds()
+x0 = tracer.x0
+dim_x = tracer.dim_x
+
+if sampling_type == "grid" and sampling_level == "full":
+  # grid over (s,theta,phi,vpar)
+  stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
+elif sampling_type == "grid":
+  # grid over (theta,phi,vpar) for a fixed surface label
+  s_label = float(sampling_level)
+  stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
+elif sampling_type == "SAA" and sampling_level == "full":
+  # SAA sampling over (s,theta,phi,vpar)
+  s_inits = np.zeros(n_particles)
+  theta_inits = np.zeros(n_particles)
+  phi_inits = np.zeros(n_particles)
+  vpar_inits = np.zeros(n_particles)
+  if rank == 0:
+    sampler = RadialDensity(1000)
+    s_inits = sampler.sample(n_particles)
+    # randomly sample theta,phi,vpar
+    theta_inits = np.random.uniform(0,1,n_particles)
+    phi_inits = np.random.uniform(0,1,n_particles)
+    vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
+  # broadcast the points
+  comm.Bcast(s_inits,root=0)
+  comm.Bcast(theta_inits,root=0)
+  comm.Bcast(phi_inits,root=0)
+  comm.Bcast(vpar_inits,root=0)
+  # stack the samples
+  stp_inits = np.vstack((s_inits,theta_inits,phi_inits)).T
+
+elif sampling_type == "SAA":
+  # SAA sampling over (theta,phi,vpar) for a fixed surface
+  s_inits = float(sampling_level)*np.ones(n_particles)
+  theta_inits = np.zeros(n_particles)
+  phi_inits = np.zeros(n_particles)
+  vpar_inits = np.zeros(n_particles)
+  if rank == 0:
+    # randomly sample theta,phi,vpar
+    theta_inits = np.random.uniform(0,1,n_particles)
+    phi_inits = np.random.uniform(0,1,n_particles)
+    vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
+  # broadcast the points
+  comm.Bcast(theta_inits,root=0)
+  comm.Bcast(phi_inits,root=0)
+  comm.Bcast(vpar_inits,root=0)
+  # stack the samples
+  stp_inits = np.vstack((s_inits,theta_inits,phi_inits)).T
+
+
+# double check
+assert n_particles == len(stp_inits), "n_particles does not equal length of points"
+# sync seeds again
+tracer.sync_seeds()
 
 
 # set up the objective
@@ -52,15 +122,15 @@ dim_x = tracer.dim_x
 
 # discretization parameters
 n_directions = dim_x
-n_points_per = 50 # total points per direction
+n_points_per = 200 # total points per direction
 
 # make the discretization
-max_pert = 0.5*major_radius
+max_pert = 0.1
 ub = max_pert
 lb = -max_pert
 n1 = int(n_points_per/2)
 T1 = np.linspace(lb,ub,n1)
-min_log,max_log = -3,0
+min_log,max_log = -5,-2
 n2 = int((n_points_per - n1)/2)
 T2 = np.logspace(min_log,max_log,n2)
 T2 = np.hstack((-T2,T2))
@@ -86,7 +156,7 @@ for ii in range(n_directions):
   FX[ii] = np.copy(fY)
 
   # dump a pickle file
-  outfile = f"1dplot_data_s_{s_label}.pickle"
+  outfile = f"./data_surface_{sampling_type}_tmax_{tmax}.pickle"
   outdata = {}
   outdata['X'] = X
   outdata['FX'] = FX
@@ -100,6 +170,6 @@ for ii in range(n_directions):
   outdata['major_radius'] = major_radius
   outdata['vmec_input'] = vmec_input
   outdata['tmax'] = tmax
-  outdata['s_label'] = s_label
-  outdata['phi_label'] = phi_label
+  outdata['sampling_type'] = sampling_type
+  outdata['sampling_level'] = sampling_level
   pickle.dump(outdata,open(outfile,"wb"))
