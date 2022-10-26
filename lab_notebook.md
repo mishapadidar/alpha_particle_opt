@@ -2,13 +2,22 @@
 ## Lab Notebook
 
 ### TODO:
-- Examine 1d plots at high resolution
-  - look for deterministic noise
+- Examine 1d plots at high resolution and noise plots
+  - look at results by surface
+  - look at three objectives: loss fraction, mean energy, mean time.
   - look at effect of sample size
-- set up ECNoise algorithm
-  - determine sample sizes required to dampen deterministic noise
-  - make plot of noise vs sample size and trace time.
+  - look for deterministic noise
+  - determine number of particles needed for each tmax
 - optimize energy and confinement time objectives
+  - dont exceed tmax = 1e-3
+  - use more particles than 10,000 for tmax >= 1e-4 
+  - increase ntimsteps
+  - dont optimize losses on full plasma, use a subset of surfaces.
+  - use a solver which can handle deterministic noise (TuRBO, differential evolution)
+- Think of a way to regularize or smooth objective
+  - are there any approximations which are smoother?
+  - can we use multifidelity?
+  - can we use backwards tracing at all?
 - set up post optimization diagnostics
   - determine finite difference step size through ECNoise algorithm.
   - Make 1d plots at optima to visually measure noise at solution.
