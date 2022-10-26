@@ -34,7 +34,8 @@ tmax = 1e-2
 n_partitions = 1
 max_mode = 1
 major_radius = 5
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+#vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -156,7 +157,7 @@ for ii in range(n_directions):
   FX[ii] = np.copy(fY)
 
   # dump a pickle file
-  outfile = f"./data_surface_{sampling_type}_tmax_{tmax}.pickle"
+  outfile = f"./data_surface_{sampling_type}_{sampling_level}_tmax_{tmax}.pickle"
   outdata = {}
   outdata['X'] = X
   outdata['FX'] = FX
