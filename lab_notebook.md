@@ -2,6 +2,9 @@
 ## Lab Notebook
 
 ### TODO:
+- Examine 1d plots at high resolution
+  - look for deterministic noise
+  - look at effect of sample size
 - set up ECNoise algorithm
   - determine sample sizes required to dampen deterministic noise
   - make plot of noise vs sample size and trace time.
