@@ -29,7 +29,8 @@ ex.
 
 
 # tracing parameters
-tmax = 1e-2
+tmax = 1e-3
+n_timesteps = 100000
 # configuration parmaeters
 n_partitions = 1
 max_mode = 1
@@ -114,7 +115,7 @@ tracer.sync_seeds()
 # set up the objective
 def objective(x):
   # return confinement times (n_particles,)
-  c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
+  c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax,n_timesteps)
   return c_times
 
 # get the starting piont
@@ -171,6 +172,7 @@ for ii in range(n_directions):
   outdata['major_radius'] = major_radius
   outdata['vmec_input'] = vmec_input
   outdata['tmax'] = tmax
+  outdata['n_timesteps'] = n_timesteps
   outdata['sampling_type'] = sampling_type
   outdata['sampling_level'] = sampling_level
   pickle.dump(outdata,open(outfile,"wb"))
