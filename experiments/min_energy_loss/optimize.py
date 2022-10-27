@@ -31,7 +31,7 @@ ex.
 
 
 # tracing parameters
-tmax_list = [1e-5,1e-4,1e-3,1e-2,1e-1]
+tmax_list = [1e-5,1e-4,1e-3]
 # configuration parmaeters
 n_partitions = 1
 max_mode = 1
@@ -40,7 +40,7 @@ vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
 # optimizer params
 maxfev = 1000
 rhobeg = 0.1
-rhoend = 1e-6
+rhoend = 1e-5
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -218,7 +218,7 @@ for tmax in tmax_list:
   # save results
   if rank == 0:
     print(res)
-    outfile = f"./data_opt_surface_{sampling_type}_tmax_{tmax}.pickle"
+    outfile = f"./data_opt_{objective_type}_surface_{sampling_type}_tmax_{tmax}.pickle"
     outdata = {}
     outdata['X'] = evw.X
     outdata['FX'] = evw.FX
