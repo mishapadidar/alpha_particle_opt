@@ -133,7 +133,7 @@ class TraceSimple:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
 
-  def compute_confinement_times(self,x,stp_inits,vpar_inits,tmax):
+  def compute_confinement_times(self,x,stp_inits,vpar_inits,tmax,n_timesteps=40000):
     """
     x: vmec surface description
     stp_inits: (s,theta,phi) vmec coords. shape (N,3)
@@ -154,6 +154,8 @@ class TraceSimple:
     simple.init_field(self.tracy, wout_file,
         stuff.ns_s, stuff.ns_tp, stuff.multharm, simple_params.integmode)
 
+    # set the number of timesteps
+    simple_params.ntimstep = n_timesteps # number of timesteps; increase for accuracy
     # set the trace time
     simple_params.trace_time = tmax
 
