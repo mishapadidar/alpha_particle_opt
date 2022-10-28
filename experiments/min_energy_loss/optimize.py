@@ -31,7 +31,8 @@ ex.
 
 
 # tracing parameters
-tmax_list = [1e-5,1e-4,1e-3]
+#tmax_list = [1e-5,1e-4,1e-3]
+tmax_list = [1e-4,1e-3]
 # configuration parmaeters
 n_partitions = 1
 max_mode = 1
@@ -214,6 +215,10 @@ for tmax in tmax_list:
 
   # reset x0 for next iter
   x0 = np.copy(xopt)
+
+  # evaluate the configuration
+  aspect_opt = aspect_ratio(xopt)
+  c_times_opt = get_ctimes(xopt)
   
   # save results
   if rank == 0:
@@ -223,6 +228,8 @@ for tmax in tmax_list:
     outdata['X'] = evw.X
     outdata['FX'] = evw.FX
     outdata['xopt'] = xopt
+    outdata['aspect_opt'] = aspect_opt
+    outdata['c_times_opt'] = c_times_opt
     outdata['major_radius'] = major_radius
     outdata['vmec_input'] = vmec_input
     outdata['max_mode'] = max_mode
