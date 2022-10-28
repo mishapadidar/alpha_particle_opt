@@ -2,6 +2,7 @@
 SAMPLINGTYPE='SAA'
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
 OBJECTIVE='mean_energy'
+#OBJECTIVE='mean_time'
 NS=10
 NTHETA=10
 NPHI=10
