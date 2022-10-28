@@ -3,9 +3,12 @@
 
 ### TODO:
 - debug MPI errors
+- move MPI sampling routine to inside the tracer object
+- move mean energy and mean confinement time objectives to inside 
+  the tracer object
+- set up iterative increase of nparticles in optimization
 - set up surface sampling using SIMPLE
 - figure out how to set particles with SAA b/c the distribution changes with boundary
-- stop saving all trace times in optimization
 - write a direct search method
 - Look at optimization results
 - set up and verify Matts classification of particles
