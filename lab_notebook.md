@@ -2,8 +2,10 @@
 ## Lab Notebook
 
 ### TODO:
-- set up surface sampling using SIMPLE
 - debug MPI errors
+- set up surface sampling using SIMPLE
+- figure out how to set particles with SAA b/c the distribution changes with boundary
+- stop saving all trace times in optimization
 - write a direct search method
 - Look at optimization results
 - set up and verify Matts classification of particles
