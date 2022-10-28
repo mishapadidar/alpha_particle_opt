@@ -30,5 +30,8 @@ class EvalWrapper:
   def __call__(self,xx):
     ff = self.func(xx)
     self.X = np.append(self.X,[xx],axis=0)
-    self.FX = np.append(self.FX,[ff],axis=0)
+    if self.dim_F == 1:
+      self.FX = np.append(self.FX,[[ff]],axis=0)
+    else:
+      self.FX = np.append(self.FX,[ff],axis=0)
     return ff

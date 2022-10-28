@@ -143,7 +143,6 @@ aspect_constraint = NonlinearConstraint(aspect_ratio, aspect_lb,aspect_ub)
 # wrap the tracer object
 def get_ctimes(x):
   return tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
-evw = EvalWrapper(get_ctimes,dim_x,n_particles)
 
 # set up the objective
 def expected_negative_c_time(x,tmax):
@@ -155,7 +154,8 @@ def expected_negative_c_time(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = evw(x)
+  #c_times = evw(x)
+  c_times = get_ctimes(x)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     res = tmax
@@ -180,7 +180,8 @@ def expected_energy_retained(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = evw(x)
+  #c_times = evw(x)
+  c_times = get_ctimes(x)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     E = 3.5
@@ -208,9 +209,10 @@ for tmax in tmax_list:
   elif objective_type == "mean_time":
     objective = lambda x: expected_negative_c_time(x,tmax)
     ftarget = 0.0
+  evw = EvalWrapper(objective,dim_x,1)
 
   # optimize
-  res = pdfo(objective, x0, method='cobyla', constraints=[aspect_constraint],options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+  res = pdfo(evw, x0, method='cobyla', constraints=[aspect_constraint],options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = res.x
 
   # reset x0 for next iter
