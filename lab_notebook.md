@@ -2,31 +2,11 @@
 ## Lab Notebook
 
 ### TODO:
-- Examine 1d plots at high resolution and noise plots
-  - look at results by surface
-  - look at three objectives: loss fraction, mean energy, mean time.
-  - look at effect of sample size
-  - look for deterministic noise
-  - determine number of particles needed for each tmax
-- optimize energy and confinement time objectives
-  - dont exceed tmax = 1e-3
-  - use more particles than 10,000 for tmax >= 1e-4 
-  - increase ntimsteps
-  - dont optimize losses on full plasma, use a subset of surfaces.
-  - use a solver which can handle deterministic noise (TuRBO, differential evolution)
-- Think of a way to regularize or smooth objective
-  - are there any approximations which are smoother?
-  - can we use multifidelity?
-  - can we use backwards tracing at all?
-- set up post optimization diagnostics
-  - determine finite difference step size through ECNoise algorithm.
-  - Make 1d plots at optima to visually measure noise at solution.
-    - use this to determine if we need to run optimization again with more samples.
-  - check optimality through the norm gradient at minimum.
-  - look at out of sample performance.
-  - look at quasisymmetry objective.
-  - look at plots from Matts plotting script.
+- set up surface sampling using SIMPLE
+- debug MPI errors
 - write a direct search method
+- Look at optimization results
+- set up and verify Matts classification of particles
 - look at sensitivity to constraint and distribution parameters.
 
 - look into variance reduction
@@ -40,3 +20,8 @@
     - look at criteria based on modB.
   - look into control variates and importance sampling
   - choose problems to directly handle randomness (NOMAD, Snobfit, Turbo)
+
+## Notes
+- Lots of noise at tmax = 1e-1. 
+- We can probably optimize up to tmax = 1e-3 with 10,000 particles over all surfaces.
+- Energy objective is much smoother than confinement time. 
