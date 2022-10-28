@@ -13,7 +13,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 # finite difference parameter
-h_fdiff = 1e-2
+h_fdiff = 1e-4
 # manually override vmec input
 vmec_input = "../vmec_input_files/input.nfp2_QA_cold_high_res"
 
@@ -40,6 +40,7 @@ dim_x = tracer.dim_x
 
 def get_ctimes(x):
   return tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
+evw = EvalWrapper(get_ctimes,dim_x,n_particles)
 
 # set up the objective
 def expected_negative_c_time(x,tmax):
@@ -51,7 +52,7 @@ def expected_negative_c_time(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = get_ctimes(x)
+  c_times = evw(x)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     res = tmax
@@ -76,7 +77,7 @@ def expected_energy_retained(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = get_ctimes(x)
+  c_times = evw(x)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     E = 3.5
@@ -120,6 +121,9 @@ if rank == 0:
   print('gradient(xopt)')
   print(grad)
   print(np.linalg.norm(grad))
+# get the gradient evals
+X_opt = evw.X
+FX_opt = evw.FX
 
 # check the lagrange condition
 lam = -grad @ grad_asp /(grad_asp @ grad_asp)
@@ -138,4 +142,17 @@ if rank == 0:
   print('grad(x0)')
   print(grad0)
   print(np.linalg.norm(grad0))
+
+# make a pickle file
+if rank == 0:
+  gradient_evals = {}
+  gradient_evals['X'] = X_opt
+  gradient_evals['FX'] = FX_opt
+  gradient_evals['xopt'] = xopt
+  gradient_evals['grad_xopt'] = grad
+  gradient_evals['grad_aspect_xopt'] = grad_asp
+  gradient_evals['grad_x0'] = grad0
+  gradient_evals['h_fdiff'] = h_fdiff
+  indata['gradient_at_xopt'] = gradient_evals
+  pickle.dump(outdata,open(outfile,"wb"))
 
