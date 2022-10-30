@@ -37,7 +37,8 @@ tmax_list = [1e-4,1e-3]
 n_partitions = 1
 max_mode = 1
 major_radius = 5
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+#vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
 # optimizer params
 maxfev = 1000
 rhobeg = 0.1
