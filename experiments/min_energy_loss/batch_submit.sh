@@ -1,5 +1,5 @@
 
-SAMPLINGTYPE='SAA'
+SAMPLINGTYPE='random'
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'

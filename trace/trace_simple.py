@@ -6,6 +6,8 @@ import sys
 sys.path.append("../../SIMPLE/build")
 from pysimple import simple, simple_main, params as simple_params, new_vmec_stuff_mod as stuff, velo_mod
 sys.path.append("../utils")
+sys.path.append("../sample")
+from radial_density import RadialDensity
 from grids import symlog_grid
 from constants import *
 from divide_work import *
@@ -48,7 +50,7 @@ class TraceSimple:
     self.dim_x = len(self.x0) # dimension
 
     # pysimple stuff; see SIMPLE/examples/simple.in
-    stuff.multharm = 7     # 3=fast/inacurate, 5=normal,7=very accurate
+    stuff.multharm = 5     # 3=fast/inacurate, 5=normal,7=very accurate
     simple_params.n_e =  2 # helium charge in elementary charge
     simple_params.n_d =  4 # helium mass in atomic units (2 proton + 2 neutrons)
     simple_params.contr_pp = contr_pp     # Trace all passing passing
@@ -57,7 +59,7 @@ class TraceSimple:
     simple_params.sbeg = 0.5 # surface to generate on
     velo_mod.isw_field_type = 0 # 0 trace in canonical
     simple_params.ntimstep = 40000 # number of timesteps; increase for accuracy
-    simple_params.npoiper2 = 512	 # points per period for integrator step; increase for accuracy
+    simple_params.npoiper2 = 256	 # points per period for integrator step; increase for accuracy
     self.tracy = simple_params.Tracer()
 
 
@@ -133,6 +135,62 @@ class TraceSimple:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
 
+  def sample_volume(self,n_particles):
+    """
+    Sample the volume using the radial density sampler
+    """
+    # divide the particles
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+
+    # SAA sampling over (s,theta,phi,vpar)
+    s_inits = np.zeros(n_particles)
+    theta_inits = np.zeros(n_particles)
+    phi_inits = np.zeros(n_particles)
+    vpar_inits = np.zeros(n_particles)
+    if rank == 0:
+      sampler = RadialDensity(1000)
+      s_inits = sampler.sample(n_particles)
+      # randomly sample theta,phi,vpar
+      theta_inits = np.random.uniform(0,1,n_particles)
+      phi_inits = np.random.uniform(0,1,n_particles)
+      vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
+    # broadcast the points
+    comm.Bcast(s_inits,root=0)
+    comm.Bcast(theta_inits,root=0)
+    comm.Bcast(phi_inits,root=0)
+    comm.Bcast(vpar_inits,root=0)
+    # stack the samples
+    stp_inits = np.vstack((s_inits,theta_inits,phi_inits)).T
+    return stp_inits,vpar_inits
+
+  def sample_surface(self,n_particles,s_label):
+    """
+    Sample the volume using the radial density sampler
+    """
+    # divide the particles
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+    # SAA sampling over (theta,phi,vpar) for a fixed surface
+    s_inits = s_label*np.ones(n_particles)
+    theta_inits = np.zeros(n_particles)
+    phi_inits = np.zeros(n_particles)
+    vpar_inits = np.zeros(n_particles)
+    if rank == 0:
+      # randomly sample theta,phi,vpar
+      theta_inits = np.random.uniform(0,1,n_particles)
+      phi_inits = np.random.uniform(0,1,n_particles)
+      vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
+    # broadcast the points
+    comm.Bcast(theta_inits,root=0)
+    comm.Bcast(phi_inits,root=0)
+    comm.Bcast(vpar_inits,root=0)
+    # stack the samples
+    stp_inits = np.vstack((s_inits,theta_inits,phi_inits)).T
+    return stp_inits,vpar_inits
+
   def compute_confinement_times(self,x,stp_inits,vpar_inits,tmax,n_timesteps=40000):
     """
     x: vmec surface description
@@ -183,6 +241,12 @@ class TraceSimple:
     #return simple_params.times_lost
 
     my_times= np.copy(simple_params.times_lost)
+
+    # check 
+    if len(my_times) <my_counts:
+      print(f"ERROR: only computed {len(my_times)} loss times,instead of {my_counts}")
+      print(my_times)
+      quit()
 
     # correct the -1 values
     my_times[my_times < 0] = tmax

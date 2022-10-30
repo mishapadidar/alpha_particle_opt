@@ -26,7 +26,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py SAA 0.5 mean_energy 10 10 10 10
+  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy 10 10 10 10
 """
 
 
@@ -48,14 +48,14 @@ if not debug:
   vmec_input="../" + vmec_input
 
 # read inputs
-sampling_type = sys.argv[1] # SAA or grid
+sampling_type = sys.argv[1] # random or grid
 sampling_level = sys.argv[2] # "full" or a float surface label
 objective_type = sys.argv[3] # mean_energy or mean_time
 ns = int(sys.argv[4])  # number of surface samples
 ntheta = int(sys.argv[5]) # num theta samples
 nphi = int(sys.argv[6]) # num phi samples
 nvpar = int(sys.argv[7]) # num vpar samples
-assert sampling_type in ['SAA' or "grid"]
+assert sampling_type in ['random' or "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 
 n_particles = ns*ntheta*nphi*nvpar
@@ -66,57 +66,6 @@ tracer.sync_seeds()
 x0 = tracer.x0
 dim_x = tracer.dim_x
 
-if sampling_type == "grid" and sampling_level == "full":
-  # grid over (s,theta,phi,vpar)
-  stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
-elif sampling_type == "grid":
-  # grid over (theta,phi,vpar) for a fixed surface label
-  s_label = float(sampling_level)
-  stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
-elif sampling_type == "SAA" and sampling_level == "full":
-  # SAA sampling over (s,theta,phi,vpar)
-  s_inits = np.zeros(n_particles)
-  theta_inits = np.zeros(n_particles)
-  phi_inits = np.zeros(n_particles)
-  vpar_inits = np.zeros(n_particles)
-  if rank == 0:
-    sampler = RadialDensity(1000)
-    s_inits = sampler.sample(n_particles)
-    # randomly sample theta,phi,vpar
-    theta_inits = np.random.uniform(0,1,n_particles)
-    phi_inits = np.random.uniform(0,1,n_particles)
-    vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
-  # broadcast the points
-  comm.Bcast(s_inits,root=0)
-  comm.Bcast(theta_inits,root=0)
-  comm.Bcast(phi_inits,root=0)
-  comm.Bcast(vpar_inits,root=0)
-  # stack the samples
-  stp_inits = np.vstack((s_inits,theta_inits,phi_inits)).T
-
-elif sampling_type == "SAA":
-  # SAA sampling over (theta,phi,vpar) for a fixed surface
-  s_inits = float(sampling_level)*np.ones(n_particles)
-  theta_inits = np.zeros(n_particles)
-  phi_inits = np.zeros(n_particles)
-  vpar_inits = np.zeros(n_particles)
-  if rank == 0:
-    # randomly sample theta,phi,vpar
-    theta_inits = np.random.uniform(0,1,n_particles)
-    phi_inits = np.random.uniform(0,1,n_particles)
-    vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
-  # broadcast the points
-  comm.Bcast(theta_inits,root=0)
-  comm.Bcast(phi_inits,root=0)
-  comm.Bcast(vpar_inits,root=0)
-  # stack the samples
-  stp_inits = np.vstack((s_inits,theta_inits,phi_inits)).T
-
-
-# double check
-assert n_particles == len(stp_inits), "n_particles does not equal length of points"
-# sync seeds again
-tracer.sync_seeds()
 
 # aspect constraint
 def aspect_ratio(x):
@@ -141,9 +90,27 @@ aspect_lb = 4.0
 aspect_ub = 8.0
 aspect_constraint = NonlinearConstraint(aspect_ratio, aspect_lb,aspect_ub)
 
-# wrap the tracer object
-def get_ctimes(x):
-  return tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
+
+def get_ctimes(x,tmax):
+  # sync seeds again
+  tracer.sync_seeds()
+  if sampling_type == "grid" and sampling_level == "full":
+    # grid over (s,theta,phi,vpar)
+    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
+  elif sampling_type == "grid":
+    # grid over (theta,phi,vpar) for a fixed surface label
+    s_label = float(sampling_level)
+    stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
+  elif sampling_type == "random" and sampling_level == "full":
+    # volume sampling
+    stp_inits,vpar_inits = tracer.sample_volume(n_particles)
+  elif sampling_type == "random":
+    # surface sampling
+    s_label = float(sampling_level)
+    stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
+  # trace
+  c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
+  return c_times
 
 # set up the objective
 def expected_negative_c_time(x,tmax):
@@ -155,8 +122,7 @@ def expected_negative_c_time(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  #c_times = evw(x)
-  c_times = get_ctimes(x)
+  c_times = get_ctimes(x,tmax)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     res = tmax
@@ -181,8 +147,7 @@ def expected_energy_retained(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  #c_times = evw(x)
-  c_times = get_ctimes(x)
+  c_times = get_ctimes(x,tmax)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     E = 3.5
@@ -221,7 +186,8 @@ for tmax in tmax_list:
 
   # evaluate the configuration
   aspect_opt = aspect_ratio(xopt)
-  c_times_opt = get_ctimes(xopt)
+  #c_times_opt = get_ctimes(xopt)
+  c_times_opt = tracer.compute_confinement_times(xopt,stp_inits,vpar_inits,tmax)
   
   # save results
   if rank == 0:
