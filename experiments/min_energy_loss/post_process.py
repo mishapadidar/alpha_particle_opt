@@ -26,7 +26,8 @@ rank = comm.Get_rank()
 n_particles = 1000
 #sampling_level = "full" # full, or float surface label
 # manually override vmec input
-vmec_input = "../../vmec_input_files/input.nfp2_QA_cold_high_res"
+#vmec_input = "../../vmec_input_files/input.nfp2_QA_cold_high_res"
+vmec_input = "../../vmec_input_files/input.nfp2_QA_cold"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -94,6 +95,7 @@ else:
 assert n_particles == len(stp_inits), "n_particles does not equal length of points"
 # sync seeds again
 tracer.sync_seeds()
+
 
 # compute the confinement times
 import time
