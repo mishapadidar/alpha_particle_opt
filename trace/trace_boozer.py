@@ -1,99 +1,16 @@
 import numpy as np
 from simsopt.field.boozermagneticfield import BoozerRadialInterpolant, InterpolatedBoozerField
-from simsopt.field.tracing import trace_particles_boozer, MinToroidalFluxStoppingCriterion, \
-    MaxToroidalFluxStoppingCriterion,  ToroidalTransitStoppingCriterion
+from simsopt.field.tracing import trace_particles_boozer, MaxToroidalFluxStoppingCriterion
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
 from mpi4py import MPI
 import sys
 sys.path.append("../utils")
+sys.path.append("../sample")
 from grids import symlog_grid
+from radial_density import RadialDensity
 from constants import *
 from divide_work import *
-
-def trace_boozer(vmec,stz_inits,vpar_inits,tmax=1e-2):
-  """
-  Trace particles in boozer coordinates.
-
-  vmec: a vmec object
-  stz_inits: (n,3) array of (s,theta,zeta) points
-  vpar_inits: (n,) array of vpar values
-  tmax: max tracing time
-  """
-  n_particles = len(stz_inits)
-
-  # Construct radial interpolant of magnetic field
-  order = 3
-  bri = BoozerRadialInterpolant(vmec, order, enforce_vacuum=True)
-  
-  # Construct 3D interpolation
-  nfp = vmec.wout.nfp
-  degree = 3
-  srange = (0, 1, 10)
-  thetarange = (0, np.pi, 10)
-  zetarange = (0, 2*np.pi/nfp, 10)
-  field = InterpolatedBoozerField(bri, degree, srange, thetarange, zetarange, True, nfp=nfp, stellsym=True)
-  #print('Error in |B| interpolation', field.estimate_error_modB(1000), flush=True)
-
-
-  #stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99), 
-  #                     MinToroidalFluxStoppingCriterion(0.01),
-  #                     ToroidalTransitStoppingCriterion(100,True)]
-  stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99)]
-   
-
-  # divide the work
-  comm = MPI.COMM_WORLD
-  size = comm.Get_size()
-  rank = comm.Get_rank()
-  work_intervals,work_counts = divide_work(n_particles,size)
-  my_work = work_intervals[rank]
-  my_counts = work_counts[rank]
-
-  my_times = np.zeros(my_counts)
-
-  for idx,point_idx in enumerate(my_work):
-  
-    # get the particle
-    stz = stz_inits[point_idx].reshape((1,-1))
-    vpar = [vpar_inits[point_idx]]
-
-    # trace
-    res_tys, res_zeta_hits = trace_particles_boozer(
-        field, 
-        stz, 
-        vpar, 
-        tmax=tmax, 
-        mass=ALPHA_PARTICLE_MASS, 
-        charge=ALPHA_PARTICLE_CHARGE,
-        Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
-        tol=1e-8, 
-        mode='gc_vac',
-        stopping_criteria=stopping_criteria,
-        forget_exact_path=True
-        )
-
-    # get the final state at end of trace
-    tstz = res_tys[0] # trajectory [t,x,y,z,vpar]
-    final_stz = np.atleast_2d(tstz[-1,1:4])
-  
-    # lost particle
-    if len(res_zeta_hits[0])>0:
-      # exit time.
-      tau = res_zeta_hits[0].flatten()[0]
-      # exit state
-      state = res_zeta_hits[0].flatten()[2:]
-    else:
-      tau = tmax
-    # save it
-    my_times[idx] = tau
-  
-  # broadcast the values
-  exit_times = np.zeros(n_particles)
-  comm.Gatherv(my_times,(exit_times,work_counts),root=0)
-  comm.Bcast(exit_times,root=0)
-
-  return exit_times
 
 class TraceBoozer:
   """
@@ -143,18 +60,16 @@ class TraceBoozer:
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
-  def flux_grid(self,ns,ntheta,nzeta,nvpar):
+  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Build a 4d grid over the flux coordinates and vpar.
     """
-    # bounds
-    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
-    surfaces = np.linspace(0.01,0.98, ns)
-    thetas = np.linspace(0, 2*np.pi, ntheta)
-    zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
-    vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    surfaces = np.linspace(0.01,s_max, ns)
+    thetas = np.linspace(0, 1.0, ntheta)
+    zetas = np.linspace(0,1.0, nzeta)
+    #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
     [surfaces,thetas,zetas,vpars] = np.meshgrid(surfaces,thetas, zetas,vpars)
     stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
@@ -164,17 +79,16 @@ class TraceBoozer:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
     
-  def surface_grid(self,s_label,ntheta,nzeta,nvpar):
+  def surface_grid(self,s_label,ntheta,nzeta,nvpar,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Builds a grid on a single surface.
     """
-    # bounds
-    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
-    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
-    thetas = np.linspace(0, 2*np.pi, ntheta)
+    # theta is [0,pi] with stellsym
+    thetas = np.linspace(0, np.pi, ntheta)
     zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
-    vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
     [thetas,zetas,vpars] = np.meshgrid(thetas, zetas,vpars)
     stz_inits = np.zeros((ntheta*nzeta*nvpar, 3))
@@ -183,17 +97,269 @@ class TraceBoozer:
     stz_inits[:, 2] = zetas.flatten()
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
-    
+
+  def poloidal_grid(self,zeta_label,ns,ntheta,nvpar,s_max=0.98):
+    """
+    Builds a grid on a poloidal cross section
+    """
+    # bounds
+    vpar_lb = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(-1)
+    vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
+    # use fixed particle locations
+    surfaces = np.linspace(0.01,s_max, ns)
+    thetas = np.linspace(0, np.pi, ntheta)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
+    # build a mesh
+    [surfaces,thetas,vpars] = np.meshgrid(surfaces,thetas, vpars)
+    stz_inits = np.zeros((ns*ntheta*nvpar, 3))
+    stz_inits[:, 0] = surfaces.flatten()
+    stz_inits[:, 1] = thetas.flatten()
+    stz_inits[:, 2] = zeta_label
+    vpar_inits = vpars.flatten()
+    return stz_inits,vpar_inits
+
+  def sample_volume(self,n_particles):
+    """
+    Sample the volume using the radial density sampler
+    """
+    # divide the particles
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+
+    # SAA sampling over (s,theta,zeta,vpar)
+    s_inits = np.zeros(n_particles)
+    theta_inits = np.zeros(n_particles)
+    zeta_inits = np.zeros(n_particles)
+    vpar_inits = np.zeros(n_particles)
+    if rank == 0:
+      sampler = RadialDensity(1000)
+      s_inits = sampler.sample(n_particles)
+      # randomly sample theta,zeta,vpar
+      # theta is [0,pi] with stellsym
+      theta_inits = np.random.uniform(0,np.pi,n_particles)
+      zeta_inits = np.random.uniform(0,np.pi/self.surf.nfp,n_particles)
+      vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
+    # broadcast the points
+    comm.Bcast(s_inits,root=0)
+    comm.Bcast(theta_inits,root=0)
+    comm.Bcast(zeta_inits,root=0)
+    comm.Bcast(vpar_inits,root=0)
+    # stack the samples
+    stp_inits = np.vstack((s_inits,theta_inits,zeta_inits)).T
+    return stp_inits,vpar_inits
+
+  def sample_surface(self,n_particles,s_label):
+    """
+    Sample the volume using the radial density sampler
+    """
+    # divide the particles
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+    # SAA sampling over (theta,zeta,vpar) for a fixed surface
+    s_inits = s_label*np.ones(n_particles)
+    theta_inits = np.zeros(n_particles)
+    zeta_inits = np.zeros(n_particles)
+    vpar_inits = np.zeros(n_particles)
+    if rank == 0:
+      # randomly sample theta,zeta,vpar
+      # theta is [0,pi] with stellsym
+      theta_inits = np.random.uniform(0,np.pi,n_particles)
+      zeta_inits = np.random.uniform(0,2*np.pi/self.surf.nfp,n_particles)
+      vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
+    # broadcast the points
+    comm.Bcast(theta_inits,root=0)
+    comm.Bcast(zeta_inits,root=0)
+    comm.Bcast(vpar_inits,root=0)
+    # stack the samples
+    stp_inits = np.vstack((s_inits,theta_inits,zeta_inits)).T
+    return stp_inits,vpar_inits
+
   # set up the objective
-  def compute_confinement_times(self,x,stz_inits,vpar_inits,tmax):
+  def compute_confinement_times(self,x,
+     stz_inits,
+     vpar_inits,
+     tmax,
+     tracing_tol=1e-8,
+     interpolant_degree=3,
+     interpolant_level=8,
+     bri_mpol=32,
+     bri_ntor=32):
+    """
+    Trace particles in boozer coordinates according to the vacuum GC 
+    approximation using simsopt.
+
+    x: a point describing the current vmec boundary
+    stz_inits: (n,3) array of (s,theta,zeta) points
+    vpar_inits: (n,) array of vpar values
+    tmax: max tracing time
+    tracing_tol:a tolerance used to determine the accuracy of the tracing
+    interpolant_degree: degree of the polynomial interpolants used for 
+      interpolating the field. 1 is fast but innacurate, 3 is slower but more accurate.
+    interpolant_level: number of points used to interpolate the boozer radial 
+      interpolant (per direction). 5=fast/innacurate, 8=medium, 12=slow/accurate
+    bri_mpol,bri_ntor: number of poloidal and toroidal modes used in BoozXform,
+        less modes. 16 is faster than 32.
+    """
+    n_particles = len(vpar_inits)
+
     self.surf.x = np.copy(x)
     try:
       self.vmec.run()
     except:
       # VMEC failure!
       return -np.inf*np.ones(len(stz_inits)) 
-    exit_times = trace_boozer(self.vmec,stz_inits,vpar_inits,tmax=tmax)
+
+    # Construct radial interpolant of magnetic field
+    bri = BoozerRadialInterpolant(self.vmec, order=interpolant_degree,
+                      mpol=bri_mpol,ntor=bri_ntor, enforce_vacuum=True)
+    
+    # Construct 3D interpolation
+    nfp = self.vmec.wout.nfp
+    srange = (0, 1, interpolant_level)
+    thetarange = (0, np.pi, interpolant_level)
+    zetarange = (0, 2*np.pi/nfp,interpolant_level)
+    field = InterpolatedBoozerField(bri, degree=interpolant_degree, srange=srange, thetarange=thetarange,
+                       zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
+    #print('Error in |B| interpolation', field.estimate_error_modB(1000), flush=True)
+
+    #stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99), 
+    #                     MinToroidalFluxStoppingCriterion(0.01),
+    #                     ToroidalTransitStoppingCriterion(100,True)]
+    stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99)]
+     
+
+    # TODO: do we want the group comm here rather than world?
+    comm = MPI.COMM_WORLD
+
+    # trace
+    res_tys, res_zeta_hits = trace_particles_boozer(
+        field, 
+        stz_inits, 
+        vpar_inits, 
+        tmax=tmax, 
+        mass=ALPHA_PARTICLE_MASS, 
+        charge=ALPHA_PARTICLE_CHARGE,
+        Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
+        tol=tracing_tol, 
+        mode='gc_vac',
+        comm=comm,
+        stopping_criteria=stopping_criteria,
+        forget_exact_path=True
+        )
+
+    exit_times = np.zeros(n_particles)
+    for ii,res in enumerate(res_zeta_hits):
+      if len(res) > 0:
+        exit_times[ii] = res[0,0]
+      else:
+        exit_times[ii] = tmax
+
     return exit_times
+
+  ## set up the objective
+  #def compute_confinement_times_manual(self,x,stz_inits,vpar_inits,tmax,tracing_tol=1e-6):
+  #  """
+  #  Trace particles in boozer coordinates according to the vacuum GC 
+  #  approximation.
+
+  #  vmec: a vmec object
+  #  stz_inits: (n,3) array of (s,theta,zeta) points
+  #  vpar_inits: (n,) array of vpar values
+  #  tmax: max tracing time
+  #  """
+  #  n_particles = len(vpar_inits)
+
+  #  self.surf.x = np.copy(x)
+  #  try:
+  #    self.vmec.run()
+  #  except:
+  #    # VMEC failure!
+  #    return -np.inf*np.ones(len(stz_inits)) 
+
+  #  # Construct radial interpolant of magnetic field
+  #  order = 3
+  #  mpol=ntor=16
+
+  #  import time
+  #  print("")
+  #  print("forming interpolated boozer field")
+  #  t0 = time.time()
+  #  bri = BoozerRadialInterpolant(self.vmec, order=order,mpol=mpol,ntor=ntor, enforce_vacuum=True)
+  #  print('time',time.time() - t0)
+  #  
+  #  # Construct 3D interpolation
+  #  nfp = self.vmec.wout.nfp
+  #  degree = 3
+  #  srange = (0, 1, 8)
+  #  thetarange = (0, np.pi, 8)
+  #  zetarange = (0, 2*np.pi/nfp, 8)
+  #  print("")
+  #  print("forming interpolated boozer field")
+  #  t0 = time.time()
+  #  field = InterpolatedBoozerField(bri, degree, srange, thetarange, zetarange, True, nfp=nfp, stellsym=True)
+  #  print('time',time.time() - t0)
+  #  print('Error in |B| interpolation', field.estimate_error_modB(1000), flush=True)
+
+  #  # TODO: remove
+  #  #field = bri
+
+  #  def stopping_criteria(y):
+  #    """
+  #    MaxToroidalFluxStoppingCriteria
+  #    Equals 0.0 when s = 0.99
+  #    Transition from negative to postive indicates
+  #    particle ejects.
+  #    return s - 0.99
+  #    """
+  #    return y[0] - 0.99
+  #  stopping_criteria.terminal=True
+  #  stopping_criteria.direction=1.0
+  #   
+  #  # divide the work
+  #  comm = MPI.COMM_WORLD
+  #  size = comm.Get_size()
+  #  rank = comm.Get_rank()
+  #  work_intervals,work_counts = divide_work(n_particles,size)
+  #  my_work = work_intervals[rank]
+  #  my_counts = work_counts[rank]
+
+  #  my_times = np.zeros(my_counts)
+
+  #  from scipy.integrate import solve_ivp
+  #  from guiding_center_boozer import GuidingCenterVacuumBoozer
+
+  #  print("")
+  #  print("tracing")
+
+  #  for idx,point_idx in enumerate(my_work):
+  #    
+  #    # get the particle
+  #    stz = stz_inits[point_idx]
+  #    vpar = vpar_inits[point_idx]
+  #    y0 = np.append(stz,vpar)
+  #    # make a guiding center object
+  #    GC = GuidingCenterVacuumBoozer(field,y0)
+  #    gc_rhs = GC.GuidingCenterVacuumBoozerRHS
+  #    t0 = time.time()
+
+  #    # solve
+  #    solve_ivp(gc_rhs,(0,tmax),y0,first_step=1e-6,atol=tracing_tol,events=[stopping_criteria])
+
+  #  print('time',time.time() - t0)
+
+  #  #
+  #  #  # get the particle
+  #  #  stz = stz_inits[point_idx].reshape((1,-1))
+  #  #  vpar = [vpar_inits[point_idx]]
+  #  
+  #  ## broadcast the values
+  #  #exit_times = np.zeros(n_particles)
+  #  #comm.Gatherv(my_times,(exit_times,work_counts),root=0)
+  #  #comm.Bcast(exit_times,root=0)
+
+  #  return exit_times
 
   
 
@@ -204,16 +370,24 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-2
+  tmax = 1e-4
 
   # tracing points
-  ntheta=nzeta = 10
-  nvpar=10
-  stz_inits,vpar_inits = tracer.surface_grid(0.4,ntheta,nzeta,nvpar)
+  n_particles = 500
+  stz_inits,vpar_inits = tracer.sample_surface(n_particles,0.4)
 
   import time
   t0  = time.time()
-  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  c_times = tracer.compute_confinement_times(x0,
+     stz_inits,
+     vpar_inits,
+     tmax,
+     tracing_tol=1e-8,
+     interpolant_degree=1,
+     interpolant_level=10,
+     bri_mpol=16,
+     bri_ntor=16)
   print('time',time.time() - t0)
-  #print(c_times)
-  print(np.mean(c_times))
+  print('mean',np.mean(c_times))
+  print(c_times.shape)
+
