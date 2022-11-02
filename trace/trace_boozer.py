@@ -18,7 +18,28 @@ class TraceBoozer:
   more convenient.
   """
 
-  def __init__(self,vmec_input,n_partitions=1,max_mode=1,major_radius=None):
+  def __init__(self,vmec_input,
+    n_partitions=1,
+    max_mode=1,
+    major_radius=None,
+    tracing_tol=1e-8,
+    interpolant_degree=3,
+    interpolant_level=8,
+    bri_mpol=32,
+    bri_ntor=32):
+    """
+    vmec_input: vmec input file
+    n_partitions: number of partitions used by vmec mpi.
+    max_mode: number of modes used by vmec
+    major_radius: set a major radius if you want to rescale to that size.
+    tracing_tol:a tolerance used to determine the accuracy of the tracing
+    interpolant_degree: degree of the polynomial interpolants used for 
+      interpolating the field. 1 is fast but innacurate, 3 is slower but more accurate.
+    interpolant_level: number of points used to interpolate the boozer radial 
+      interpolant (per direction). 5=fast/innacurate, 8=medium, 12=slow/accurate
+    bri_mpol,bri_ntor: number of poloidal and toroidal modes used in BoozXform,
+        less modes. 16 is faster than 32.
+    """
     
     self.vmec_input = vmec_input
     self.max_mode = max_mode
@@ -44,6 +65,13 @@ class TraceBoozer:
     # variables
     self.x0 = np.copy(self.surf.x) # nominal starting point
     self.dim_x = len(self.x0) # dimension
+
+    # tracing params
+    self.tracing_tol=tracing_tol
+    self.interpolant_degree=interpolant_degree
+    self.interpolant_level=interpolant_level
+    self.bri_mpol=bri_mpol
+    self.bri_ntor=bri_ntor
 
   def sync_seeds(self,sd=None):
     """
@@ -177,15 +205,7 @@ class TraceBoozer:
     return stp_inits,vpar_inits
 
   # set up the objective
-  def compute_confinement_times(self,x,
-     stz_inits,
-     vpar_inits,
-     tmax,
-     tracing_tol=1e-8,
-     interpolant_degree=3,
-     interpolant_level=8,
-     bri_mpol=32,
-     bri_ntor=32):
+  def compute_confinement_times(self,x,stz_inits,vpar_inits,tmax):
     """
     Trace particles in boozer coordinates according to the vacuum GC 
     approximation using simsopt.
@@ -194,13 +214,6 @@ class TraceBoozer:
     stz_inits: (n,3) array of (s,theta,zeta) points
     vpar_inits: (n,) array of vpar values
     tmax: max tracing time
-    tracing_tol:a tolerance used to determine the accuracy of the tracing
-    interpolant_degree: degree of the polynomial interpolants used for 
-      interpolating the field. 1 is fast but innacurate, 3 is slower but more accurate.
-    interpolant_level: number of points used to interpolate the boozer radial 
-      interpolant (per direction). 5=fast/innacurate, 8=medium, 12=slow/accurate
-    bri_mpol,bri_ntor: number of poloidal and toroidal modes used in BoozXform,
-        less modes. 16 is faster than 32.
     """
     n_particles = len(vpar_inits)
 
@@ -212,15 +225,15 @@ class TraceBoozer:
       return -np.inf*np.ones(len(stz_inits)) 
 
     # Construct radial interpolant of magnetic field
-    bri = BoozerRadialInterpolant(self.vmec, order=interpolant_degree,
-                      mpol=bri_mpol,ntor=bri_ntor, enforce_vacuum=True)
+    bri = BoozerRadialInterpolant(self.vmec, order=self.interpolant_degree,
+                      mpol=self.bri_mpol,ntor=self.bri_ntor, enforce_vacuum=True)
     
     # Construct 3D interpolation
     nfp = self.vmec.wout.nfp
-    srange = (0, 1, interpolant_level)
-    thetarange = (0, np.pi, interpolant_level)
-    zetarange = (0, 2*np.pi/nfp,interpolant_level)
-    field = InterpolatedBoozerField(bri, degree=interpolant_degree, srange=srange, thetarange=thetarange,
+    srange = (0, 1, self.interpolant_level)
+    thetarange = (0, np.pi, self.interpolant_level)
+    zetarange = (0, 2*np.pi/nfp,self.interpolant_level)
+    field = InterpolatedBoozerField(bri, degree=self.interpolant_degree, srange=srange, thetarange=thetarange,
                        zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
     #print('Error in |B| interpolation', field.estimate_error_modB(1000), flush=True)
 
@@ -242,7 +255,7 @@ class TraceBoozer:
         mass=ALPHA_PARTICLE_MASS, 
         charge=ALPHA_PARTICLE_CHARGE,
         Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
-        tol=tracing_tol, 
+        tol=self.tracing_tol, 
         mode='gc_vac',
         comm=comm,
         stopping_criteria=stopping_criteria,
@@ -366,7 +379,15 @@ class TraceBoozer:
 if __name__ == "__main__":
 
   vmec_input = '../vmec_input_files/input.nfp2_QA'
-  tracer = TraceBoozer(vmec_input,n_partitions=1,max_mode=1,major_radius=10)
+  tracer = TraceBoozer(vmec_input,
+                      n_partitions=1,
+                      max_mode=1,
+                      major_radius=10,
+                      tracing_tol=1e-8,
+                      interpolant_degree=1,
+                      interpolant_level=10,
+                      bri_mpol=16,
+                      bri_ntor=16)
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
@@ -378,15 +399,7 @@ if __name__ == "__main__":
 
   import time
   t0  = time.time()
-  c_times = tracer.compute_confinement_times(x0,
-     stz_inits,
-     vpar_inits,
-     tmax,
-     tracing_tol=1e-8,
-     interpolant_degree=1,
-     interpolant_level=10,
-     bri_mpol=16,
-     bri_ntor=16)
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   print('time',time.time() - t0)
   print('mean',np.mean(c_times))
   print(c_times.shape)
