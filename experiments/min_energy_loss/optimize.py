@@ -5,7 +5,7 @@ import pickle
 from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
 from skquant.opt import minimize as skq_minimize
 from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc
-debug = True
+debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
@@ -70,8 +70,8 @@ n_particles = ns*ntheta*nphi*nvpar
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level  = 8
-bri_mpol = 32
-bri_ntor = 32
+bri_mpol = 16
+bri_ntor = 16
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
                       max_mode=max_mode,
@@ -84,79 +84,6 @@ tracer = TraceBoozer(vmec_input,
 tracer.sync_seeds()
 x0 = tracer.x0
 dim_x = tracer.dim_x
-
-
-def get_ctimes(x,tmax):
-  # sync seeds again
-  tracer.sync_seeds()
-  if sampling_type == "grid" and sampling_level == "full":
-    # grid over (s,theta,phi,vpar)
-    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
-  elif sampling_type == "grid":
-    # grid over (theta,phi,vpar) for a fixed surface label
-    s_label = float(sampling_level)
-    stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
-  elif sampling_type == "random" and sampling_level == "full":
-    # volume sampling
-    stp_inits,vpar_inits = tracer.sample_volume(n_particles)
-  elif sampling_type == "random":
-    # surface sampling
-    s_label = float(sampling_level)
-    stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
-  # trace
-  c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
-  return c_times
-
-# set up the objective
-def expected_negative_c_time(x,tmax):
-  """
-  Negative average confinement time, 
-    f(w) = -E[T | w]
-  Objective is for minimization.
-
-  x: array,vmec configuration variables
-  tmax: float, max trace time
-  """
-  c_times = get_ctimes(x,tmax)
-  if np.any(~np.isfinite(c_times)):
-    # vmec failed here; return worst possible value
-    res = tmax
-  else:
-    # minimize negative confinement time
-    res = tmax-np.mean(c_times)
-  loss_frac = np.mean(c_times<tmax)
-  if rank == 0:
-    print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
-  sys.stdout.flush()
-  return res
-
-def expected_energy_retained(x,tmax):
-  """
-  Expected energy retained by a particle before ejecting
-    f(w) = E[3.5exp(-2T/tau_s) | w]
-  We use tmax, the max trace time, instead of the slowing down
-  time tau_s to improve the conditioning of the objective.
-  
-  Objective is for minimization.
-
-  x: array,vmec configuration variables
-  tmax: float, max trace time
-  """
-  c_times = get_ctimes(x,tmax)
-  if np.any(~np.isfinite(c_times)):
-    # vmec failed here; return worst possible value
-    E = 3.5
-    res = E
-  else:
-    # minimize energy retained by particle
-    E = 3.5*np.exp(-2*c_times/tmax)
-    res = np.mean(E)
-  loss_frac = np.mean(c_times<tmax)
-  if rank == 0:
-    print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
-  sys.stdout.flush()
-  return res
-
 
 
 # aspect constraint
