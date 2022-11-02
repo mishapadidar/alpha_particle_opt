@@ -3,18 +3,20 @@ SAMPLINGTYPE='random'
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
-NS=10
-NTHETA=10
-NPHI=10
-NVPAR=10
+METHOD="snobfit"
+NS=8
+NTHETA=8
+NPHI=7
+NVPAR=7
 NODES=1
-CORES=12
+#CORES=12
+CORES=2
 for idx in ${!SURFS[@]}
 do
   surf=${SURFS[idx]}
 
   # make a dir
-  dir="_batch_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}"
+  dir="_batch_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_${METHOD}"
   mkdir $dir
 
   # copy the compute data
@@ -33,7 +35,7 @@ do
     rm "${SUB}"
   fi
   printf '%s\n' "#!/bin/bash" >> ${SUB}
-  printf '%s\n' "#SBATCH -J opt_${surf} # Job name" >> ${SUB}
+  printf '%s\n' "#SBATCH -J ${METHOD}_${surf} # Job name" >> ${SUB}
   printf '%s\n' "#SBATCH -o ./job_%j.out    # Name of stdout output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -e ./job_%j.err    # Name of stderr output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -N ${NODES}       # Total number of nodes requested" >> ${SUB}
@@ -44,9 +46,9 @@ do
   printf '%s\n' "#SBATCH --mem-per-cpu=4000   # Memory required per allocated CPU" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
-  printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97]" >> ${SUB}
-  printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
+  #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
