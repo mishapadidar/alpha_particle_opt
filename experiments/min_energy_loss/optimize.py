@@ -34,8 +34,8 @@ ex.
 
 
 # tracing parameters
-#tmax_list = [1e-5,1e-4,1e-3]
-tmax_list = [1e-4,1e-3]
+tmax_list = [1e-5,1e-4,1e-3]
+#tmax_list = [1e-4,1e-3]
 # configuration parmaeters
 n_partitions = 1
 max_mode = 1
@@ -149,7 +149,7 @@ def expected_negative_c_time(x,tmax):
     res = tmax-np.mean(c_times)
   loss_frac = np.mean(c_times<tmax)
   if rank == 0:
-    print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
+    print('obj:',res,'E[tau]',np.mean(c_times),'std[tau]',np.std(c_times),'P(loss):',loss_frac)
   sys.stdout.flush()
   return res
 
@@ -176,7 +176,7 @@ def expected_energy_retained(x,tmax):
     res = np.mean(E)
   loss_frac = np.mean(c_times<tmax)
   if rank == 0:
-    print('obj:',res,'E[tau]',np.mean(c_times),'P(loss):',loss_frac)
+    print('obj:',res,'E[tau]',np.mean(c_times),'std[tau]',np.std(c_times),'P(loss):',loss_frac)
   sys.stdout.flush()
   return res
 
