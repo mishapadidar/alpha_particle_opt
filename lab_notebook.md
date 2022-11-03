@@ -7,7 +7,10 @@
   - determine if we should increase to major radius 10
   - determine if we need to run with more particles
   - compute variance of confinement times at optima
-- increase variable dimension and reoptimize.
+- optimize again
+  - increased variable dimensions
+  - larger major radius
+  - different starting point
 - generalize bounding box routine to handle constraint on acceptance probability
 - set up another local optimization routine
   - coordinate descent
