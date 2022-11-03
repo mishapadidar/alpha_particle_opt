@@ -3,13 +3,12 @@
 
 ### TODO:
 - examine optimization results to determine if we should
+  - use grid vs random points # look at grid vs random
+  - use global optimization or run with more particles # look at plot of fX over time
+  - try other methods to avoid sim failures # check nelder mead vs pdfo
+  - increase dimensionality # look at best performance for higher dim
   - increase to major radius 10
-  - run with more particles
-  - increase dimensionality
   - use a different starting point
-  - use global optimization
-  - use grid vs random points
-- optimize again
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
   - simsopt BoozerMagneticField class or BoozerRadialInterpolant have methods
@@ -17,7 +16,7 @@
 - set up another optimization routine
   - coordinate descent
   - BFGS with central difference
-  - for bad noise do stomads, BO, TURBO, SPSA
+  - for bad noise do stomads, BO, TURBO, SPSA, STARS
   - fix routine for finding a bounding box
 - set up variance reduction
   - importance sampling based on |B|: use |B| method from simsopt BoozerMagneticField class
