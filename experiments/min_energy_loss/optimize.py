@@ -29,7 +29,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 10 10 10 10
+  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 5 10 10 10 10
 """
 
 
@@ -61,7 +61,7 @@ ns = int(sys.argv[7])  # number of surface samples
 ntheta = int(sys.argv[8]) # num theta samples
 nphi = int(sys.argv[9]) # num phi samples
 nvpar = int(sys.argv[10]) # num vpar samples
-assert sampling_type in ['random' or "grid"]
+assert sampling_type in ['random', "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol'], "invalid optimiztaion method"
 
@@ -116,11 +116,11 @@ def get_ctimes(x,tmax):
   tracer.sync_seeds()
   if sampling_type == "grid" and sampling_level == "full":
     # grid over (s,theta,phi,vpar)
-    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nzeta,nvpar)
+    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar)
   elif sampling_type == "grid":
     # grid over (theta,phi,vpar) for a fixed surface label
     s_label = float(sampling_level)
-    stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nzeta,nvpar)
+    stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nphi,nvpar)
   elif sampling_type == "random" and sampling_level == "full":
     # volume sampling
     stp_inits,vpar_inits = tracer.sample_volume(n_particles)
