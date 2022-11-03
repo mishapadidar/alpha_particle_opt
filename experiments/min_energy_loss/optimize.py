@@ -4,7 +4,7 @@ import sys
 import pickle
 from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
 from skquant.opt import minimize as skq_minimize
-from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc
+from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc, minimize as sp_minimize
 debug = False
 if debug:
   sys.path.append("../../utils")
@@ -35,17 +35,20 @@ ex.
 
 # tracing parameters
 tmax_list = [1e-5,1e-4,1e-3]
-#tmax_list = [1e-4,1e-3]
 # configuration parmaeters
 n_partitions = 1
-#max_mode = 1
-#major_radius = 5
-#vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
+vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+#vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
 # optimizer params
 maxfev = 2000
-rhobeg = 0.1
-rhoend = 1e-5
+max_step = 0.1
+min_step = 1e-6
+# trace boozer params
+tracing_tol = 1e-8
+interpolant_degree = 3
+interpolant_level  = 8
+bri_mpol = 16
+bri_ntor = 16
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -63,17 +66,12 @@ nphi = int(sys.argv[9]) # num phi samples
 nvpar = int(sys.argv[10]) # num vpar samples
 assert sampling_type in ['random', "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
-assert method in ['pdfo','snobfit','diff_evol'], "invalid optimiztaion method"
+assert method in ['pdfo','snobfit','diff_evol','nelder'], "invalid optimiztaion method"
 
 n_particles = ns*ntheta*nphi*nvpar
 
 # build a tracer object
 #tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
-tracing_tol = 1e-8
-interpolant_degree = 3
-interpolant_level  = 8
-bri_mpol = 16
-bri_ntor = 16
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
                       max_mode=max_mode,
@@ -251,6 +249,8 @@ for tmax in tmax_list:
 
   # optimize
   if method == "pdfo":
+    rhobeg = max_step
+    rhoend = min_step
     aspect_constraint = pdfo_nlc(aspect_ratio, aspect_lb,aspect_ub)
     res = pdfo(evw, x0, method='cobyla', constraints=[aspect_constraint],options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
     xopt = np.copy(res.x)
@@ -271,6 +271,19 @@ for tmax in tmax_list:
     popsize = 10 # population is popsize*dim_x individuals
     maxiter = int(maxfev/dim_x/popsize)
     res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0,constraints = constraints)
+    xopt = np.copy(res.x)
+  elif method == "nelder":
+    def extreme_barrier(x):
+      obj = evw(x)
+      con1 = aspect_ratio(x) - aspect_ub
+      con2 = aspect_lb - aspect_ratio(x) 
+      if (con1 > 0) or (con2 > 0):
+        return np.inf
+      else:
+        return obj
+    # nelder-mead
+    xatol = min_step # minimum step size
+    res = sp_minimize(extreme_barrier,x0,method='Nelder-Mead',options={'maxfev':maxfev,'xatol':xatol})
     xopt = np.copy(res.x)
 
   # reset x0 for next iter
