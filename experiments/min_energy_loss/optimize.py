@@ -38,8 +38,8 @@ tmax_list = [1e-5,1e-4,1e-3]
 #tmax_list = [1e-4,1e-3]
 # configuration parmaeters
 n_partitions = 1
-max_mode = 1
-major_radius = 5
+#max_mode = 1
+#major_radius = 5
 #vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
 vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
 # optimizer params
@@ -55,10 +55,12 @@ sampling_type = sys.argv[1] # random or grid
 sampling_level = sys.argv[2] # "full" or a float surface label
 objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
-ns = int(sys.argv[5])  # number of surface samples
-ntheta = int(sys.argv[6]) # num theta samples
-nphi = int(sys.argv[7]) # num phi samples
-nvpar = int(sys.argv[8]) # num vpar samples
+max_mode = int(sys.argv[5]) # max mode
+major_radius = float(sys.argv[6]) # major radius
+ns = int(sys.argv[7])  # number of surface samples
+ntheta = int(sys.argv[8]) # num theta samples
+nphi = int(sys.argv[9]) # num phi samples
+nvpar = int(sys.argv[10]) # num vpar samples
 assert sampling_type in ['random' or "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol'], "invalid optimiztaion method"
