@@ -251,7 +251,7 @@ for tmax in tmax_list:
   if method == "pdfo":
     aspect_constraint = pdfo_nlc(aspect_ratio, aspect_lb,aspect_ub)
     res = pdfo(evw, x0, method='cobyla', constraints=[aspect_constraint],options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-    xopt = res.x
+    xopt = np.copy(res.x)
   elif method == 'snobfit':
     # snobfit
     bounds = np.vstack((x_lb,x_ub)).T
@@ -268,7 +268,8 @@ for tmax in tmax_list:
     constraints = [sp_nlc(aspect_ratio,aspect_lb,aspect_ub)]
     popsize = 10 # population is popsize*dim_x individuals
     maxiter = int(maxfev/dim_x/popsize)
-    differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0,constraints = constraints)
+    res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0,constraints = constraints)
+    xopt = np.copy(res.x)
 
   # reset x0 for next iter
   x0 = np.copy(xopt)
