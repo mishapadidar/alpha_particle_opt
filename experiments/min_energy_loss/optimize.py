@@ -301,7 +301,7 @@ for tmax in tmax_list:
   # save results
   if rank == 0:
     print(res)
-    outfile = f"./data_opt_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}.pickle"
+    outfile = f"./data_opt_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_rad_{major_radius}.pickle"
     outdata = {}
     outdata['X'] = evw.X
     outdata['FX'] = evw.FX
