@@ -1,10 +1,9 @@
 
 SAMPLINGTYPE='random'
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
-OBJECTIVE='mean_energy'
-#OBJECTIVE='mean_time'
-#METHOD="snobfit"
-METHOD="pdfo"
+#OBJECTIVE='mean_energy'
+OBJECTIVE='mean_time'
+METHOD="nelder" # pdfo, nelder, snobfit, diff_evol
 MAXMODE=2
 RADIUS=5
 NS=10
