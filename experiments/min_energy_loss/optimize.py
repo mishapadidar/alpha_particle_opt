@@ -29,16 +29,14 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 5 10 10 10 10
+  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 5 nfp4_QH_warm_high_res 10 10 10 10
 """
 
 
 # tracing parameters
-tmax_list = [1e-5,1e-4,1e-3]
+tmax_list = [1e-5,1e-4]
 # configuration parmaeters
 n_partitions = 1
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
-#vmec_input="../../vmec_input_files/input.nfp2_QA_cold"
 # optimizer params
 maxfev = 2000
 max_step = 0.1
@@ -50,8 +48,6 @@ interpolant_level  = 8
 bri_mpol = 16
 bri_ntor = 16
 
-if not debug:
-  vmec_input="../" + vmec_input
 
 # read inputs
 sampling_type = sys.argv[1] # random or grid
@@ -60,15 +56,27 @@ objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
 max_mode = int(sys.argv[5]) # max mode
 major_radius = float(sys.argv[6]) # major radius
-ns = int(sys.argv[7])  # number of surface samples
-ntheta = int(sys.argv[8]) # num theta samples
-nphi = int(sys.argv[9]) # num phi samples
-nvpar = int(sys.argv[10]) # num vpar samples
+vmec_label = sys.argv[7] # vmec file
+ns = int(sys.argv[8])  # number of surface samples
+ntheta = int(sys.argv[9]) # num theta samples
+nphi = int(sys.argv[10]) # num phi samples
+nvpar = int(sys.argv[11]) # num vpar samples
 assert sampling_type in ['random', "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder'], "invalid optimiztaion method"
 
 n_particles = ns*ntheta*nphi*nvpar
+
+
+if vmec_label == "nfp2_QA_cold_high_res":
+  vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+elif vmec_label == "nfp2_QA_high_res":
+  vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
+elif vmec_label == "nfp4_QH_warm_high_res":
+  vmec_input="../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
+
+if not debug:
+  vmec_input="../" + vmec_input
 
 # build a tracer object
 #tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
@@ -301,7 +309,7 @@ for tmax in tmax_list:
   # save results
   if rank == 0:
     print(res)
-    outfile = f"./data_opt_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_rad_{major_radius}.pickle"
+    outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_rad_{major_radius}.pickle"
     outdata = {}
     outdata['X'] = evw.X
     outdata['FX'] = evw.FX
