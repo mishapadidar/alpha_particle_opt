@@ -1,13 +1,13 @@
 
-SAMPLINGTYPE='grid' # grid, random
+SAMPLINGTYPE='random' # grid, random
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
-METHOD="pdfo" # pdfo, nelder, snobfit, diff_evol
+METHOD="nelder" # pdfo, nelder, snobfit, diff_evol
 MAXMODE=2
-RADIUS=5
+VMEC="nfp2_QA_cold_high_res"
 #VMEC="nfp2_QA_high_res"
-VMEC="nfp4_QH_warm_high_res"
+#VMEC="nfp4_QH_warm_high_res"
 NS=10
 NTHETA=10
 NPHI=10
@@ -20,7 +20,7 @@ do
   surf=${SURFS[idx]}
 
   # make a dir
-  dir="_batch_${VMEC}_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_${METHOD}_mmode_${MAXMODE}_rad_${RADIUS}"
+  dir="_batch_${VMEC}_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_${METHOD}_mmode_${MAXMODE}"
   mkdir $dir
 
   # copy the compute data
@@ -52,7 +52,7 @@ do
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
   #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${RADIUS} ${VMEC} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"

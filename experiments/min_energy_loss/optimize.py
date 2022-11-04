@@ -29,7 +29,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 5 nfp4_QH_warm_high_res 10 10 10 10
+  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res 10 10 10 10
 """
 
 
@@ -38,6 +38,7 @@ tmax_list = [1e-5,1e-4]
 # configuration parmaeters
 n_partitions = 1
 minor_radius = 1.7
+major_radius = 8*minor_radius
 target_volavgB = 5.0
 # optimizer params
 maxfev = 2000
@@ -57,12 +58,11 @@ sampling_level = sys.argv[2] # "full" or a float surface label
 objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
 max_mode = int(sys.argv[5]) # max mode
-major_radius = float(sys.argv[6]) # major radius
-vmec_label = sys.argv[7] # vmec file
-ns = int(sys.argv[8])  # number of surface samples
-ntheta = int(sys.argv[9]) # num theta samples
-nphi = int(sys.argv[10]) # num phi samples
-nvpar = int(sys.argv[11]) # num vpar samples
+vmec_label = sys.argv[6] # vmec file
+ns = int(sys.argv[7])  # number of surface samples
+ntheta = int(sys.argv[8]) # num theta samples
+nphi = int(sys.argv[9]) # num phi samples
+nvpar = int(sys.argv[10]) # num vpar samples
 assert sampling_type in ['random', "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder'], "invalid optimiztaion method"
@@ -302,7 +302,7 @@ for tmax in tmax_list:
   # save results
   if rank == 0:
     print(res)
-    outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_rad_{major_radius}.pickle"
+    outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}.pickle"
     outdata = {}
     outdata['X'] = evw.X
     outdata['FX'] = evw.FX
