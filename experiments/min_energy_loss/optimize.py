@@ -289,7 +289,7 @@ for tmax in tmax_list:
   # evaluate the configuration
   c_times_opt = get_ctimes(xopt,tmax,sampling_type,sampling_level) 
   tracer.surf.x = np.copy(xopt)
-  aspect_opt = tracer.surf.aspect_ratio()
+  aspect_opt = tracer.vmec.aspect()
   if rank == 0:
     print('aspect(xopt)',aspect_opt)
     print('E[c_time(xopt)]',np.mean(c_times_opt))
