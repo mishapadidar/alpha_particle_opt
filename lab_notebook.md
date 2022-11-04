@@ -1,26 +1,28 @@
 
-## Lab Notebook
+# Lab Notebook
 
-### TODO:
-- reoptimize 
-  - use QH high res configuration
-  - use nelder mead
-  - use maxmode = 2 or 3
-  - using grid
-- examine optimization results to determine if we should
-  - understand effect of simulation failures
-    - check nelder mead vs pdfo performance
-    - try increasing vmec input file resolution
-  - use grid vs random points # look at grid vs random
-  - use global optimization or run with more particles # look at plot of fX over time
-  - increase dimensionality # look at best performance for higher dim
-  - increase to major radius 10
-  - use a different starting point
-- set up another optimization routine
-  - coordinate descent, BFGS
-  - LTR with constraints and sim failures
-  - for bad noise use ASTRO-DF, BO, TURBO, SPSA, STARS, STO-MADS 
-  - fix routine for finding a bounding box
+## Questions for Matt
+- have Matt look over your input files
+- show matt your radius rescaling
+- what kind of confinement can we get with major radius 5? Should i rescale to 10?
+- Can I constraint minor radius rather than aspect?
+
+## TODO:
+- Implement SAA option for sampling routine
+- Implement a global or stochastic opt method.
+- examine optimization results 
+  - analyze effect of sampling strategy 
+    - compare grid vs random points
+  - analyze effect of simulation failures
+    - look at pdfo vs nelder 
+    - look at plot of fX over time
+  - look at plot of fX over time to understand
+    - analyze effect of local minima
+    - effect of noise
+  - analyze effect of starting point
+    - look at warm start vs cold start
+- Increase dimensionality in optimization to maxmode=3
+
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
   - simsopt BoozerMagneticField class or BoozerRadialInterpolant have methods
@@ -31,3 +33,6 @@
   - backwards tracing, can do this in Boozer using simsopt methods.
   - control variates based on surfaces or shorter tracing or input variables.
 - look at sensitivity to constraint and distribution parameters.
+
+# Notes
+- Noise has a substantial effect on convergence. So use SAA, or set up a stochastic solver.
