@@ -37,6 +37,8 @@ ex.
 tmax_list = [1e-5,1e-4]
 # configuration parmaeters
 n_partitions = 1
+minor_radius = 1.7
+target_volavgB = 5.0
 # optimizer params
 maxfev = 2000
 max_step = 0.1
@@ -83,7 +85,9 @@ if not debug:
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
                       max_mode=max_mode,
+                      minor_radius=minor_radius,
                       major_radius=major_radius,
+                      target_volavgB=target_volavgB,
                       tracing_tol=tracing_tol,
                       interpolant_degree=interpolant_degree,
                       interpolant_level=interpolant_level,
@@ -94,30 +98,30 @@ x0 = tracer.x0
 dim_x = tracer.dim_x
 
 
-# aspect constraint
-def aspect_ratio(x):
-  """
-  Compute the aspect ratio
-  """
-  # update the surface
-  tracer.surf.x = np.copy(x)
+## aspect constraint
+#def aspect_ratio(x):
+#  """
+#  Compute the aspect ratio
+#  """
+#  # update the surface
+#  tracer.surf.x = np.copy(x)
+#
+#  # evaluate the objectives
+#  try:
+#    asp = tracer.surf.aspect_ratio()
+#  except:
+#    asp = np.inf
+#
+#  # catch partial failures
+#  if np.isnan(asp):
+#    asp = np.inf
+#
+#  return asp
+#aspect_lb = 4.0
+#aspect_ub = 8.0
 
-  # evaluate the objectives
-  try:
-    asp = tracer.surf.aspect_ratio()
-  except:
-    asp = np.inf
 
-  # catch partial failures
-  if np.isnan(asp):
-    asp = np.inf
-
-  return asp
-aspect_lb = 4.0
-aspect_ub = 8.0
-
-
-def get_ctimes(x,tmax):
+def get_ctimes(x,tmax,sampling_type,sampling_level):
   # sync seeds again
   tracer.sync_seeds()
   if sampling_type == "grid" and sampling_level == "full":
@@ -148,7 +152,7 @@ def expected_negative_c_time(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = get_ctimes(x,tmax)
+  c_times = get_ctimes(x,tmax,sampling_type,sampling_level)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     res = tmax
@@ -173,7 +177,7 @@ def expected_energy_retained(x,tmax):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = get_ctimes(x,tmax)
+  c_times = get_ctimes(x,tmax,sampling_type,sampling_level)
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     E = 3.5
@@ -259,52 +263,41 @@ for tmax in tmax_list:
   if method == "pdfo":
     rhobeg = max_step
     rhoend = min_step
-    aspect_constraint = pdfo_nlc(aspect_ratio, aspect_lb,aspect_ub)
-    res = pdfo(evw, x0, method='cobyla', constraints=[aspect_constraint],options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+    res = pdfo(evw, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
     xopt = np.copy(res.x)
   elif method == 'snobfit':
     # snobfit
     bounds = np.vstack((x_lb,x_ub)).T
-    def penalty_objective(x):
-      obj = evw(x)
-      con = np.max([aspect_ratio(x) - aspect_ub,0.0])**2 + np.max([aspect_lb - aspect_ratio(x),0.0])**2
-      pen = 1e3
-      return obj + pen*con
-    res, _ = skq_minimize(penalty_objective, x0, bounds, maxfev, method='SnobFit')
+    res, _ = skq_minimize(evw, x0, bounds, maxfev, method='SnobFit')
     xopt = np.copy(res.optpar)
   elif method == "diff_evol":
     # differential evolution
     bounds = np.vstack((x_lb,x_ub)).T
-    constraints = [sp_nlc(aspect_ratio,aspect_lb,aspect_ub)]
     popsize = 10 # population is popsize*dim_x individuals
     maxiter = int(maxfev/dim_x/popsize)
-    res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0,constraints = constraints)
+    res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
     xopt = np.copy(res.x)
   elif method == "nelder":
-    def extreme_barrier(x):
-      obj = evw(x)
-      con1 = aspect_ratio(x) - aspect_ub
-      con2 = aspect_lb - aspect_ratio(x) 
-      if (con1 > 0) or (con2 > 0):
-        return np.inf
-      else:
-        return obj
     # nelder-mead
     xatol = min_step # minimum step size
-    res = sp_minimize(extreme_barrier,x0,method='Nelder-Mead',options={'maxfev':maxfev,'xatol':xatol})
+    res = sp_minimize(evw,x0,method='Nelder-Mead',options={'maxfev':maxfev,'xatol':xatol})
     xopt = np.copy(res.x)
 
   # reset x0 for next iter
   x0 = np.copy(xopt)
 
   # evaluate the configuration
-  aspect_opt = aspect_ratio(xopt)
-  c_times_opt = get_ctimes(xopt,tmax)
+  c_times_opt = get_ctimes(xopt,tmax,sampling_type,sampling_level) 
+  tracer.surf.x = np.copy(xopt)
+  aspect_opt = tracer.surf.aspect_ratio()
   if rank == 0:
     print('aspect(xopt)',aspect_opt)
     print('E[c_time(xopt)]',np.mean(c_times_opt))
     print('Loss fraction',np.mean(c_times_opt<tmax))
     print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_opt/tmax)))
+
+  # out of sample performance
+  c_times_out_of_sample = get_ctimes(xopt,tmax,"random",sampling_level) # out of sample
   
   # save results
   if rank == 0:
@@ -316,7 +309,10 @@ for tmax in tmax_list:
     outdata['xopt'] = xopt
     outdata['aspect_opt'] = aspect_opt
     outdata['c_times_opt'] = c_times_opt
+    outdata['c_times_out_of_sample'] = c_times_out_of_sample
     outdata['major_radius'] = major_radius
+    outdata['minor_radius'] =  minor_radius
+    outdata['target_volavgB'] = target_volavgB
     outdata['vmec_input'] = vmec_input
     outdata['max_mode'] = max_mode
     outdata['vmec_input'] = vmec_input
@@ -324,6 +320,14 @@ for tmax in tmax_list:
     outdata['sampling_type'] = sampling_type
     outdata['sampling_level'] = sampling_level
     outdata['method'] = method
+    outdata['maxfev'] = maxfev
+    outdata['max_step'] = max_step
+    outdata['min_step'] = min_step
+    outdata['tracing_tol'] = tracing_tol
+    outdata['interpolant_degree'] = interpolant_degree
+    outdata['interpolant_level'] = interpolant_level
+    outdata['bri_mpol'] = bri_mpol
+    outdata['bri_ntor'] = bri_ntor
     #outdata['stp_inits'] = stp_inits
     #outdata['vpar_inits'] = vpar_inits
     outdata['tmax'] = tmax
