@@ -6,6 +6,7 @@
   - use QH high res configuration
   - use nelder mead
   - use maxmode = 2 or 3
+  - using grid
 - examine optimization results to determine if we should
   - understand effect of simulation failures
     - check nelder mead vs pdfo performance
