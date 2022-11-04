@@ -8,8 +8,6 @@
 - Can I constraint minor radius rather than aspect?
 
 ## TODO:
-- Implement SAA option for sampling routine
-- Implement a global or stochastic opt method.
 - examine optimization results 
   - analyze effect of sampling strategy 
     - compare grid vs random points
@@ -21,7 +19,13 @@
     - effect of noise
   - analyze effect of starting point
     - look at warm start vs cold start
-- Increase dimensionality in optimization to maxmode=3
+
+- optimize again
+  - Increase dimensionality maxmode=3
+  - try optimizing directly with tmax=1e-4
+
+- Implement SAA option for sampling routine
+- Implement a global or stochastic opt method.
 
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
