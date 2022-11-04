@@ -1,6 +1,7 @@
 import numpy as np
 from simsopt.field.boozermagneticfield import BoozerRadialInterpolant, InterpolatedBoozerField
 from simsopt.field.tracing import trace_particles_boozer, MaxToroidalFluxStoppingCriterion
+from simsopt.geo.surfacegarabedian import SurfaceGarabedian
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
 from mpi4py import MPI
@@ -21,7 +22,9 @@ class TraceBoozer:
   def __init__(self,vmec_input,
     n_partitions=1,
     max_mode=1,
-    major_radius=None,
+    minor_radius=1.7,
+    major_radius=13.6,
+    target_volavgB=5.0,
     tracing_tol=1e-8,
     interpolant_degree=3,
     interpolant_level=8,
@@ -31,7 +34,11 @@ class TraceBoozer:
     vmec_input: vmec input file
     n_partitions: number of partitions used by vmec mpi.
     max_mode: number of modes used by vmec
-    major_radius: set a major radius if you want to rescale to that size.
+    minor_radius: set replace minor radius with this value.
+    major_radius: will rescale entire device so that this is the major radius.
+    target_volavgB: will set phiedge so that this is the volume averge |B|.
+                    phiedge= pi* a^2 * B approximately, so we try to rescale to 
+                    achieve the target B value.
     tracing_tol:a tolerance used to determine the accuracy of the tracing
     interpolant_degree: degree of the polynomial interpolants used for 
       interpolating the field. 1 is fast but innacurate, 3 is slower but more accurate.
@@ -47,20 +54,37 @@ class TraceBoozer:
     # load vmec and mpi
     self.comm = MpiPartition(n_partitions)
     self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
-    
-    # define parameters
-    self.surf = self.vmec.boundary
-    self.surf.fix_all()
-    self.surf.fixed_range(mmin=0, mmax=max_mode,
-                     nmin=-max_mode, nmax=max_mode, fixed=False)
-    if major_radius:
-      # rescale the major radius
-      factor = major_radius/self.surf.get("rc(0,0)")
-      self.surf.x = self.surf.x*factor
-      # rescale the toroidal flux by factor**2
-      self.vmec.indata.phiedge = self.vmec.indata.phiedge*(factor**2)
 
-    self.surf.fix("rc(0,0)") # fix the Major radius
+    # build a garabedian surface
+    self.surf = SurfaceGarabedian.from_RZFourier(self.vmec.boundary)
+    self.surf.fix_all()
+    self.surf.fix_range(mmin=1-max_mode, mmax=1+max_mode,
+                     nmin=-max_mode, nmax=max_mode, fixed=False)
+    
+    # rescale the surface by the major radius
+    if major_radius is not None:
+      factor = major_radius/self.surf.get("Delta(1,0)")
+      self.surf.x = self.surf.x*factor
+
+    # set the minor radius
+    if minor_radius is not None:
+      self.surf.set('Delta(0,0)', minor_radius) # fix minor radius
+
+    # fix the radii
+    self.surf.fix("Delta(1,0)") # fix the Major radius
+    self.surf.fix("Delta(0,0)") # fix the Minor radius
+
+    # fix the phiedge to get the correct scaling
+    self.vmec.run()
+    current_volavgB = self.vmec.wout.volavgB
+    self.vmec.indata.phiedge = self.vmec.indata.phiedge*target_volavgB/current_volavgB
+    self.vmec.need_to_run_code = True
+    self.vmec.run()
+
+    # save values
+    self.major_radius = major_radius
+    self.minor_radius = minor_radius
+    self.target_volavgB = target_volavgB
     
     # variables
     self.x0 = np.copy(self.surf.x) # nominal starting point
@@ -379,10 +403,16 @@ class TraceBoozer:
 if __name__ == "__main__":
 
   vmec_input = '../vmec_input_files/input.nfp2_QA'
+  aspect_ratio = 8.0
+  minor_radius = 1.7
+  major_radius = minor_radius*aspect_ratio
+  target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
-                      max_mode=1,
-                      major_radius=10,
+                      max_mode=2,
+                      minor_radius=minor_radius,
+                      major_radius=major_radius,
+                      target_volavgB=target_volavgB,
                       tracing_tol=1e-8,
                       interpolant_degree=1,
                       interpolant_level=10,
@@ -391,7 +421,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-4
+  tmax = 1e-5
 
   # tracing points
   n_particles = 500
