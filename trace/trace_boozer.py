@@ -34,8 +34,13 @@ class TraceBoozer:
     vmec_input: vmec input file
     n_partitions: number of partitions used by vmec mpi.
     max_mode: number of modes used by vmec
-    minor_radius: set replace minor radius with this value.
+    minor_radius: set Delta(0,0) to this value.
+      Delta(0,0) would be approximately the minor radius of a torus.
+      The minor radius is better approximated from the aspect ratio.
     major_radius: will rescale entire device so that this is the major radius.
+              If the surface is purely a torus, then setting the major and minor radius
+              like this will give you the right aspect ratio. But if the surface
+              is not a normal torus, then the aspect ratio may be much smaller or larger.
     target_volavgB: will set phiedge so that this is the volume averge |B|.
                     phiedge= pi* a^2 * B approximately, so we try to rescale to 
                     achieve the target B value.
@@ -53,10 +58,16 @@ class TraceBoozer:
 
     # load vmec and mpi
     self.comm = MpiPartition(n_partitions)
-    self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
 
     # build a garabedian surface
-    self.surf = SurfaceGarabedian.from_RZFourier(self.vmec.boundary)
+    self.surf = SurfaceGarabedian.from_RZFourier(vmec.boundary)
+
+    # tell vmec it has a garabedian surface now
+    vmec.boundary = self.surf
+    self.vmec = vmec
+
+    # make the descision variables
     self.surf.fix_all()
     self.surf.fix_range(mmin=1-max_mode, mmax=1+max_mode,
                      nmin=-max_mode, nmax=max_mode, fixed=False)
@@ -67,26 +78,31 @@ class TraceBoozer:
       factor = major_radius/self.surf.get("Delta(1,0)")
       self.surf.x = self.surf.x*factor
 
-    # set the minor radius Delta(0,0)
+    # set the approximate minor radius Delta(0,0)
     if minor_radius is not None:
       self.surf.set('Delta(0,0)', minor_radius) # fix minor radius
 
-    # fix the radii
+    #print(self.surf.local_dof_names)
+    #print(self.surf.x)
+    #print(major_radius)
+    #print(minor_radius)
+
+    ## fix the radii
     self.surf.fix("Delta(1,0)") # fix the Major radius
     self.surf.fix("Delta(0,0)") # fix the Minor radius
 
     # fix the phiedge to get the correct scaling
-    self.vmec.run()
-    current_volavgB = self.vmec.wout.volavgB
-    self.vmec.indata.phiedge = self.vmec.indata.phiedge*target_volavgB/current_volavgB
-    self.vmec.need_to_run_code = True
-    self.vmec.run()
+    if target_volavgB is not None:
+      self.vmec.run()
+      major_radius = self.surf.get('Delta(1,0)')
+      avg_minor_rad = major_radius/self.vmec.aspect() # true avg minor radius
+      self.vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
+      self.vmec.need_to_run_code = True
+      self.vmec.run()
+    #print('aspect',self.vmec.aspect())
+    #print('volavgB',self.vmec.wout.volavgB)
+    #print('phiedge',self.vmec.indata.phiedge)
 
-    # save values
-    self.major_radius = major_radius
-    self.minor_radius = minor_radius
-    self.target_volavgB = target_volavgB
-    
     # variables
     self.x0 = np.copy(self.surf.x) # nominal starting point
     self.dim_x = len(self.x0) # dimension
@@ -403,14 +419,13 @@ class TraceBoozer:
 
 if __name__ == "__main__":
 
-  vmec_input = '../vmec_input_files/input.nfp2_QA'
-  aspect_ratio = 8.0
+  vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
   minor_radius = 1.7
-  major_radius = minor_radius*aspect_ratio
+  major_radius = 8.0*1.7
   target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
-                      max_mode=2,
+                      max_mode=1,
                       minor_radius=minor_radius,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
@@ -422,7 +437,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-5
+  tmax = 1e-4
 
   # tracing points
   n_particles = 500
