@@ -63,10 +63,11 @@ class TraceBoozer:
     
     # rescale the surface by the major radius
     if major_radius is not None:
+      # Delta(1,0) is major radius
       factor = major_radius/self.surf.get("Delta(1,0)")
       self.surf.x = self.surf.x*factor
 
-    # set the minor radius
+    # set the minor radius Delta(0,0)
     if minor_radius is not None:
       self.surf.set('Delta(0,0)', minor_radius) # fix minor radius
 

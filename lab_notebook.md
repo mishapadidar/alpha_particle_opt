@@ -8,9 +8,6 @@
 
 ## TODO:
 - implement OpenMP tracing for parallelism.
-- use garabedian coordinates. fix the minor radius to 1.7, delta00 is minor radius. fix the major radius to aspect x minor radius, delta10 is major radius
-major radius is m=1,n=0
-- phiedge = pi * a^2 * B to fix the field strength. use B = 5. a is minor radius, aspect is major/minor. verify that field strength is 5, use vmec.wout.volavgB.
 
 - examine optimization results 
   - analyze effect of sampling strategy 
