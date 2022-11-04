@@ -24,6 +24,7 @@
 - optimize again
   - Increase dimensionality maxmode=3
   - try optimizing directly with tmax=1e-4
+  - do we need to increase field strength?
 
 - Make ctimesopt at end of optimization truly random.
 - Implement SAA option for sampling routine
