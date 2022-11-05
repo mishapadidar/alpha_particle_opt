@@ -21,6 +21,8 @@
   - analyze effect of starting point
     - look at warm start vs cold start
 
+- write a MNH solver that can handle sim failures
+
 - optimize again
   - Increase dimensionality maxmode=3
   - try optimizing directly with tmax=1e-4
