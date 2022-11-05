@@ -34,22 +34,22 @@ ex.
 
 
 # tracing parameters
-tmax_list = [1e-5,1e-4]
+tmax_list = [1e-4,1e-3,1e-2]
 # configuration parmaeters
 n_partitions = 1
 minor_radius = 1.7
 major_radius = 8*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 2000
-max_step = 0.1
+maxfev = 1000
+max_step = 0.01
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level  = 8
-bri_mpol = 16
-bri_ntor = 16
+bri_mpol = 32
+bri_ntor = 32
 
 
 # read inputs
@@ -278,9 +278,13 @@ for tmax in tmax_list:
     res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
     xopt = np.copy(res.x)
   elif method == "nelder":
+    init_simplex = np.zeros((dim_x+1,dim_x))
+    init_simplex[0] = np.copy(x0)
+    init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
     # nelder-mead
     xatol = min_step # minimum step size
-    res = sp_minimize(evw,x0,method='Nelder-Mead',options={'maxfev':maxfev,'xatol':xatol})
+    res = sp_minimize(evw,x0,method='Nelder-Mead',
+                options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
     xopt = np.copy(res.x)
 
   # reset x0 for next iter
