@@ -7,8 +7,6 @@
 
 
 ## TODO:
-- implement OpenMP tracing for parallelism.
-
 - examine optimization results 
   - analyze effect of sampling strategy 
     - compare grid vs random points
@@ -20,17 +18,16 @@
     - effect of noise
   - analyze effect of starting point
     - look at warm start vs cold start
-
-- write a MNH solver that can handle sim failures
-
 - optimize again
   - Increase dimensionality maxmode=3
   - try optimizing directly with tmax=1e-4
   - do we need to increase field strength?
 
+- implement OpenMP tracing for parallelism.
 - Make ctimesopt at end of optimization truly random.
 - Implement SAA option for sampling routine
-- Implement a global or stochastic opt method.
+- write a MNH solver that can handle sim failures
+- Implement StoMADS
 
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
