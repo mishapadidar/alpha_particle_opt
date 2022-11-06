@@ -42,7 +42,7 @@ major_radius = 8*minor_radius
 target_volavgB = 5.0
 # optimizer params
 maxfev = 1000
-max_step = 0.01
+max_step = 0.1 
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
