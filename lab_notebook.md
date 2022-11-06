@@ -1,13 +1,7 @@
 
 # Lab Notebook
 
-## Questions for Matt
-
-
-
-
 ## TODO:
-- implement OpenMP tracing for parallelism.
 - write a MNH solver that can handle sim failures
 - Implement SAA option for sampling routine
 - Implement StoMADS
