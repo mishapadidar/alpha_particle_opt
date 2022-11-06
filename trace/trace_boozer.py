@@ -288,20 +288,24 @@ class TraceBoozer:
     comm = MPI.COMM_WORLD
 
     # trace
-    res_tys, res_zeta_hits = trace_particles_boozer(
-        field, 
-        stz_inits, 
-        vpar_inits, 
-        tmax=tmax, 
-        mass=ALPHA_PARTICLE_MASS, 
-        charge=ALPHA_PARTICLE_CHARGE,
-        Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
-        tol=self.tracing_tol, 
-        mode='gc_vac',
-        comm=comm,
-        stopping_criteria=stopping_criteria,
-        forget_exact_path=True
-        )
+    try:
+      res_tys, res_zeta_hits = trace_particles_boozer(
+          field, 
+          stz_inits, 
+          vpar_inits, 
+          tmax=tmax, 
+          mass=ALPHA_PARTICLE_MASS, 
+          charge=ALPHA_PARTICLE_CHARGE,
+          Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
+          tol=self.tracing_tol, 
+          mode='gc_vac',
+          comm=comm,
+          stopping_criteria=stopping_criteria,
+          forget_exact_path=True
+          )
+    except:
+      # tracing failure
+      return -np.inf*np.ones(len(stz_inits)) 
 
     exit_times = np.zeros(n_particles)
     for ii,res in enumerate(res_zeta_hits):
