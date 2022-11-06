@@ -1,13 +1,11 @@
 
-SAMPLINGTYPE='random' # grid, random
+SAMPLINGTYPE='grid' # grid, random
 SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
 METHOD="nelder" # pdfo, nelder, snobfit, diff_evol
 MAXMODE=2
 VMEC="nfp2_QA_cold_high_res"
-#VMEC="nfp2_QA_high_res"
-#VMEC="nfp4_QH_warm_high_res"
 NS=10
 NTHETA=10
 NPHI=10
