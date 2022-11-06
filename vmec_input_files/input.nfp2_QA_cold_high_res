@@ -12,8 +12,8 @@
 !----- Grid Parameters -----
   LASYM = F
   NFP = 0002
-  MPOL = 0005
-  NTOR = 0005
+  MPOL = 0007
+  NTOR = 0007
   PHIEDGE =    0.083
 !----- Free Boundary Parameters -----
   LFREEB = F
