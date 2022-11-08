@@ -10,17 +10,20 @@ if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
   sys.path.append("../../sample")
+  sys.path.append("../../opt")
   sys.path.append("../../../SIMPLE/build/")
 else:
   sys.path.append("../../../utils")
   sys.path.append("../../../trace")
   sys.path.append("../../../sample")
+  sys.path.append("../../../opt")
   sys.path.append("../../../../SIMPLE/build/")
 from trace_simple import TraceSimple
 from trace_boozer import TraceBoozer
 from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
+from sid_psm import SIDPSM
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -34,22 +37,24 @@ ex.
 
 
 # tracing parameters
-tmax_list = [1e-4,1e-3,1e-2]
+#tmax_list = [1e-4,1e-3,1e-2]
+tmax_list = [1e-3,1e-2]
 # configuration parmaeters
 n_partitions = 1
 minor_radius = 1.7
-major_radius = 8*minor_radius
+aspect_target = 8.0
+major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 1000
+maxfev = 300
 max_step = 0.1 
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level  = 8
-bri_mpol = 32
-bri_ntor = 32
+bri_mpol = 16
+bri_ntor = 16
 
 
 # read inputs
@@ -65,7 +70,7 @@ nphi = int(sys.argv[9]) # num phi samples
 nvpar = int(sys.argv[10]) # num vpar samples
 assert sampling_type in ['random', "grid"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
-assert method in ['pdfo','snobfit','diff_evol','nelder'], "invalid optimiztaion method"
+assert method in ['pdfo','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
 
 n_particles = ns*ntheta*nphi*nvpar
 
@@ -98,27 +103,25 @@ x0 = tracer.x0
 dim_x = tracer.dim_x
 
 
-## aspect constraint
-#def aspect_ratio(x):
-#  """
-#  Compute the aspect ratio
-#  """
-#  # update the surface
-#  tracer.surf.x = np.copy(x)
-#
-#  # evaluate the objectives
-#  try:
-#    asp = tracer.surf.aspect_ratio()
-#  except:
-#    asp = np.inf
-#
-#  # catch partial failures
-#  if np.isnan(asp):
-#    asp = np.inf
-#
-#  return asp
-#aspect_lb = 4.0
-#aspect_ub = 8.0
+# aspect constraint
+def aspect_ratio(x):
+  """
+  Compute the aspect ratio
+  """
+  # update the surface
+  tracer.surf.x = np.copy(x)
+
+  # evaluate the objectives
+  try:
+    asp = tracer.surf.aspect_ratio()
+  except:
+    asp = np.inf
+
+  # catch partial failures
+  if np.isnan(asp):
+    asp = np.inf
+
+  return asp
 
 
 def get_ctimes(x,tmax,sampling_type,sampling_level):
@@ -139,7 +142,10 @@ def get_ctimes(x,tmax,sampling_type,sampling_level):
     s_label = float(sampling_level)
     stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   # trace
-  c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
+  try:
+    c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
+  except:
+    return np.zeros(len(vpar_inits))
   return c_times
 
 # set up the objective
@@ -281,11 +287,23 @@ for tmax in tmax_list:
     init_simplex = np.zeros((dim_x+1,dim_x))
     init_simplex[0] = np.copy(x0)
     init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
+    def penalty_obj(x):
+      obj = evw(x)
+      asp = aspect_ratio(x)
+      return obj + 1000*np.max([asp-aspect_target,0.0])**2
     # nelder-mead
     xatol = min_step # minimum step size
-    res = sp_minimize(evw,x0,method='Nelder-Mead',
+    res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
                 options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
     xopt = np.copy(res.x)
+  elif method == "sidpsm":
+    def penalty_obj(x):
+      obj = evw(x)
+      asp = aspect_ratio(x)
+      return obj + 1000*np.max([asp-aspect_target,0.0])**2
+    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=10*max_step)
+    res = sid.solve()
+    xopt = np.copyy(res['x'])
 
   # reset x0 for next iter
   x0 = np.copy(xopt)
