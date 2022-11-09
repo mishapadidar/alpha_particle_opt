@@ -46,8 +46,8 @@ aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 300
-max_step = 0.1 
+maxfev = 500
+max_step = 1.5 
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
@@ -299,11 +299,15 @@ for tmax in tmax_list:
   elif method == "sidpsm":
     def penalty_obj(x):
       obj = evw(x)
+      if objective_type == "mean_energy" and obj >= 3.5:
+        return np.inf
+      elif objective_type == "mean_time" and obj >=tmax:
+        return np.inf
       asp = aspect_ratio(x)
       return obj + 1000*np.max([asp-aspect_target,0.0])**2
     sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=10*max_step)
     res = sid.solve()
-    xopt = np.copyy(res['x'])
+    xopt = np.copy(res['x'])
 
   # reset x0 for next iter
   x0 = np.copy(xopt)
