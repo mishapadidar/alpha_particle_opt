@@ -2,6 +2,7 @@
 # Lab Notebook
 
 ## TODO:
+- use subprocesses to catch the seg fault
 - Implement SAA option for sampling routine
 - Determine if we should use aspect constraint or fixed minor radius
   - Switch back to RZFourier representation
