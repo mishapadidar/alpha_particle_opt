@@ -2,9 +2,11 @@
 # Lab Notebook
 
 ## TODO:
-- write a MNH solver that can handle sim failures
 - Implement SAA option for sampling routine
-- Implement StoMADS
+- Determine if we should use aspect constraint or fixed minor radius
+  - Switch back to RZFourier representation
+- Give SID-PSM constraint capabilities
+- Can we speed up tracing by requesting more cores but not using them?
 
 - examine optimization results 
   - analyze effect of sampling strategy 
@@ -22,6 +24,7 @@
   - try optimizing directly with tmax=1e-4
   - do we need to increase field strength?
 
+- Implement StoMADS
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
   - simsopt BoozerMagneticField class or BoozerRadialInterpolant have methods
