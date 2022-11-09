@@ -56,49 +56,64 @@ class TraceBoozer:
     self.vmec_input = vmec_input
     self.max_mode = max_mode
 
+    # For Garabedian rep
     # load vmec and mpi
-    self.comm = MpiPartition(n_partitions)
-    vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    #self.comm = MpiPartition(n_partitions)
+    #vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
 
     # build a garabedian surface
-    self.surf = SurfaceGarabedian.from_RZFourier(vmec.boundary)
+    #self.surf = SurfaceGarabedian.from_RZFourier(vmec.boundary)
 
     # tell vmec it has a garabedian surface now
-    vmec.boundary = self.surf
-    self.vmec = vmec
+    #vmec.boundary = self.surf
+    #self.vmec = vmec
 
     # make the descision variables
+    #self.surf.fix_all()
+    #self.surf.fix_range(mmin=1-max_mode, mmax=1+max_mode,
+    #                 nmin=-max_mode, nmax=max_mode, fixed=False)
+
+    # For RZFourier rep
+    self.comm = MpiPartition(n_partitions)
+    self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    # define parameters
+    self.surf = self.vmec.boundary
     self.surf.fix_all()
-    self.surf.fix_range(mmin=1-max_mode, mmax=1+max_mode,
+    self.surf.fixed_range(mmin=0, mmax=max_mode,
                      nmin=-max_mode, nmax=max_mode, fixed=False)
     
     # rescale the surface by the major radius
     if major_radius is not None:
       # Delta(1,0) is major radius
-      factor = major_radius/self.surf.get("Delta(1,0)")
+      #factor = major_radius/self.surf.get("Delta(1,0)")
+      # rc(0,0) is the major radius
+      factor = major_radius/self.surf.get("rc(0,0)")
       self.surf.x = self.surf.x*factor
 
-    # set the approximate minor radius Delta(0,0)
-    if minor_radius is not None:
-      self.surf.set('Delta(0,0)', minor_radius) # fix minor radius
+    ## set the approximate minor radius Delta(0,0)
+    #if minor_radius is not None:
+    #  self.surf.set('Delta(0,0)', minor_radius) # fix minor radius
 
     #print(self.surf.local_dof_names)
     #print(self.surf.x)
     #print(major_radius)
     #print(minor_radius)
 
-    ## fix the radii
-    self.surf.fix("Delta(1,0)") # fix the Major radius
-    self.surf.fix("Delta(0,0)") # fix the Minor radius
+    ### fix the radii
+    #self.surf.fix("Delta(1,0)") # fix the Major radius
+    #self.surf.fix("Delta(0,0)") # fix the Minor radius
+    self.surf.fix("rc(0,0)") # fix the Major radius
 
     # fix the phiedge to get the correct scaling
     if target_volavgB is not None:
-      self.vmec.run()
-      major_radius = self.surf.get('Delta(1,0)')
-      avg_minor_rad = major_radius/self.vmec.aspect() # true avg minor radius
+      #self.vmec.run()
+      #major_radius = self.surf.get('Delta(1,0)')
+      major_radius = self.surf.get('rc(0,0)')
+      #avg_minor_rad = major_radius/self.vmec.aspect() # true avg minor radius
+      avg_minor_rad = major_radius/self.surf.aspect_ratio() # true avg minor radius
       self.vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
       self.vmec.need_to_run_code = True
-      self.vmec.run()
+      #self.vmec.run()
     #print('aspect',self.vmec.aspect())
     #print('volavgB',self.vmec.wout.volavgB)
     #print('phiedge',self.vmec.indata.phiedge)
