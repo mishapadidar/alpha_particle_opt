@@ -46,8 +46,8 @@ aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 500
-max_step = 1.5 
+maxfev = 1000
+max_step = 0.8
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
