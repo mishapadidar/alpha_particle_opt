@@ -46,8 +46,8 @@ aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 1000
-max_step = 0.8
+maxfev = 300
+max_step = 0.5
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
@@ -199,57 +199,8 @@ def expected_energy_retained(x,tmax):
   return res
 
 
-# TODO: move this to its own script
-def find_vmec_bounds(lb_k,ub_k,batch_size = 100,maxiter=10,growth_factor=1.3,prob_lb=0.5):
-  """
-  Find bounds on the decision variables that contain the region
-  where vmec passes. Will grow to contain the entire feasible region.
-
-  lb,ub: (dim_x,) array, initial guess for the bounds
-    can guess x0 +- small number
-  batch_size: number of evaluations to take per update
-  maxiter: number of iterations
-  growth_factor: amount to increase the region per iteration.
-  """
-  for kk in range(maxiter):
-    tracer.sync_seeds()
-
-    # evaluate bounds
-    X_k = np.random.uniform(lb,ub,(batch_size,dim_x))
-    Y_k = np.zeros(batch_size,dtype=bool)
-    for ii,x in enumerate(X_k):
-      res = True
-      tracer.surf.x = np.copy(x)
-      try:
-        tracer.vmec.run()
-      except:
-        # VMEC failure!
-        res = False
-      Y_k[ii] = res
-    # get the passing samples
-    X_pass = X[Y]
-    # proposed new bounds
-    lb_n = np.min(X_pass,axis=0)
-    ub_n = np.max(X_pass,axis=0)
-    # update bounds
-    lb   = np.minimum(lb,lb_n)
-    ub   = np.maximum(ub,ub_n)
-    print("")
-    print('success frac',np.mean(Y))
-    print(lb)
-    print(ub)
-    if kk < maxiter -1 :
-      # enlarge
-      diff = (ub-lb)/4
-      ub = np.copy(ub + growth_factor*diff)
-      lb = np.copy(lb - growth_factor*diff)
-  return lb,ub
-#lb = x0 - 1e-2
-#ub = x0 + 1e-2
-#x_lb,x_ub = find_vmec_bounds(lb,ub,batch_size=100,maxiter=8,growth_factor=2.0)
 x_lb = np.array([-0.9404309, -0.83193019, 0.28720149,-1.00806875,-0.79377344,-0.77146669, 0.16415827,-0.86378062])
 x_ub = np.array([1.04723777,0.69724909,1.77739318,0.92464055,0.77225157,0.84754077,1.87259283,0.74216392])
-  
 
 
 for tmax in tmax_list:
@@ -305,7 +256,7 @@ for tmax in tmax_list:
         return np.inf
       asp = aspect_ratio(x)
       return obj + 1000*np.max([asp-aspect_target,0.0])**2
-    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=10*max_step)
+    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
     res = sid.solve()
     xopt = np.copy(res['x'])
 
