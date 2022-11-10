@@ -32,7 +32,7 @@ timing:
 
 # tracing parameters
 #tmax_list = [1e-4,1e-3,1e-2]
-tmax_list = [1e-5,1e-2]
+tmax_list = [1e-3,1e-2]
 # configuration parmaeters
 n_partitions = 1
 n_cores = 2
@@ -42,7 +42,7 @@ major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
 maxfev = 300
-max_step = 0.5
+max_step = 1.5
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8

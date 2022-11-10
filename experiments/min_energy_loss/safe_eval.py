@@ -64,14 +64,15 @@ if __name__=="__main__":
   """ 
   import sys
   import pickle
+  # need both import for debug and for run
   sys.path.append("../../trace")
   sys.path.append("../../utils")
   sys.path.append("../../trace")
   sys.path.append("../../sample")
-  #sys.path.append("../../../trace")
-  #sys.path.append("../../../utils")
-  #sys.path.append("../../../trace")
-  #sys.path.append("../../../sample")
+  sys.path.append("../../../trace")
+  sys.path.append("../../../utils")
+  sys.path.append("../../../trace")
+  sys.path.append("../../../sample")
   from trace_boozer import TraceBoozer
   from radial_density import RadialDensity
   from constants import V_MAX
