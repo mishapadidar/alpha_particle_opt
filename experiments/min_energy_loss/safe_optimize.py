@@ -5,7 +5,7 @@ from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
 from skquant.opt import minimize as skq_minimize
 from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc, minimize as sp_minimize
 from safe_eval import SafeEval
-debug = True
+debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../opt")
