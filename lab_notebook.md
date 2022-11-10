@@ -1,38 +1,30 @@
 
 # Lab Notebook
 
+## Questions for Matt
+- classification of particles based on mucrit does not work...
+- moved back to RZFourier
+- I find the aspect ratio is staying around 5 in the configs. Why? 
+- what do you think of the configs?
+
 ## TODO:
-- use subprocesses to catch the seg fault
+- set up reduced tracing via mucrit tracing
 - Implement SAA option for sampling routine
-- Determine if we should use aspect constraint or fixed minor radius
-  - Switch back to RZFourier representation
-- Give SID-PSM constraint capabilities
-- Can we speed up tracing by requesting more cores but not using them?
+- Upgrade SID-PSM 
+  - implement constraint capabilities via an l1-penalty method
+  - use MNH method
+  - use sim fails in direct search procedure.
+- Implement stochastic optimization
+  - local TuRBO, with multifidelity, constraint handling, and hidden constraint handling.
+  - StoMADS
 
-- examine optimization results 
-  - analyze effect of sampling strategy 
-    - compare grid vs random points
-  - analyze effect of simulation failures
-    - look at pdfo vs nelder 
-    - look at plot of fX over time
-  - look at plot of fX over time to understand
-    - analyze effect of local minima
-    - effect of noise
-  - analyze effect of starting point
-    - look at warm start vs cold start
-- optimize again
-  - Increase dimensionality maxmode=3
-  - try optimizing directly with tmax=1e-4
-  - do we need to increase field strength?
-
-- Implement StoMADS
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
   - simsopt BoozerMagneticField class or BoozerRadialInterpolant have methods
     dRds, dRdtheta etc for derivatives of cylindrical w.r.t. Boozer coords.
 - set up variance reduction
-  - importance sampling based on |B|: use |B| method from simsopt BoozerMagneticField class
   - set up and verify Matts classification of particles
+  - importance sampling based on |B|: use |B| method from simsopt BoozerMagneticField class
   - backwards tracing, can do this in Boozer using simsopt methods.
   - control variates based on surfaces or shorter tracing or input variables.
 - look at sensitivity to constraint and distribution parameters.
