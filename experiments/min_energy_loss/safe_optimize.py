@@ -41,8 +41,9 @@ aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 300
-max_step = 1.5
+maxfev = 600
+max_step = 1.2
+init_step = 0.3
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
@@ -175,7 +176,7 @@ for tmax in tmax_list:
 
   # optimize
   if method == "pdfo":
-    rhobeg = max_step
+    rhobeg = init_step
     rhoend = min_step
     res = pdfo(evw, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
     xopt = np.copy(res.x)
@@ -194,10 +195,11 @@ for tmax in tmax_list:
   elif method == "nelder":
     init_simplex = np.zeros((dim_x+1,dim_x))
     init_simplex[0] = np.copy(x0)
-    init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
+    init_simplex[1:] = np.copy(x0 + init_step*np.eye(dim_x))
     def penalty_obj(x):
       obj = evw(x)
       asp = evaluator.eval(x,['aspect'])['aspect']
+      print('aspect',asp)
       return obj + 1000*np.max([asp-aspect_target,0.0])**2
     # nelder-mead
     xatol = min_step # minimum step size
@@ -212,8 +214,9 @@ for tmax in tmax_list:
       elif objective_type == "mean_time" and obj >=tmax:
         return np.inf
       asp = evaluator.eval(x,['aspect'])['aspect']
+      print('aspect',asp)
       return obj + 1000*np.max([asp-aspect_target,0.0])**2
-    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
+    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=init_step,delta_min=min_step,delta_max=max_step)
     res = sid.solve()
     xopt = np.copy(res['x'])
 
