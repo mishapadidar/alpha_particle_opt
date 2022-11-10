@@ -1,10 +1,10 @@
 
 SAMPLINGTYPE='grid' # grid, random
-SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
+SURFS=('0.3' '0.5' '0.7' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
-METHOD="nelder" # pdfo, nelder, snobfit, diff_evol
-MAXMODE=2
+METHOD="sidpsm" # pdfo, nelder, snobfit, diff_evol, sidpsm
+MAXMODE=3
 VMEC="nfp2_QA_cold_high_res"
 NS=10
 NTHETA=10
@@ -48,7 +48,7 @@ do
   printf '%s\n' "#SBATCH --mem-per-cpu=4000   # Memory required per allocated CPU" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
-  printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
+  printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
   #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
   printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
