@@ -8,8 +8,15 @@
 - what do you think of the configs?
 
 ## TODO:
+- Implement distribution based sampling routines
+  - stop tracing using grid! Build a grid to be uniform in the radial CDF.
+  - Implement SAA option for sampling routine
+- set up a warm start routine
 - set up reduced tracing via mucrit tracing
-- Implement SAA option for sampling routine
+- optimize again
+  - optimize with more variables
+  - from other starting points
+
 - Upgrade SID-PSM 
   - implement constraint capabilities via an l1-penalty method
   - use MNH method
