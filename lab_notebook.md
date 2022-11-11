@@ -1,21 +1,24 @@
 
 # Lab Notebook
 
-## Questions for Matt
-- classification of particles based on mucrit does not work...
 - moved back to RZFourier
 - I find the aspect ratio is staying around 5 in the configs. Why? 
 - what do you think of the configs?
 
 ## TODO:
+- check aspect ratio
 - Implement distribution based sampling routines
   - stop tracing using grid! Build a grid to be uniform in the radial CDF.
   - Implement SAA option for sampling routine
 - set up a warm start routine
-- set up reduced tracing via mucrit tracing
+- determine why the second optimization fails!
 - optimize again
-  - optimize with more variables
-  - from other starting points
+  - with maxmode=1
+  - from QA and QH config
+  - try to get to tmax=0.1
+- set up rejection sampling via mucrit tracing
+  - need iota to be large enough for this condition to work b/c drift around surface scales like 1/iota
+- add constraint Bmax/Bmin >= 1.35 (value used for w7x)
 
 - Upgrade SID-PSM 
   - implement constraint capabilities via an l1-penalty method
