@@ -7,11 +7,12 @@
 
 ## TODO:
 - check aspect ratio
+- implement ftarget in nelder mead and sidpsm
+- set up a warm start routine
+- determine why the second optimization fails!
 - Implement distribution based sampling routines
   - stop tracing using grid! Build a grid to be uniform in the radial CDF.
   - Implement SAA option for sampling routine
-- set up a warm start routine
-- determine why the second optimization fails!
 - optimize again
   - with maxmode=1
   - from QA and QH config
