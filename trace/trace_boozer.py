@@ -1,6 +1,6 @@
 import numpy as np
 from simsopt.field.boozermagneticfield import BoozerRadialInterpolant, InterpolatedBoozerField
-from simsopt.field.tracing import trace_particles_boozer, MaxToroidalFluxStoppingCriterion
+from simsopt.field.tracing import trace_particles_boozer, MaxToroidalFluxStoppingCriterion,MinToroidalFluxStoppingCriterion
 from simsopt.geo.surfacegarabedian import SurfaceGarabedian
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
@@ -143,6 +143,30 @@ class TraceBoozer:
     self.comm.comm_world.Bcast(seed,root=0)
     np.random.seed(int(seed[0]))
     return int(seed[0])
+
+  def radial_grid(self,ns,ntheta,nzeta,nvpar,min_cdf=0.1,max_cdf=0.9,vpar_lb=-V_MAX,vpar_ub=V_MAX):
+    """
+    Build a 4d grid over the flux coordinates and vpar which is uniform in the 
+    radial CDF.
+    min_cdf,max_cdf: lower and upper bounds on the grid in CDF space
+    """
+    # uniformly grid according to the radial measure
+    sampler = RadialDensity(1000)
+    surfaces = np.linspace(min_cdf,max_cdf, ns)
+    surfaces = sampler._cdf_inv(surfaces)
+    # use fixed particle locations
+    thetas = np.linspace(0, 1.0, ntheta)
+    zetas = np.linspace(0,1.0, nzeta)
+    #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
+    vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
+    # build a mesh
+    [surfaces,thetas,zetas,vpars] = np.meshgrid(surfaces,thetas, zetas,vpars)
+    stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
+    stz_inits[:, 0] = surfaces.flatten()
+    stz_inits[:, 1] = thetas.flatten()
+    stz_inits[:, 2] = zetas.flatten()
+    vpar_inits = vpars.flatten()
+    return stz_inits,vpar_inits
 
   def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
@@ -296,7 +320,7 @@ class TraceBoozer:
     #stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99), 
     #                     MinToroidalFluxStoppingCriterion(0.01),
     #                     ToroidalTransitStoppingCriterion(100,True)]
-    stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99)]
+    stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99),MinToroidalFluxStoppingCriterion(0.01)]
      
 
     # TODO: do we want the group comm here rather than world?
@@ -324,10 +348,19 @@ class TraceBoozer:
 
     exit_times = np.zeros(n_particles)
     for ii,res in enumerate(res_zeta_hits):
+
+      # check if particle hit stopping criteria
       if len(res) > 0:
-        exit_times[ii] = res[0,0]
+        if int(res[0,1]) == -1:
+          # particle hit MaxToroidalFluxCriterion
+          exit_times[ii] = res[0,0]
+        if int(res[0,1]) == -2:
+          # particle hit MinToroidalFluxCriterion
+          exit_times[ii] = tmax
       else:
+        # didnt hit any stopping criteria
         exit_times[ii] = tmax
+   
 
     return exit_times
 
