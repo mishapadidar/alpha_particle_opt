@@ -9,7 +9,7 @@ class SIDPSM():
   "Using sampling and simplex derivatives in pattern search methods" - Custudio 2007
   """
 
-  def __init__(self,obj,x0,delta=0.01,eta=1e-5,max_eval=100,delta_max=1.0,delta_min=1e-6,theta=1e-3):
+  def __init__(self,obj,x0,delta=0.01,eta=1e-5,max_eval=100,delta_max=1.0,delta_min=1e-6,theta=1e-3,ftarget=-np.inf):
     """
     input:
     obj: function handle for minimization
@@ -21,6 +21,7 @@ class SIDPSM():
                than the initial size
     delta_min: smallest trust region size, a stopping criteria
     theta: threshold to determine validity of interpolation set, in (0,1)
+    ftarget: quit when this objective value has been reached
     """
 
     self.obj = obj
@@ -33,6 +34,7 @@ class SIDPSM():
     self.delta_max = delta_max
     self.theta = theta
     self.gamma_inc = 2.0
+    self.ftarget=ftarget
 
     # storage
     self.X = np.zeros((0,self.dim_x))
@@ -193,6 +195,11 @@ class SIDPSM():
           delta_kp1 = delta_k
         else:
           delta_kp1 = delta_k/self.gamma_inc
+
+      if f_kp1 <= self.ftarget:
+        x_k = np.copy(x_kp1)
+        f_k = f_kp1
+        break
 
       # get a new model
       _X,_fX = self.get_model_points(x_kp1,f_kp1,delta_kp1)
