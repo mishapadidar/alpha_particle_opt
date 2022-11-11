@@ -144,7 +144,7 @@ class TraceBoozer:
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
-  def radial_grid(self,ns,ntheta,nzeta,nvpar,min_cdf=0.1,max_cdf=0.9,vpar_lb=-V_MAX,vpar_ub=V_MAX):
+  def radial_grid(self,ns,ntheta,nzeta,nvpar,min_cdf=0.01,max_cdf=0.95,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Build a 4d grid over the flux coordinates and vpar which is uniform in the 
     radial CDF.
