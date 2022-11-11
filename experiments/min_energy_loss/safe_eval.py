@@ -100,6 +100,7 @@ if __name__=="__main__":
   ntheta = indata['args']['ntheta']
   nphi = indata['args']['nphi']
   nvpar = indata['args']['nvpar']
+  SAA_seed  = indata['args']['SAA_seed']
 
   # build the tracer object
   tracer = TraceBoozer(vmec_input,
@@ -138,7 +139,7 @@ if __name__=="__main__":
       n_particles = ns*ntheta*nphi*nvpar
       if sampling_type == "grid" and sampling_level == "full":
         # grid over (s,theta,phi,vpar)
-        stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar)
+        stp_inits,vpar_inits = tracer.radial_grid(ns,ntheta,nphi,nvpar)
       elif sampling_type == "grid":
         # grid over (theta,phi,vpar) for a fixed surface label
         s_label = float(sampling_level)
@@ -149,6 +150,14 @@ if __name__=="__main__":
       elif sampling_type == "random":
         # surface sampling
         s_label = float(sampling_level)
+        stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
+      elif sampling_type == "SAA" and sampling_level == "full":
+        # sync seeds
+        tracer.sync_seeds(SAA_seed)
+        stp_inits,vpar_inits = tracer.sample_volume(n_particles)
+      elif sampling_type == "SAA":
+        # sync seeds
+        tracer.sync_seeds(SAA_seed)
         stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
       # sync seeds again
       tracer.sync_seeds()

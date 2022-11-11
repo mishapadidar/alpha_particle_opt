@@ -64,7 +64,7 @@ ns = int(sys.argv[7])  # number of surface samples
 ntheta = int(sys.argv[8]) # num theta samples
 nphi = int(sys.argv[9]) # num phi samples
 nvpar = int(sys.argv[10]) # num vpar samples
-assert sampling_type in ['random', "grid"]
+assert sampling_type in ['random', "grid","SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
 
@@ -99,6 +99,7 @@ tracer_args['ns'] = ns
 tracer_args['ntheta'] = ntheta
 tracer_args['nphi'] = nphi
 tracer_args['nvpar'] = nvpar
+tracer_args['SAA_seed'] = np.random.randint(int(1e8))
 evaluator = SafeEval(eval_script = "safe_eval.py",default_F = np.inf,args=tracer_args,n_cores=n_cores)
 
 # load a starting point
