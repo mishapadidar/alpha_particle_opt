@@ -41,7 +41,7 @@ aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 600
+maxfev = 400
 max_step = 1.2
 init_step = 0.3
 min_step = 1e-6
@@ -162,16 +162,18 @@ def expected_energy_retained(x,tmax):
 for tmax in tmax_list:
   print(f"optimizing with tmax = {tmax}")
 
-  tracer_args['tmax'] = tmax_list[0]
+  tracer_args['tmax'] = tmax
   evaluator = SafeEval(eval_script = "safe_eval.py",default_F = np.inf,args=tracer_args,n_cores=n_cores)
 
   # define the objective with tmax
   if objective_type == "mean_energy":
     objective = lambda x: expected_energy_retained(x,tmax)
     ftarget = 3.5*np.exp(-2)
+    fatol = ftarget/1000
   elif objective_type == "mean_time":
     objective = lambda x: expected_negative_c_time(x,tmax)
     ftarget = 0.0
+    fatol=1e-6
   evw = EvalWrapper(objective,dim_x,1)
 
   # optimize
@@ -204,7 +206,7 @@ for tmax in tmax_list:
     # nelder-mead
     xatol = min_step # minimum step size
     res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
-                options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
+                options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex,'fatol':fatol})
     xopt = np.copy(res.x)
   elif method == "sidpsm":
     def penalty_obj(x):
