@@ -219,7 +219,7 @@ for tmax in tmax_list:
       asp = evaluator.eval(x,['aspect'])['aspect']
       print('aspect',asp)
       return obj + 1000*np.max([asp-aspect_target,0.0])**2
-    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=init_step,delta_min=min_step,delta_max=max_step)
+    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=init_step,delta_min=min_step,delta_max=max_step,ftarget=ftarget)
     res = sid.solve()
     xopt = np.copy(res['x'])
 
