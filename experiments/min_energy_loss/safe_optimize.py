@@ -20,7 +20,7 @@ from sid_psm import SIDPSM
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  python3 safe_optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res 10 10 10 10
+  python3 safe_optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res None 10 10 10 10
 
 For optimal speed use n_cores = 2, and request 2 cores from G2.
 timing: 
@@ -32,7 +32,8 @@ timing:
 
 # tracing parameters
 #tmax_list = [1e-4,1e-3,1e-2]
-tmax_list = [1e-3,1e-2]
+#tmax_list = [1e-3,1e-2,1e-1]
+tmax_list = [1e-2,1e-1]
 # configuration parmaeters
 n_partitions = 1
 n_cores = 2
@@ -60,10 +61,11 @@ objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
 max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
-ns = int(sys.argv[7])  # number of surface samples
-ntheta = int(sys.argv[8]) # num theta samples
-nphi = int(sys.argv[9]) # num phi samples
-nvpar = int(sys.argv[10]) # num vpar samples
+warm_start_file = sys.argv[7] # filename or "None"
+ns = int(sys.argv[8])  # number of surface samples
+ntheta = int(sys.argv[9]) # num theta samples
+nphi = int(sys.argv[10]) # num phi samples
+nvpar = int(sys.argv[11]) # num vpar samples
 assert sampling_type in ['random', "grid","SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
@@ -103,8 +105,12 @@ tracer_args['SAA_seed'] = np.random.randint(int(1e8))
 evaluator = SafeEval(eval_script = "safe_eval.py",default_F = np.inf,args=tracer_args,n_cores=n_cores)
 
 # load a starting point
-x0 = evaluator.eval([],["x0"])["x0"]
+if warm_start_file != "None": 
+  x0 = pickle.load(open(warm_start_file,"rb"))['xopt']
+else:
+  x0 = evaluator.eval([],["x0"])["x0"]
 dim_x = len(x0)
+
 
 
 # set up the objective
@@ -256,12 +262,14 @@ for tmax in tmax_list:
   outdata['vmec_input'] = vmec_input
   outdata['max_mode'] = max_mode
   outdata['vmec_input'] = vmec_input
+  outdata['warm_start_file'] = warm_start_file 
   outdata['objective_type'] = objective_type
   outdata['sampling_type'] = sampling_type
   outdata['sampling_level'] = sampling_level
   outdata['method'] = method
   outdata['maxfev'] = maxfev
   outdata['max_step'] = max_step
+  outdata['init_step'] = init_step
   outdata['min_step'] = min_step
   outdata['tracing_tol'] = tracing_tol
   outdata['interpolant_degree'] = interpolant_degree
