@@ -2,30 +2,24 @@
 # Lab Notebook
 
 ## TODO:
-- optimize again
-  - with maxmode=1
-  - from QA and QH config
-  - try to get to tmax=0.1
-- set up a warm start routine
-
 - add constraint Bmax/Bmin >= 1.35 (value used for w7x)
+- send new results to Matt
+
+- test variance reduction
+  - importance sampling via mucrit tracing
+  - stratified sampling based on s, mu
+  - control variate using s,mu.
+  - antithetic variables.
 - correct sampling probability with jacobian.
   - correct this is in the grid objective too
   - simsopt BoozerMagneticField class or BoozerRadialInterpolant have methods
     dRds, dRdtheta etc for derivatives of cylindrical w.r.t. Boozer coords.
+
+- Implement local TuRBO, with multifidelity, constraint handling, and hidden constraint handling.
 - Upgrade SID-PSM 
   - implement constraint capabilities via an l1-penalty method
   - use MNH method
   - use sim fails in direct search procedure.
-- Implement stochastic optimization
-  - local TuRBO, with multifidelity, constraint handling, and hidden constraint handling.
-  - StoMADS
-- set up variance reduction
-  - set up rejection sampling via mucrit tracing
-    - need iota to be large enough for this condition to work b/c drift around surface scales like 1/iota
-  - importance sampling based on |B|: use |B| method from simsopt BoozerMagneticField class
-  - backwards tracing, can do this in Boozer using simsopt methods.
-  - control variates based on surfaces or shorter tracing or input variables.
 - look at sensitivity to constraint and distribution parameters.
 
 # Notes
