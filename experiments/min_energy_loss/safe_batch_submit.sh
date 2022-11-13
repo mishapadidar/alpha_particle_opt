@@ -1,11 +1,13 @@
 
 SAMPLINGTYPE='grid' # grid, random
-SURFS=('0.3' '0.5' '0.7' 'full') 
+SURFS=('0.3' '0.5' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
-METHOD="sidpsm" # pdfo, nelder, snobfit, diff_evol, sidpsm
-MAXMODE=3
-VMEC="nfp2_QA_cold_high_res"
+METHOD="nelder" # pdfo, nelder, snobfit, diff_evol, sidpsm
+MAXMODE=1
+#VMEC="nfp2_QA_cold_high_res"
+VMEC="nfp4_QH_warm_high_res"
+WARM="None" # None or filename
 NS=7
 NTHETA=7
 NPHI=7
@@ -50,8 +52,8 @@ do
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
-  #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "python3 safe_optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
+  printf '%s\n' "python3 safe_optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${WARM} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
