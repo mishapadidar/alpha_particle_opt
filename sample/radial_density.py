@@ -36,11 +36,28 @@ class RadialDensity:
     f = lambda s: (s**k)*self._pdf(s)
     return sp_quad(f,self.lb,self.ub)[0]
 
+  def conditional_raw_moment(self,a,k=1):
+    """
+    Compute conditional raw moments.
+      E[X^k | X <a]
+    The conditional pdf is 
+      p(x|x<= a) = p(x)/F(a) if x <= a
+    """
+    assert a <= self.ub
+    assert a >= self.lb
+    f = lambda s: (s**k)*self._pdf(s)
+    exp = sp_quad(f,self.lb,a)[0]
+    prob =self._cdf(a)
+    return exp/prob
+
   def mean(self):
     return self.raw_moment(k=1)
 
   def variance(self):
     return self.raw_moment(k=2) - self.mean()**2
+
+  def std(self):
+    return np.sqrt(self.variance())
   
   def _cdf(self,s):
     if s <= self.lb:
@@ -91,7 +108,7 @@ if __name__=="__main__":
   sampler = RadialDensity(n_points)
 
   print('mean',sampler.mean())
-  print('variance',sampler.variance())
+  print('std',sampler.std())
 
   # plot the pdf
   x = np.linspace(0,1,1000)
