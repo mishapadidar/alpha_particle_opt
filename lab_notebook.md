@@ -5,15 +5,14 @@
 - add constraint Bmax/Bmin >= 1.35 (value used for w7x)
 - send new results to Matt
 
+- Build sampling module for 
+  - sampling theta,zeta uniformly in angle
+  - computing moments of modB.
 - test variance reduction
-  - importance sampling via mucrit tracing
-  - stratified sampling based on s, mu
-  - control variate using s,mu.
+  - importance sampling (uniform in s,mu; linear in s,mu)
   - antithetic variables.
-- correct sampling probability with jacobian.
-  - correct this is in the grid objective too
-  - simsopt BoozerMagneticField class or BoozerRadialInterpolant have methods
-    dRds, dRdtheta etc for derivatives of cylindrical w.r.t. Boozer coords.
+  - [x] stratified sampling based on s, mu
+  - [x] control variate using s,mu.
 
 - Implement local TuRBO, with multifidelity, constraint handling, and hidden constraint handling.
 - Upgrade SID-PSM 

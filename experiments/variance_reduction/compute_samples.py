@@ -57,6 +57,10 @@ mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
 mu_mean = np.mean(mu)
 mu_std = np.std(mu)
 
+# compute the two strata probabilities
+prob_mu_strata1 = np.mean(mu<mu_crit)
+prob_mu_strata2 = np.mean(mu>=mu_crit)
+
 # get points for tracing
 stz_inits,vpar_inits = tracer.sample_volume(n_particles) 
 mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
@@ -87,6 +91,8 @@ if rank == 0:
   outdata['s_std'] = s_std
   outdata['mu_mean'] = mu_mean
   outdata['mu_std'] = mu_std
+  outdata['prob_mu_strata1'] = prob_mu_strata1
+  outdata['prob_mu_strata2'] = prob_mu_strata2
   outfilename = "data_test_boozer.pickle"
   pickle.dump(outdata,open(outfilename,"wb"))
   
