@@ -36,18 +36,16 @@ class RadialDensity:
     f = lambda s: (s**k)*self._pdf(s)
     return sp_quad(f,self.lb,self.ub)[0]
 
-  def conditional_raw_moment(self,a,k=1):
+  def conditional_raw_moment(self,a,b,k=1):
     """
     Compute conditional raw moments.
-      E[X^k | X <a]
+      E[X^k | a <= X <= b]
     The conditional pdf is 
-      p(x|x<= a) = p(x)/F(a) if x <= a
+      p(x|a <= x <= b) = p(x)/(F(b) - F(a)) if x in [a,b]
     """
-    assert a <= self.ub
-    assert a >= self.lb
     f = lambda s: (s**k)*self._pdf(s)
-    exp = sp_quad(f,self.lb,a)[0]
-    prob =self._cdf(a)
+    exp = sp_quad(f,a,b)[0]
+    prob =self._cdf(b) - self._cdf(a)
     return exp/prob
 
   def mean(self):
