@@ -31,6 +31,16 @@ class RadialDensity:
     c = (12.0**(-1/3))*((1-s)**(-1/3))
     d = np.exp(-19.94*c)
     return const*a*b*d
+
+  def raw_moment(self,k=1):
+    f = lambda s: (s**k)*self._pdf(s)
+    return sp_quad(f,self.lb,self.ub)[0]
+
+  def mean(self):
+    return self.raw_moment(k=1)
+
+  def variance(self):
+    return self.raw_moment(k=2) - self.mean()**2
   
   def _cdf(self,s):
     if s <= self.lb:
@@ -79,6 +89,9 @@ if __name__=="__main__":
   import matplotlib.pyplot as plt
   n_points = 1000
   sampler = RadialDensity(n_points)
+
+  print('mean',sampler.mean())
+  print('variance',sampler.variance())
 
   # plot the pdf
   x = np.linspace(0,1,1000)
