@@ -3,16 +3,17 @@
 
 ## TODO:
 - add constraint Bmax/Bmin >= 1.35 (value used for w7x)
+- test parallelism in cylindrical coords
 - send new results to Matt
-
-- Build sampling module for 
-  - sampling theta,zeta uniformly in angle
-  - computing moments of modB.
 - test variance reduction
   - importance sampling (uniform in s,mu; linear in s,mu)
   - antithetic variables.
   - [x] stratified sampling based on s, mu
   - [x] control variate using s,mu.
+- set up stochastic trust region optimization with Nocedal's ratio test condition
+- Build sampling module for 
+  - sampling theta,zeta uniformly in angle
+  - computing moments of modB.
 
 - Implement local TuRBO, with multifidelity, constraint handling, and hidden constraint handling.
 - Upgrade SID-PSM 
