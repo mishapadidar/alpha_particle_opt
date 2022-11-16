@@ -8,6 +8,8 @@
 - test variance reduction
   - importance sampling (uniform in s,mu; linear in s,mu)
   - antithetic variables.
+    - try using the antithetic variable with zeta1 = 2pi/nfp  - zeta
+    - try the U(f) antithetic variable.
   - [x] stratified sampling based on s, mu
   - [x] control variate using s,mu.
 - set up stochastic trust region optimization with Nocedal's ratio test condition

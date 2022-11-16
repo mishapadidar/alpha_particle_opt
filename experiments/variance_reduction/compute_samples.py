@@ -95,4 +95,69 @@ if rank == 0:
   outdata['prob_mu_strata2'] = prob_mu_strata2
   outfilename = "data_test_boozer.pickle"
   pickle.dump(outdata,open(outfilename,"wb"))
+
+"""
+Compute the antithetic variates.
+
+use alpha = mean(s) as a cutoff
+"""
+
+
+outfilename = "data_test_boozer.pickle"
+outdata = pickle.load(open(outfilename,"rb"))
   
+n_particles = 150
+## sample the other variables... dont use s.
+#stz_anti1,vpar_anti1 = tracer.sample_volume(n_particles) 
+## uniformly sample s
+#s_list = np.random.uniform(0,1,n_particles)
+## sample the first set of variables with s in [0,mean(s)]
+#stz_anti1[:,0] = np.copy(s_mean*s_list)
+#s_pdf_anti1 = sampler._pdf(stz_anti1[:,0])
+#mu_anti1 = tracer.compute_mu(field,bri,stz_anti1,vpar_anti1)
+## build the second set of antithethic vars in [mean(s),1]
+#stz_anti2 = np.copy(stz_anti1)
+#vpar_anti2 = np.copy(vpar_anti1)
+##stz_anti2[:,0] = s_mean + (1-s_mean)*s_list # G_alpha(f)
+#stz_anti2[:,0] = 1- (1-s_mean)*s_list # I_alpha(f)
+#s_pdf_anti2 = sampler._pdf(stz_anti2[:,0])
+#mu_anti2 = tracer.compute_mu(field,bri,stz_anti2,vpar_anti2)
+
+
+# use vpar as the antithetic variate
+# sample the other variables... dont use s.
+stz_anti1,vpar_anti1 = tracer.sample_volume(n_particles) 
+# sample the vpar values in bin1
+vpar_list = np.random.uniform(0.0,1.0,n_particles)
+vpar_anti1 = V_MAX*vpar_list - V_MAX
+# transform the variables to bin1
+s_pdf_anti1 = 0.5
+mu_anti1 = tracer.compute_mu(field,bri,stz_anti1,vpar_anti1)
+# build the second set of antithethic vars in [mean(s),1]
+stz_anti2 = np.copy(stz_anti1)
+vpar_anti2 = V_MAX*vpar_list # G_alpha(f)
+#vpar_anti2 = V_MAX - V_MAX*vpar_list # I_alpha(f)
+s_pdf_anti2 = 0.5
+mu_anti2 = tracer.compute_mu(field,bri,stz_anti2,vpar_anti2)
+
+print('tracing')
+t0  = time.time()
+c_times_anti1 = tracer.compute_confinement_times(x0,stz_anti1,vpar_anti1,tmax,field,bri)
+c_times_anti2 = tracer.compute_confinement_times(x0,stz_anti2,vpar_anti2,tmax,field,bri)
+print('time',time.time() - t0)
+
+if rank == 0:
+  antithetic = {}
+  antithetic['c_times_anti1'] = c_times_anti1
+  antithetic['stz_anti1'] = stz_anti1
+  antithetic['vpar_anti1'] = vpar_anti1
+  antithetic['mu_anti1'] = mu_anti1
+  antithetic['s_pdf_anti1'] = s_pdf_anti1
+  antithetic['c_times_anti2'] = c_times_anti2
+  antithetic['stz_anti2'] = stz_anti2
+  antithetic['vpar_anti2'] = vpar_anti2
+  antithetic['mu_anti2'] = mu_anti2
+  antithetic['s_pdf_anti2'] = s_pdf_anti2
+  outdata['antithetic'] = antithetic
+  pickle.dump(outdata,open(outfilename,"wb"))
+
