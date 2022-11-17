@@ -155,8 +155,8 @@ class TraceBoozer:
     surfaces = np.linspace(min_cdf,max_cdf, ns)
     surfaces = sampler._cdf_inv(surfaces)
     # use fixed particle locations
-    thetas = np.linspace(0, 1.0, ntheta)
-    zetas = np.linspace(0,1.0, nzeta)
+    thetas = np.linspace(0, 2*np.pi, ntheta)
+    zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
     #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
     vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
@@ -174,8 +174,8 @@ class TraceBoozer:
     """
     # use fixed particle locations
     surfaces = np.linspace(0.01,s_max, ns)
-    thetas = np.linspace(0, 1.0, ntheta)
-    zetas = np.linspace(0,1.0, nzeta)
+    thetas = np.linspace(0, 2*np.pi, ntheta)
+    zetas = np.linspace(0,2*npi.pi/self.surf.nfp, nzeta)
     #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
     vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
@@ -193,7 +193,7 @@ class TraceBoozer:
     """
     # use fixed particle locations
     # theta is [0,pi] with stellsym
-    thetas = np.linspace(0, np.pi, ntheta)
+    thetas = np.linspace(0, 2*np.pi, ntheta)
     zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
     #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
     vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
@@ -215,7 +215,7 @@ class TraceBoozer:
     vpar_ub = np.sqrt(FUSION_ALPHA_SPEED_SQUARED)*(1)   
     # use fixed particle locations
     surfaces = np.linspace(0.01,s_max, ns)
-    thetas = np.linspace(0, np.pi, ntheta)
+    thetas = np.linspace(0, 2*np.pi, ntheta)
     vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
     [surfaces,thetas,vpars] = np.meshgrid(surfaces,thetas, vpars)
@@ -245,8 +245,8 @@ class TraceBoozer:
       s_inits = sampler.sample(n_particles)
       # randomly sample theta,zeta,vpar
       # theta is [0,pi] with stellsym
-      theta_inits = np.random.uniform(0,np.pi,n_particles)
-      zeta_inits = np.random.uniform(0,np.pi/self.surf.nfp,n_particles)
+      theta_inits = np.random.uniform(0,2*np.pi,n_particles)
+      zeta_inits = np.random.uniform(0,2*np.pi/self.surf.nfp,n_particles)
       vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
     # broadcast the points
     comm.Bcast(s_inits,root=0)
@@ -273,7 +273,7 @@ class TraceBoozer:
     if rank == 0:
       # randomly sample theta,zeta,vpar
       # theta is [0,pi] with stellsym
-      theta_inits = np.random.uniform(0,np.pi,n_particles)
+      theta_inits = np.random.uniform(0,2*np.pi,n_particles)
       zeta_inits = np.random.uniform(0,2*np.pi/self.surf.nfp,n_particles)
       vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
     # broadcast the points
