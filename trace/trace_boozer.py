@@ -175,7 +175,7 @@ class TraceBoozer:
     # use fixed particle locations
     surfaces = np.linspace(0.01,s_max, ns)
     thetas = np.linspace(0, 2*np.pi, ntheta)
-    zetas = np.linspace(0,2*npi.pi/self.surf.nfp, nzeta)
+    zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
     #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
     vpars = np.linspace(vpar_lb,vpar_ub,nvpar)
     # build a mesh
@@ -284,25 +284,14 @@ class TraceBoozer:
     stp_inits = np.vstack((s_inits,theta_inits,zeta_inits)).T
     return stp_inits,vpar_inits
 
-  # set up the objective
-  def compute_confinement_times(self,x,stz_inits,vpar_inits,tmax):
-    """
-    Trace particles in boozer coordinates according to the vacuum GC 
-    approximation using simsopt.
 
-    x: a point describing the current vmec boundary
-    stz_inits: (n,3) array of (s,theta,zeta) points
-    vpar_inits: (n,) array of vpar values
-    tmax: max tracing time
-    """
-    n_particles = len(vpar_inits)
-
+  def compute_boozer_field(self,x):
     self.surf.x = np.copy(x)
     try:
       self.vmec.run()
     except:
       # VMEC failure!
-      return -np.inf*np.ones(len(stz_inits)) 
+      return None,None
 
     # Construct radial interpolant of magnetic field
     bri = BoozerRadialInterpolant(self.vmec, order=self.interpolant_degree,
@@ -315,11 +304,58 @@ class TraceBoozer:
     zetarange = (0, 2*np.pi/nfp,self.interpolant_level)
     field = InterpolatedBoozerField(bri, degree=self.interpolant_degree, srange=srange, thetarange=thetarange,
                        zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
-    #print('Error in |B| interpolation', field.estimate_error_modB(1000), flush=True)
+    return field,bri
 
-    #stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99), 
-    #                     MinToroidalFluxStoppingCriterion(0.01),
-    #                     ToroidalTransitStoppingCriterion(100,True)]
+
+  def compute_modB(self,field,bri,ns=32,ntheta=32,nphi=32):
+    """
+    Compute |B| on a grid in Boozer coordinates.
+    """
+    stz_grid,_ = self.flux_grid(ns,ntheta,nphi,1)
+    field.set_points(stz_grid)
+    modB = field.modB().flatten()
+    return modB
+
+  def compute_mu(self,field,bri,stz_inits,vpar_inits):
+    """
+    Compute |B| on a grid in Boozer coordinates.
+    """
+    field.set_points(stz_inits+np.zeros(np.shape(stz_inits)))
+    modB = field.modB().flatten()
+    vperp_squared = FUSION_ALPHA_SPEED_SQUARED - vpar_inits**2
+    mu = vperp_squared/2/modB
+    return mu
+
+
+  def compute_mu_crit(self,field,bri,ns=64,ntheta=64,nphi=64):
+    """
+    Compute |B| on a grid in Boozer coordinates.
+    """
+    modB = self.compute_modB(field,bri,ns,ntheta,nphi)
+    Bmax = np.max(modB)
+    mu_crit = FUSION_ALPHA_SPEED_SQUARED/2/Bmax
+    return mu_crit
+
+
+  # set up the objective
+  def compute_confinement_times(self,x,stz_inits,vpar_inits,tmax,field=None,bri=None):
+    """
+    Trace particles in boozer coordinates according to the vacuum GC 
+    approximation using simsopt.
+
+    x: a point describing the current vmec boundary
+    stz_inits: (n,3) array of (s,theta,zeta) points
+    vpar_inits: (n,) array of vpar values
+    tmax: max tracing time
+    """
+    n_particles = len(vpar_inits)
+
+    if field is None:
+      field,bri = self.compute_boozer_field(x)
+    if field is None:
+      # VMEC failure
+      return -np.inf*np.ones(len(stz_inits)) 
+
     stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99),MinToroidalFluxStoppingCriterion(0.01)]
      
 
@@ -471,7 +507,8 @@ class TraceBoozer:
 
 if __name__ == "__main__":
 
-  vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
+  #vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
+  vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
   minor_radius = 1.7
   major_radius = 8.0*1.7
   target_volavgB = 5.0
@@ -491,13 +528,20 @@ if __name__ == "__main__":
   dim_x = tracer.dim_x
   tmax = 1e-4
 
+  # compute the field and 
+  field,bri = tracer.compute_boozer_field(x0)
+  mu_crit = tracer.compute_mu_crit(field,bri)
+  print(mu_crit)
+
   # tracing points
   n_particles = 500
-  stz_inits,vpar_inits = tracer.sample_surface(n_particles,0.4)
+  stz_inits,vpar_inits = tracer.sample_volume(n_particles)
+  mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
+  print(mu)
 
   import time
   t0  = time.time()
-  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax,field=field,bri=bri)
   print('time',time.time() - t0)
   print('mean',np.mean(c_times))
   print(c_times.shape)
