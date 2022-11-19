@@ -1,7 +1,7 @@
 # alpha_particle_opt
 
-Optimal MPI allocation for particle tracing on G2.
-Using less is better than using more. 
+Optimal number of cores to use on G2 for particle tracing.
+If in doubt, using less cores is often better than using more. 
 
 |tmax | nparticles  | cores | eval time [sec] | 
 |---- | ----------- | ----  | --------------- |
