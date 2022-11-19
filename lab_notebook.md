@@ -2,22 +2,13 @@
 # Lab Notebook
 
 ## TODO:
+- develop a deterministic (biased) integration method for computing objective.
+  - develop a model of the confinement time.
+  - look at slices of the objective in space.
+  - integrate the model plus integrate the difference.
 - add constraint Bmax/Bmin >= 1.35 (value used for w7x)
-- test parallelism in cylindrical coords
-- send new results to Matt
-- test variance reduction
-  - importance sampling (uniform in s,mu; linear in s,mu)
-  - antithetic variables.
-    - try using the antithetic variable with zeta1 = 2pi/nfp  - zeta
-    - try the U(f) antithetic variable.
-  - [x] stratified sampling based on s, mu
-  - [x] control variate using s,mu.
-- set up stochastic trust region optimization with Nocedal's ratio test condition
-- Build sampling module for 
-  - sampling theta,zeta uniformly in angle
-  - computing moments of modB.
-
-- Implement local TuRBO, with multifidelity, constraint handling, and hidden constraint handling.
+- use more parallelism for optimization
+- Build sampling module sampling theta,zeta uniformly in space.
 - Upgrade SID-PSM 
   - implement constraint capabilities via an l1-penalty method
   - use MNH method
