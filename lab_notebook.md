@@ -3,8 +3,12 @@
 
 ## TODO:
 - develop a deterministic (biased) integration method for computing objective.
+  - develop a gaussian quadrature on s.
   - develop a model of the confinement time.
-  - look at slices of the objective in space.
+    - leverage periodicity in theta,zeta
+    - leverage mucrit boundary or 0.25v^2
+    - leverage s,vpar scatter plot of confinement times.
+    - try to model discontinuity.
   - integrate the model plus integrate the difference.
 - add constraint Bmax/Bmin >= 1.35 (value used for w7x)
 - use more parallelism for optimization
