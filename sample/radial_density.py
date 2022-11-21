@@ -25,12 +25,27 @@ class RadialDensity:
     self._cdf_inv = self.build_inverse_cdf(n_points)
 
   def _pdf(self,s):
-    const = 0.21636861430315135e5
-    a = (1-s**5)**2
-    b = (1-s)**(-2/3)
-    c = (12.0**(-1/3))*((1-s)**(-1/3))
-    d = np.exp(-19.94*c)
-    return const*a*b*d
+    if isinstance(s,float):
+      if s == 1.0:
+        ret = 0.0
+      else:
+        const = 0.21636861430315135e5
+        a = (1-s**5)**2
+        b = (1-s)**(-2/3)
+        c = (12.0**(-1/3))*((1-s)**(-1/3))
+        d = np.exp(-19.94*c)
+        ret = const*a*b*d
+    else:
+      # treat the corner case, s==1
+      idx_0 = (s == 1.0)
+      const = 0.21636861430315135e5
+      a = (1-s[~idx_0]**5)**2
+      b = (1-s[~idx_0])**(-2/3)
+      c = (12.0**(-1/3))*((1-s[~idx_0])**(-1/3))
+      d = np.exp(-19.94*c)
+      ret = np.zeros(len(s))
+      ret[~idx_0] = const*a*b*d
+    return ret
 
   def raw_moment(self,k=1):
     f = lambda s: (s**k)*self._pdf(s)
