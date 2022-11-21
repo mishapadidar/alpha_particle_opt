@@ -168,12 +168,12 @@ class TraceBoozer:
     vpar_inits = vpars.flatten()
     return stz_inits,vpar_inits
 
-  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_max=0.98,vpar_lb=-V_MAX,vpar_ub=V_MAX):
+  def flux_grid(self,ns,ntheta,nzeta,nvpar,s_min=0.01,s_max=0.98,vpar_lb=-V_MAX,vpar_ub=V_MAX):
     """
     Build a 4d grid over the flux coordinates and vpar.
     """
     # use fixed particle locations
-    surfaces = np.linspace(0.01,s_max, ns)
+    surfaces = np.linspace(s_min,s_max, ns)
     thetas = np.linspace(0, 2*np.pi, ntheta)
     zetas = np.linspace(0,2*np.pi/self.surf.nfp, nzeta)
     #vpars = symlog_grid(vpar_lb,vpar_ub,nvpar)
