@@ -38,7 +38,7 @@ ex.
 
 # tracing parameters
 #tmax_list = [1e-4,1e-3,1e-2]
-tmax_list = [1e-4]
+tmax_list = [1e-3]
 # configuration parmaeters
 n_partitions = 1
 minor_radius = 1.7
@@ -127,7 +127,8 @@ def aspect_ratio(x):
   if np.isnan(asp):
     asp = np.inf
 
-  print("aspect",asp)
+  if rank == 0:
+    print("aspect",asp)
   return asp
 
 # constraint on mirror ratio
@@ -141,8 +142,9 @@ def B_field(x):
   if field is None:
     return np.zeros(len_B_field_out)
   modB = tracer.compute_modB(field,bri,ns=ns_B,ntheta=ntheta_B,nphi=nzeta_B)
-  print("B interval:",np.min(modB),np.max(modB))
-  print("Mirror Ratio:",np.max(modB)/np.min(modB))
+  if rank == 0:
+    print("B interval:",np.min(modB),np.max(modB))
+    print("Mirror Ratio:",np.max(modB)/np.min(modB))
   return modB
 B_mean = 5.0
 eps_B = 0.35/2.35
