@@ -32,13 +32,13 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res 10 10 10 10
+  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res None 10 10 10 10
 """
 
 
 # tracing parameters
 #tmax_list = [1e-4,1e-3,1e-2]
-tmax_list = [1e-3,1e-2]
+tmax_list = [1e-4]
 # configuration parmaeters
 n_partitions = 1
 minor_radius = 1.7
@@ -46,8 +46,8 @@ aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 # optimizer params
-maxfev = 300
-max_step = 0.5
+maxfev = 200
+max_step = 1.0
 min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
@@ -58,17 +58,18 @@ bri_ntor = 16
 
 
 # read inputs
-sampling_type = sys.argv[1] # random or grid
+sampling_type = sys.argv[1] # random or grid or SAA
 sampling_level = sys.argv[2] # "full" or a float surface label
 objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
 max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
-ns = int(sys.argv[7])  # number of surface samples
-ntheta = int(sys.argv[8]) # num theta samples
-nphi = int(sys.argv[9]) # num phi samples
-nvpar = int(sys.argv[10]) # num vpar samples
-assert sampling_type in ['random', "grid"]
+warm_start_file = sys.argv[7] # filename or "None"
+ns = int(sys.argv[8])  # number of surface samples
+ntheta = int(sys.argv[9]) # num theta samples
+nphi = int(sys.argv[10]) # num phi samples
+nvpar = int(sys.argv[11]) # num vpar samples
+assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
 
@@ -99,7 +100,12 @@ tracer = TraceBoozer(vmec_input,
                       bri_mpol=bri_mpol,
                       bri_ntor=bri_ntor)
 tracer.sync_seeds()
-x0 = tracer.x0
+
+# load a starting point
+if warm_start_file != "None": 
+  x0 = pickle.load(open(warm_start_file,"rb"))['xopt']
+else:
+  x0 = tracer.x0
 dim_x = tracer.dim_x
 
 
@@ -121,15 +127,35 @@ def aspect_ratio(x):
   if np.isnan(asp):
     asp = np.inf
 
+  print("aspect",asp)
   return asp
 
+# constraint on mirror ratio
+ns_B=ntheta_B=nzeta_B=32
+len_B_field_out = ns_B*ntheta_B*nzeta_B
+def B_field(x):
+  """
+  Compute modB on a grid
+  """
+  field,bri = tracer.compute_boozer_field(x)
+  if field is None:
+    return np.zeros(len_B_field_out)
+  modB = tracer.compute_modB(field,bri,ns=ns_B,ntheta=ntheta_B,nphi=nzeta_B)
+  print("B interval:",np.min(modB),np.max(modB))
+  print("Mirror Ratio:",np.max(modB)/np.min(modB))
+  return modB
+B_mean = 5.0
+eps_B = 0.35/2.35
+B_ub = B_mean*(1 + eps_B)*np.ones(len_B_field_out)
+B_lb = B_mean*(1 - eps_B)*np.ones(len_B_field_out)
 
+SAA_seed = np.random.randint(int(1e8))
 def get_ctimes(x,tmax,sampling_type,sampling_level):
   # sync seeds again
   tracer.sync_seeds()
   if sampling_type == "grid" and sampling_level == "full":
     # grid over (s,theta,phi,vpar)
-    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar)
+    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar,s_min=0.05)
   elif sampling_type == "grid":
     # grid over (theta,phi,vpar) for a fixed surface label
     s_label = float(sampling_level)
@@ -140,6 +166,14 @@ def get_ctimes(x,tmax,sampling_type,sampling_level):
   elif sampling_type == "random":
     # surface sampling
     s_label = float(sampling_level)
+    stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
+  elif sampling_type == "SAA" and sampling_level == "full":
+    # sync seeds
+    tracer.sync_seeds(SAA_seed)
+    stp_inits,vpar_inits = tracer.sample_volume(n_particles)
+  elif sampling_type == "SAA":
+    # sync seeds
+    tracer.sync_seeds(SAA_seed)
     stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   # trace
   try:
@@ -220,7 +254,10 @@ for tmax in tmax_list:
   if method == "pdfo":
     rhobeg = max_step
     rhoend = min_step
-    res = pdfo(evw, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+    aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
+    mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
+    constraints = [aspect_constraint,mirror_constraint]
+    res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
     xopt = np.copy(res.x)
   elif method == 'snobfit':
     # snobfit
@@ -293,6 +330,7 @@ for tmax in tmax_list:
     outdata['vmec_input'] = vmec_input
     outdata['max_mode'] = max_mode
     outdata['vmec_input'] = vmec_input
+    outdata['warm_start_file'] = warm_start_file 
     outdata['objective_type'] = objective_type
     outdata['sampling_type'] = sampling_type
     outdata['sampling_level'] = sampling_level

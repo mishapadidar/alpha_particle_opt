@@ -1,18 +1,20 @@
 
-SAMPLINGTYPE='grid' # grid, random
+SAMPLINGTYPE='grid' # grid, random, SAA
 SURFS=('0.3' '0.5' '0.7' 'full') 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
-METHOD="sidpsm" # pdfo, nelder, snobfit, diff_evol, sidpsm
-MAXMODE=3
+METHOD="pdfo" # pdfo, nelder, snobfit, diff_evol, sidpsm
+MAXMODE=1
 VMEC="nfp2_QA_cold_high_res"
-NS=10
-NTHETA=10
-NPHI=10
-NVPAR=10
+#VMEC="nfp4_QH_warm_high_res"
+WARM="None" # None or filename
+NS=6
+NTHETA=5
+NPHI=5
+NVPAR=6
 
 NODES=1
-CORES=2
+CORES=8
 for idx in ${!SURFS[@]}
 do
   surf=${SURFS[idx]}
@@ -50,7 +52,7 @@ do
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
   #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${WARM} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
