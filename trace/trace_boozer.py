@@ -129,6 +129,10 @@ class TraceBoozer:
     self.bri_mpol=bri_mpol
     self.bri_ntor=bri_ntor
 
+    # placeholders
+    self.field = None
+    self.bri = None
+
   def sync_seeds(self,sd=None):
     """
     Sync the np.random.seed of the various worker groups.
@@ -286,6 +290,10 @@ class TraceBoozer:
 
 
   def compute_boozer_field(self,x):
+    # to save on recomputes
+    if np.all(self.surf.x == x) and self.field is not None:
+      return self.field,self.bri
+
     self.surf.x = np.copy(x)
     try:
       self.vmec.run()
@@ -304,6 +312,8 @@ class TraceBoozer:
     zetarange = (0, 2*np.pi/nfp,self.interpolant_level)
     field = InterpolatedBoozerField(bri, degree=self.interpolant_degree, srange=srange, thetarange=thetarange,
                        zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
+    self.field = field
+    self.bri = bri
     return field,bri
 
 
@@ -526,7 +536,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-4
+  tmax = 1e-2
 
   # compute the field and 
   field,bri = tracer.compute_boozer_field(x0)
@@ -536,12 +546,15 @@ if __name__ == "__main__":
   # tracing points
   n_particles = 500
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
+  #stz_inits,vpar_inits = tracer.flux_grid(8,8,8,8,s_min=0.05)
   mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
   print(mu)
 
   import time
   t0  = time.time()
-  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax,field=field,bri=bri)
+  #c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax,field=field,bri=bri)
+  print('tracing')
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   print('time',time.time() - t0)
   print('mean',np.mean(c_times))
   print(c_times.shape)
