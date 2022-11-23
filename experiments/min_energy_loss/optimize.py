@@ -84,6 +84,19 @@ elif vmec_label == "nfp4_QH_warm_high_res":
 if not debug:
   vmec_input="../" + vmec_input
 
+
+# load a starting point
+if warm_start_file != "None": 
+  data_x0 = pickle.load(open(warm_start_file,"rb"))
+  x0 = data_x0['xopt']
+  x0_max_mode = data_x0['max_mode']
+  x0_major_radius = data_x0['major_radius']
+  del data_x0
+else:
+  x0 = []
+  x0_max_mode=max_mode
+  x0_major_radius = major_radius
+
 # build a tracer object
 #tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
 tracer = TraceBoozer(vmec_input,
@@ -96,14 +109,12 @@ tracer = TraceBoozer(vmec_input,
                       interpolant_degree=interpolant_degree,
                       interpolant_level=interpolant_level,
                       bri_mpol=bri_mpol,
-                      bri_ntor=bri_ntor)
+                      bri_ntor=bri_ntor,
+                      x0=x0,
+                      x0_max_mode=x0_max_mode,
+                      x0_major_radius=x0_major_radius)
 tracer.sync_seeds()
-
-# load a starting point
-if warm_start_file != "None": 
-  x0 = pickle.load(open(warm_start_file,"rb"))['xopt']
-else:
-  x0 = tracer.x0
+x0 = tracer.x0
 dim_x = tracer.dim_x
 
 
