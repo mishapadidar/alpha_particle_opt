@@ -1,26 +1,42 @@
 
+TMAX='0.01'
 SAMPLINGTYPE='grid' # grid, random, SAA
-SURFS=('0.3' '0.5' '0.7' 'full') 
+#SAMPLINGTYPE='SAA' # grid, random, SAA
+
+#SURFS=('0.3' '0.5' '0.7' 'full') 
+#SURFS=('0.3') 
+#SURFS=('0.5') 
+#SURFS=('0.7') 
+SURFS=('full') 
+
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
+
 METHOD="pdfo" # pdfo, nelder, snobfit, diff_evol, sidpsm
 MAXMODE=1
+
 VMEC="nfp2_QA_cold_high_res"
 #VMEC="nfp4_QH_warm_high_res"
-WARM="None" # None or filename
-NS=6
-NTHETA=5
-NPHI=5
-NVPAR=6
 
-NODES=1
-CORES=8
+#WARM="None" # None or filename
+#WARM="../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.01_pdfo_mmode_1.pickle" 
+#WARM="../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.01_pdfo_mmode_1.pickle" 
+#WARM="../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_0.7_tmax_0.01_pdfo_mmode_1.pickle" 
+WARM="../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_pdfo_mmode_1.pickle" 
+
+NS=8
+NTHETA=6
+NPHI=6
+NVPAR=8
+
+NODES=4
+CORES=12
 for idx in ${!SURFS[@]}
 do
   surf=${SURFS[idx]}
 
   # make a dir
-  dir="_batch_${VMEC}_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_${METHOD}_mmode_${MAXMODE}"
+  dir="_batch_${VMEC}_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_tmax_${TMAX}_${METHOD}_mmode_${MAXMODE}"
   mkdir $dir
 
   # copy the compute data
@@ -52,7 +68,7 @@ do
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
   #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${WARM} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${WARM} ${TMAX} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"

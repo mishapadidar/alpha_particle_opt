@@ -32,13 +32,10 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res None 10 10 10 10
+  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res None 0.0001 10 10 10 10
 """
 
 
-# tracing parameters
-#tmax_list = [1e-4,1e-3,1e-2]
-tmax_list = [1e-3]
 # configuration parmaeters
 n_partitions = 1
 minor_radius = 1.7
@@ -65,10 +62,11 @@ method = sys.argv[4] # optimization method
 max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
 warm_start_file = sys.argv[7] # filename or "None"
-ns = int(sys.argv[8])  # number of surface samples
-ntheta = int(sys.argv[9]) # num theta samples
-nphi = int(sys.argv[10]) # num phi samples
-nvpar = int(sys.argv[11]) # num vpar samples
+tmax_list = [float(sys.argv[8])] # tmax
+ns = int(sys.argv[9])  # number of surface samples
+ntheta = int(sys.argv[10]) # num theta samples
+nphi = int(sys.argv[11]) # num phi samples
+nvpar = int(sys.argv[12]) # num vpar samples
 assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
@@ -157,7 +155,7 @@ def get_ctimes(x,tmax,sampling_type,sampling_level):
   tracer.sync_seeds()
   if sampling_type == "grid" and sampling_level == "full":
     # grid over (s,theta,phi,vpar)
-    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar,s_min=0.05)
+    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar,s_min=0.05,s_max=0.9)
   elif sampling_type == "grid":
     # grid over (theta,phi,vpar) for a fixed surface label
     s_label = float(sampling_level)
