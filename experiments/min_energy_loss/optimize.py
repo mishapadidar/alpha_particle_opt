@@ -80,6 +80,8 @@ elif vmec_label == "nfp2_QA_high_res":
   vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
 elif vmec_label == "nfp4_QH_warm_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
+elif vmec_label == "nfp4_QH_cold_high_res":
+  vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -166,7 +168,7 @@ def get_ctimes(x,tmax,sampling_type,sampling_level):
   tracer.sync_seeds()
   if sampling_type == "grid" and sampling_level == "full":
     # grid over (s,theta,phi,vpar)
-    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar,s_min=0.05,s_max=0.9)
+    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar,s_min=0.05,s_max=0.95)
   elif sampling_type == "grid":
     # grid over (theta,phi,vpar) for a fixed surface label
     s_label = float(sampling_level)
