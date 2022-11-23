@@ -117,9 +117,11 @@ aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
 constraints = [aspect_constraint]
 
 # optimize
-res = pdfo(penalty_objective, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+#res = pdfo(penalty_objective, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+res = pdfo(penalty_objective, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
 xopt = np.copy(res.x)
 
+print(aspect_ratio(xopt))
 # save result
 if rank == 0:
   tracer.vmec.write_input(outfile)
