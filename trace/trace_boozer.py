@@ -29,7 +29,10 @@ class TraceBoozer:
     interpolant_degree=3,
     interpolant_level=8,
     bri_mpol=32,
-    bri_ntor=32):
+    bri_ntor=32,
+    x0=[],
+    x0_max_mode=None,
+    x0_major_radius=13.6):
     """
     vmec_input: vmec input file
     n_partitions: number of partitions used by vmec mpi.
@@ -76,8 +79,26 @@ class TraceBoozer:
     # For RZFourier rep
     self.comm = MpiPartition(n_partitions)
     self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
-    # define parameters
+    # get the boundary rep
     self.surf = self.vmec.boundary
+
+    if len(x0) > 0:
+      """
+      Load a point with. We assume that x0_max_mode <= max_mode, that 
+      the major radius of the configuration was fixed and is not represented
+      in the array x0.
+      """
+      assert x0_max_mode <= max_mode,"we cannot decrease the max_mode"
+      # load the starting point
+      self.surf.fix_all()
+      self.surf.fixed_range(mmin=0, mmax=x0_max_mode,
+                       nmin=-x0_max_mode, nmax=x0_max_mode, fixed=False)
+      # assume the point was scaled to the given major radius
+      self.surf.set("rc(0,0)",x0_major_radius) 
+      self.surf.fix("rc(0,0)") # fix the Major radius
+      self.surf.x = np.copy(x0)
+    
+    # set the resolution
     self.surf.fix_all()
     self.surf.fixed_range(mmin=0, mmax=max_mode,
                      nmin=-max_mode, nmax=max_mode, fixed=False)
@@ -522,9 +543,12 @@ if __name__ == "__main__":
   minor_radius = 1.7
   major_radius = 8.0*1.7
   target_volavgB = 5.0
+  x0 = np.array([-0.35319591,  1.93400039,  1.30165125, -1.43444221, -1.16246714,
+       -1.45368856,  6.86567159, -1.0194772 ])
+  x0_max_mode = 1
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
-                      max_mode=1,
+                      max_mode=2,
                       minor_radius=minor_radius,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
@@ -532,7 +556,10 @@ if __name__ == "__main__":
                       interpolant_degree=1,
                       interpolant_level=10,
                       bri_mpol=16,
-                      bri_ntor=16)
+                      bri_ntor=16,
+                      x0=x0,
+                      x0_max_mode=x0_max_mode,
+                      x0_major_radius=major_radius)
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
@@ -544,7 +571,7 @@ if __name__ == "__main__":
   print(mu_crit)
 
   # tracing points
-  n_particles = 500
+  n_particles = 100
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
   #stz_inits,vpar_inits = tracer.flux_grid(8,8,8,8,s_min=0.05)
   mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
