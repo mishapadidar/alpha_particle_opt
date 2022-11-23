@@ -2,6 +2,8 @@
 # Lab Notebook
 
 ## TODO:
+- restart optimization with 3 modes.
+
 - develop a deterministic (biased) integration method for computing objective.
   - develop a gaussian quadrature on s.
   - develop a model of the confinement time.
