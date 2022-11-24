@@ -2,11 +2,13 @@
 
 import os
 import numpy as np
+from mpi4py import MPI
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
 from simsopt.mhd.vmec_diagnostics import QuasisymmetryRatioResidual
 from simsopt.objectives import LeastSquaresProblem
 from simsopt.solve.mpi import least_squares_mpi_solve
+
 
 """
 Optimize a VMEC equilibrium for quasi-helical symmetry (M=1, N=1)
