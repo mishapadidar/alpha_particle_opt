@@ -19,7 +19,10 @@ throughout the volume.
 print("Running 2_Intermediate/QH_fixed_resolution.py")
 print("=============================================")
 
-mpi = MpiPartition(1)
+comm = MPI.COMM_WORLD
+size = comm.Get_size()
+
+mpi = MpiPartition(size)
 max_mode = 1
 input_config = "input.nfp4_QH_cold_high_res"
 vmec_input = "../../vmec_input_files/" + input_config
