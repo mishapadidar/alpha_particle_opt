@@ -20,7 +20,7 @@ minor_radius = 1.7
 aspect_target = 8.0
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
-vmec_label = "nfp2_QA_cold_high_res"
+vmec_label = "nfp4_QH_cold_high_res"
 # optimizer params
 maxfev = 5000
 ftarget = 0.0
@@ -28,8 +28,8 @@ rhobeg = 1.5
 rhoend = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
-interpolant_degree = 3
-interpolant_level  = 8
+interpolant_degree = 1
+interpolant_level  = 10
 bri_mpol = 16
 bri_ntor = 16
 
@@ -43,6 +43,9 @@ elif vmec_label == "nfp2_QA_high_res":
 elif vmec_label == "nfp4_QH_warm_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
   outfile = "./input.nfp4_QH_warm_start_high_res_mirror_feasible"
+elif vmec_label == "nfp4_QH_cold_high_res":
+  vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res"
+  outfile = "./input.nfp4_QH_cold_high_res_mirror_feasible"
 
 # make tracer object
 tracer = TraceBoozer(vmec_input,
@@ -121,6 +124,7 @@ constraints = [aspect_constraint]
 res = pdfo(penalty_objective, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
 xopt = np.copy(res.x)
 
+print(res)
 print(aspect_ratio(xopt))
 # save result
 if rank == 0:
