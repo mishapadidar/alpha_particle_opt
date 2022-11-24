@@ -2,7 +2,11 @@
 # Lab Notebook
 
 ## TODO:
-- restart optimization with 3 modes.
+- incorporate pdf values in optimization over grid.
+- Build sampling module sampling theta,zeta uniformly in space.
+- do quasisymmetry optimization with aspect and mirror constraints.
+
+- look over optimization results; maybe start opt with 4 modes
 
 - develop a deterministic (biased) integration method for computing objective.
   - develop a gaussian quadrature on s.
@@ -12,10 +16,7 @@
     - leverage s,vpar scatter plot of confinement times.
     - try to model discontinuity.
   - integrate the model plus integrate the difference.
-- incorporate pdf values in optimization over grid.
-- Build sampling module sampling theta,zeta uniformly in space.
 
-- do quasisymmetry optimization with aspect and mirror constraints.
 - use composite optimization
 
 - post process results
