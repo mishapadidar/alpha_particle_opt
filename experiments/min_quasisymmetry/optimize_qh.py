@@ -23,7 +23,7 @@ print("=============================================")
 
 mpi = MpiPartition()
 #max_mode = 1
-largest_mode = 4
+largest_mode = 3
 input_config = "input.nfp4_QH_cold_high_res"
 vmec_input = "../../vmec_input_files/" + input_config
 outfile = input_config + "_quasysymmetry_opt"
@@ -79,5 +79,4 @@ for step in range(largest_mode):
     # write the data to a file
     vmec.write_input(outfile + f"_max_mode_{max_mode}")
 
-print("End of 2_Intermediate/QH_fixed_resolution.py")
 print("============================================")
