@@ -17,6 +17,8 @@ throughout the volume.
 
 mpi = MpiPartition()
 largest_mode = 3
+major_radius = 13.6
+aspect_target = 8.0
 input_config = "input.nfp2_QA_cold_high_res"
 vmec_input = "../../vmec_input_files/" + input_config
 outfile = input_config + "_quasysymmetry_opt"
@@ -24,13 +26,17 @@ outfile = input_config + "_quasysymmetry_opt"
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
 surf = vmec.boundary
 
+# rescale the major radius
+factor = major_radius/surf.get("rc(0,0)")
+surf.x = surf.x*factor
+
 # Configure quasisymmetry objective:
 qs = QuasisymmetryRatioResidual(vmec,
                                 np.arange(0, 1.01, 0.1),  # Radii to target
                                 helicity_m=1, helicity_n=0)  # (M, N) you want in |B|
 
 # Define objective function
-prob = LeastSquaresProblem.from_tuples([(vmec.aspect, 7, 1),
+prob = LeastSquaresProblem.from_tuples([(vmec.aspect, aspect_target, 1),
                                         (vmec.mean_iota, 0.42, 1),
                                         (qs.residuals, 0, 1)])
 
