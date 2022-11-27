@@ -24,7 +24,7 @@ from trace_boozer import TraceBoozer
 from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
-from gauss_quadrature import gauss_quadrature_nodes_coeffs
+#from gauss_quadrature import gauss_quadrature_nodes_coeffs
 #from sid_psm import SIDPSM
 
 comm = MPI.COMM_WORLD
@@ -43,10 +43,8 @@ n_partitions = 1
 minor_radius = 1.7
 aspect_target = 8.0
 major_radius = aspect_target*minor_radius
-# TODO: revert
-major_radius = 2.0*minor_radius
 target_volavgB = 5.0
-s_min = 0.00
+s_min = 0.0
 s_max = 1.0
 # optimizer params
 maxfev = 600
@@ -202,6 +200,8 @@ if sampling_type == "grid" and sampling_level == "full":
   theta_lin = np.linspace(0, 2*np.pi, ntheta)
   zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
   vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
+  # TODO: gauss quadrature
+  #vpar_lin,vpar_coeffs = gauss_quadrature_nodes_coeffs(n_vpar,-V_MAX,V_MAX)
   # build a mesh
   [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin)
   stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
@@ -277,14 +277,6 @@ def objective(x):
     # sample average
     res = np.mean(feat)
   elif sampling_type == "grid" and sampling_level == "full":
-    #nodes,coeffs = gauss_quadrature_nodes_coeffs(n_vpar,-V_MAX,V_MAX)
-    #int0 = feat*likelihood
-    #int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-    #int1 = simpson(int0,vpar_lin,axis=-1)
-    #int2 = simpson(int1,zeta_lin,axis=-1)
-    #int3 = simpson(int2,theta_lin,axis=-1)
-    #res = simpson(int3,s_lin,axis=-1)
-   
     int0 = feat*likelihood
     int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
     int1 = simpson(int0,vpar_lin,axis=-1)
@@ -304,14 +296,6 @@ def objective(x):
   sys.stdout.flush()
 
   return res
-
-
-# TODO: remove
-print(objective(x0))
-sampling_type="random"
-print(objective(x0))
-quit()
-
 
 evw = EvalWrapper(objective,dim_x,1)
 
