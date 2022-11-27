@@ -3,27 +3,29 @@ from mpi4py import MPI
 import sys
 import pickle
 from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
-from skquant.opt import minimize as skq_minimize
+#from skquant.opt import minimize as skq_minimize
 from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc, minimize as sp_minimize
-debug = False
+from scipy.integrate import simpson
+debug = True
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
   sys.path.append("../../sample")
-  sys.path.append("../../opt")
-  sys.path.append("../../../SIMPLE/build/")
+  #sys.path.append("../../opt")
+  #sys.path.append("../../../SIMPLE/build/")
 else:
   sys.path.append("../../../utils")
   sys.path.append("../../../trace")
   sys.path.append("../../../sample")
-  sys.path.append("../../../opt")
-  sys.path.append("../../../../SIMPLE/build/")
-from trace_simple import TraceSimple
+  #sys.path.append("../../../opt")
+  #sys.path.append("../../../../SIMPLE/build/")
+#from trace_simple import TraceSimple
 from trace_boozer import TraceBoozer
 from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
-from sid_psm import SIDPSM
+from gauss_quadrature import gauss_quadrature_nodes_coeffs
+#from sid_psm import SIDPSM
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -41,11 +43,15 @@ n_partitions = 1
 minor_radius = 1.7
 aspect_target = 8.0
 major_radius = aspect_target*minor_radius
+# TODO: revert
+major_radius = 2.0*minor_radius
 target_volavgB = 5.0
+s_min = 0.00
+s_max = 1.0
 # optimizer params
-maxfev = 200
+maxfev = 600
 max_step = 1.0
-min_step = 1e-6
+min_step = 1e-8
 # trace boozer params
 tracing_tol = 1e-8
 interpolant_degree = 3
@@ -62,16 +68,20 @@ method = sys.argv[4] # optimization method
 max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
 warm_start_file = sys.argv[7] # filename or "None"
-tmax_list = [float(sys.argv[8])] # tmax
+tmax = float(sys.argv[8]) # tmax
 ns = int(sys.argv[9])  # number of surface samples
 ntheta = int(sys.argv[10]) # num theta samples
-nphi = int(sys.argv[11]) # num phi samples
+nzeta = int(sys.argv[11]) # num phi samples
 nvpar = int(sys.argv[12]) # num vpar samples
 assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['pdfo','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
 
-n_particles = ns*ntheta*nphi*nvpar
+n_particles = ns*ntheta*nzeta*nvpar
+if objective_type == "mean_energy":
+  ftarget = 3.5*np.exp(-2)
+elif objective_type == "mean_time":
+  ftarget = 0.0
 
 
 if vmec_label == "nfp2_QA_cold_high_res":
@@ -158,205 +168,259 @@ def B_field(x):
     print("Mirror Ratio:",np.max(modB)/np.min(modB))
   return modB
 B_mean = 5.0
-eps_B = 0.35/2.35
+mirror_target = 1.35
+eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
 B_ub = B_mean*(1 + eps_B)*np.ones(len_B_field_out)
 B_lb = B_mean*(1 - eps_B)*np.ones(len_B_field_out)
 
-SAA_seed = np.random.randint(int(1e8))
-def get_ctimes(x,tmax,sampling_type,sampling_level):
-  # sync seeds again
+
+"""
+Generate points for tracing
+"""
+
+def get_random_points(sampling_level):
+  """
+  Return a set of random points to trace.
+  """
+  # sync seeds
   tracer.sync_seeds()
-  if sampling_type == "grid" and sampling_level == "full":
-    # grid over (s,theta,phi,vpar)
-    stp_inits,vpar_inits = tracer.flux_grid(ns,ntheta,nphi,nvpar,s_min=0.05,s_max=0.95)
-  elif sampling_type == "grid":
-    # grid over (theta,phi,vpar) for a fixed surface label
-    s_label = float(sampling_level)
-    stp_inits,vpar_inits = tracer.surface_grid(s_label,ntheta,nphi,nvpar)
-  elif sampling_type == "random" and sampling_level == "full":
+  if sampling_level == "full":
     # volume sampling
-    stp_inits,vpar_inits = tracer.sample_volume(n_particles)
-  elif sampling_type == "random":
+    stz_inits,vpar_inits = tracer.sample_volume(n_particles)
+  else:
     # surface sampling
     s_label = float(sampling_level)
-    stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
-  elif sampling_type == "SAA" and sampling_level == "full":
-    # sync seeds
-    tracer.sync_seeds(SAA_seed)
-    stp_inits,vpar_inits = tracer.sample_volume(n_particles)
-  elif sampling_type == "SAA":
-    # sync seeds
-    tracer.sync_seeds(SAA_seed)
-    stp_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
-  # trace
-  try:
-    c_times = tracer.compute_confinement_times(x,stp_inits,vpar_inits,tmax)
-  except:
-    return np.zeros(len(vpar_inits))
-  return c_times
+    stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
+  return stz_inits,vpar_inits
 
-# set up the objective
-def expected_negative_c_time(x,tmax):
-  """
-  Negative average confinement time, 
-    f(w) = -E[T | w]
-  Objective is for minimization.
+# make a sampler for computing probabilities
+radial_sampler = RadialDensity(1000)
 
-  x: array,vmec configuration variables
-  tmax: float, max trace time
-  """
-  c_times = get_ctimes(x,tmax,sampling_type,sampling_level)
-  if np.any(~np.isfinite(c_times)):
-    # vmec failed here; return worst possible value
-    res = tmax
-  else:
-    # minimize negative confinement time
-    res = tmax-np.mean(c_times)
-  loss_frac = np.mean(c_times<tmax)
-  if rank == 0:
-    print('obj:',res,'E[tau]',np.mean(c_times),'std[tau]',np.std(c_times),'P(loss):',loss_frac)
-  sys.stdout.flush()
-  return res
+if sampling_type == "grid" and sampling_level == "full":
+  # use fixed particle locations
+  s_lin = np.linspace(s_min,s_max, ns)
+  theta_lin = np.linspace(0, 2*np.pi, ntheta)
+  zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+  vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
+  # build a mesh
+  [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin)
+  stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
+  stz_inits[:, 0] = surfaces.flatten()
+  stz_inits[:, 1] = thetas.flatten()
+  stz_inits[:, 2] = zetas.flatten()
+  vpar_inits = vpars.flatten()
+  # radial likelihood
+  likelihood = radial_sampler._pdf(stz_inits[:,0])
+  likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
 
-def expected_energy_retained(x,tmax):
+elif sampling_type == "grid":
+  # grid over (theta,phi,vpar) for a fixed surface label
+  s_label = float(sampling_level)
+  # use fixed particle locations
+  theta_lin = np.linspace(0, 2*np.pi, ntheta)
+  zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+  vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
+  # build a mesh
+  [thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin)
+  stz_inits = np.zeros((ntheta*nzeta*nvpar, 3))
+  stz_inits[:, 0] = s_label
+  stz_inits[:, 1] = thetas.flatten()
+  stz_inits[:, 2] = zetas.flatten()
+  vpar_inits = vpars.flatten()
+  # constant likelihood
+  likelihood = np.ones(len(vpar_inits))
+  likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
+
+elif sampling_type == "SAA":
+  stz_inits,vpar_inits = get_random_points(sampling_level)
+
+
+"""
+Define the optimization objective
+"""
+
+def objective(x):
   """
-  Expected energy retained by a particle before ejecting
-    f(w) = E[3.5exp(-2T/tau_s) | w]
-  We use tmax, the max trace time, instead of the slowing down
-  time tau_s to improve the conditioning of the objective.
+  Two objectives for minimization:
   
-  Objective is for minimization.
+  1. expected energy retatined
+    f = E[3.5*np.exp(-2*c_times/tmax)]
+  2. expected confinement time
+    f = tmax - E[c_times]
 
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  c_times = get_ctimes(x,tmax,sampling_type,sampling_level)
+  if sampling_type == "random":
+    stzs,vpars = get_random_points(sampling_level)
+  else:
+    stzs = np.copy(stz_inits)
+    vpars = np.copy(vpar_inits)
+
+  c_times = tracer.compute_confinement_times(x,stzs,vpars,tmax)
+
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
-    E = 3.5
-    res = E
-  else:
+    c_times = np.zeros(n_particles)
+
+
+  if objective_type == "mean_energy": 
     # minimize energy retained by particle
-    E = 3.5*np.exp(-2*c_times/tmax)
-    res = np.mean(E)
-  loss_frac = np.mean(c_times<tmax)
+    feat = 3.5*np.exp(-2*c_times/tmax)
+  elif objective_type == "mean_time": 
+    # expected confinement time
+    feat = tmax-c_times
+
+
+  # now perform the averaging/quadrature
+  if sampling_type in ["SAA", "random"]:
+    # sample average
+    res = np.mean(feat)
+  elif sampling_type == "grid" and sampling_level == "full":
+    #nodes,coeffs = gauss_quadrature_nodes_coeffs(n_vpar,-V_MAX,V_MAX)
+    #int0 = feat*likelihood
+    #int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
+    #int1 = simpson(int0,vpar_lin,axis=-1)
+    #int2 = simpson(int1,zeta_lin,axis=-1)
+    #int3 = simpson(int2,theta_lin,axis=-1)
+    #res = simpson(int3,s_lin,axis=-1)
+   
+    int0 = feat*likelihood
+    int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
+    int1 = simpson(int0,vpar_lin,axis=-1)
+    int2 = simpson(int1,zeta_lin,axis=-1)
+    int3 = simpson(int2,theta_lin,axis=-1)
+    res = simpson(int3,s_lin,axis=-1)
+  elif sampling_type == "grid":
+    int0 = feat*likelihood
+    int0 = int0.reshape((ntheta,nzeta,nvpar))
+    int1 = simpson(int0,vpar_lin,axis=-1)
+    int2 = simpson(int1,zeta_lin,axis=-1)
+    res = simpson(int2,theta_lin,axis=-1)
+
   if rank == 0:
+    loss_frac = np.mean(c_times<tmax)
     print('obj:',res,'E[tau]',np.mean(c_times),'std[tau]',np.std(c_times),'P(loss):',loss_frac)
   sys.stdout.flush()
+
   return res
 
 
-x_lb = np.array([-0.9404309, -0.83193019, 0.28720149,-1.00806875,-0.79377344,-0.77146669, 0.16415827,-0.86378062])
-x_ub = np.array([1.04723777,0.69724909,1.77739318,0.92464055,0.77225157,0.84754077,1.87259283,0.74216392])
+# TODO: remove
+print(objective(x0))
+sampling_type="random"
+print(objective(x0))
+quit()
 
 
-for tmax in tmax_list:
-  if rank == 0:
-    print(f"optimizing with tmax = {tmax}")
+evw = EvalWrapper(objective,dim_x,1)
 
-  # define the objective with tmax
-  if objective_type == "mean_energy":
-    objective = lambda x: expected_energy_retained(x,tmax)
-    ftarget = 3.5*np.exp(-2)
-  elif objective_type == "mean_time":
-    objective = lambda x: expected_negative_c_time(x,tmax)
-    ftarget = 0.0
-  evw = EvalWrapper(objective,dim_x,1)
 
-  # optimize
-  if method == "pdfo":
-    rhobeg = max_step
-    rhoend = min_step
-    aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
-    mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
-    constraints = [aspect_constraint,mirror_constraint]
-    res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-    xopt = np.copy(res.x)
-  elif method == 'snobfit':
-    # snobfit
-    bounds = np.vstack((x_lb,x_ub)).T
-    res, _ = skq_minimize(evw, x0, bounds, maxfev, method='SnobFit')
-    xopt = np.copy(res.optpar)
-  elif method == "diff_evol":
-    # differential evolution
-    bounds = np.vstack((x_lb,x_ub)).T
-    popsize = 10 # population is popsize*dim_x individuals
-    maxiter = int(maxfev/dim_x/popsize)
-    res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
-    xopt = np.copy(res.x)
-  elif method == "nelder":
-    init_simplex = np.zeros((dim_x+1,dim_x))
-    init_simplex[0] = np.copy(x0)
-    init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
-    def penalty_obj(x):
-      obj = evw(x)
-      asp = aspect_ratio(x)
-      return obj + 1000*np.max([asp-aspect_target,0.0])**2
-    # nelder-mead
-    xatol = min_step # minimum step size
-    res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
-                options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
-    xopt = np.copy(res.x)
-  elif method == "sidpsm":
-    def penalty_obj(x):
-      obj = evw(x)
-      if objective_type == "mean_energy" and obj >= 3.5:
-        return np.inf
-      elif objective_type == "mean_time" and obj >=tmax:
-        return np.inf
-      asp = aspect_ratio(x)
-      return obj + 1000*np.max([asp-aspect_target,0.0])**2
-    sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
-    res = sid.solve()
-    xopt = np.copy(res['x'])
 
-  # reset x0 for next iter
-  x0 = np.copy(xopt)
+if rank == 0:
+  print(f"optimizing with tmax = {tmax}")
 
-  # evaluate the configuration
-  c_times_opt = get_ctimes(xopt,tmax,sampling_type,sampling_level) 
-  tracer.surf.x = np.copy(xopt)
-  aspect_opt = tracer.vmec.aspect()
-  if rank == 0:
-    print('aspect(xopt)',aspect_opt)
-    print('E[c_time(xopt)]',np.mean(c_times_opt))
-    print('Loss fraction',np.mean(c_times_opt<tmax))
-    print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_opt/tmax)))
 
-  # out of sample performance
-  c_times_out_of_sample = get_ctimes(xopt,tmax,"random",sampling_level) # out of sample
-  
-  # save results
-  if rank == 0:
-    print(res)
-    outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}.pickle"
-    outdata = {}
-    outdata['X'] = evw.X
-    outdata['FX'] = evw.FX
-    outdata['xopt'] = xopt
-    outdata['aspect_opt'] = aspect_opt
-    outdata['c_times_opt'] = c_times_opt
-    outdata['c_times_out_of_sample'] = c_times_out_of_sample
-    outdata['major_radius'] = major_radius
-    outdata['minor_radius'] =  minor_radius
-    outdata['target_volavgB'] = target_volavgB
-    outdata['vmec_input'] = vmec_input
-    outdata['max_mode'] = max_mode
-    outdata['vmec_input'] = vmec_input
-    outdata['warm_start_file'] = warm_start_file 
-    outdata['objective_type'] = objective_type
-    outdata['sampling_type'] = sampling_type
-    outdata['sampling_level'] = sampling_level
-    outdata['method'] = method
-    outdata['maxfev'] = maxfev
-    outdata['max_step'] = max_step
-    outdata['min_step'] = min_step
-    outdata['tracing_tol'] = tracing_tol
-    outdata['interpolant_degree'] = interpolant_degree
-    outdata['interpolant_level'] = interpolant_level
-    outdata['bri_mpol'] = bri_mpol
-    outdata['bri_ntor'] = bri_ntor
-    #outdata['stp_inits'] = stp_inits
-    #outdata['vpar_inits'] = vpar_inits
-    outdata['tmax'] = tmax
-    pickle.dump(outdata,open(outfile,"wb"))
+# optimize
+if method == "pdfo":
+  rhobeg = max_step
+  rhoend = min_step
+  aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
+  mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
+  constraints = [aspect_constraint,mirror_constraint]
+  res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+  xopt = np.copy(res.x)
+
+#elif method == 'snobfit':
+#  # snobfit
+#  bounds = np.vstack((x_lb,x_ub)).T
+#  res, _ = skq_minimize(evw, x0, bounds, maxfev, method='SnobFit')
+#  xopt = np.copy(res.optpar)
+#
+#elif method == "diff_evol":
+#  # differential evolution
+#  bounds = np.vstack((x_lb,x_ub)).T
+#  popsize = 10 # population is popsize*dim_x individuals
+#  maxiter = int(maxfev/dim_x/popsize)
+#  res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
+#  xopt = np.copy(res.x)
+
+elif method == "nelder":
+  init_simplex = np.zeros((dim_x+1,dim_x))
+  init_simplex[0] = np.copy(x0)
+  init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
+  def penalty_obj(x):
+    obj = evw(x)
+    asp = aspect_ratio(x)
+    return obj + 1000*np.max([asp-aspect_target,0.0])**2
+  # nelder-mead
+  xatol = min_step # minimum step size
+  res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
+              options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
+  xopt = np.copy(res.x)
+
+#elif method == "sidpsm":
+#  def penalty_obj(x):
+#    obj = evw(x)
+#    if objective_type == "mean_energy" and obj >= 3.5:
+#      return np.inf
+#    elif objective_type == "mean_time" and obj >=tmax:
+#      return np.inf
+#    asp = aspect_ratio(x)
+#    return obj + 1000*np.max([asp-aspect_target,0.0])**2
+#  sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
+#  res = sid.solve()
+#  xopt = np.copy(res['x'])
+
+
+# evaluate the configuration
+if sampling_type == "random":
+  stz_inits,vpar_inits = get_random_points(sampling_level)
+c_times_opt = tracer.compute_confinement_times(xopt,stz_inits,vpar_inits,tmax)
+
+tracer.surf.x = np.copy(xopt)
+aspect_opt = tracer.vmec.aspect()
+if rank == 0:
+  print('aspect(xopt)',aspect_opt)
+  print('E[c_time(xopt)]',np.mean(c_times_opt))
+  print('Loss fraction',np.mean(c_times_opt<tmax))
+  print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_opt/tmax)))
+
+# out of sample performance
+stz_rand,vpar_rand = get_random_points(sampling_level)
+c_times_out_of_sample = tracer.compute_confinement_times(xopt,stz_rand,vpar_rand,tmax)
+
+# save results
+if rank == 0:
+  print(res)
+  outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}.pickle"
+  outdata = {}
+  outdata['X'] = evw.X
+  outdata['FX'] = evw.FX
+  outdata['xopt'] = xopt
+  outdata['aspect_opt'] = aspect_opt
+  outdata['c_times_opt'] = c_times_opt
+  outdata['c_times_out_of_sample'] = c_times_out_of_sample
+  outdata['major_radius'] = major_radius
+  outdata['minor_radius'] =  minor_radius
+  outdata['target_volavgB'] = target_volavgB
+  outdata['vmec_input'] = vmec_input
+  outdata['max_mode'] = max_mode
+  outdata['vmec_input'] = vmec_input
+  outdata['warm_start_file'] = warm_start_file 
+  outdata['objective_type'] = objective_type
+  outdata['sampling_type'] = sampling_type
+  outdata['sampling_level'] = sampling_level
+  outdata['method'] = method
+  outdata['maxfev'] = maxfev
+  outdata['max_step'] = max_step
+  outdata['min_step'] = min_step
+  outdata['tracing_tol'] = tracing_tol
+  outdata['interpolant_degree'] = interpolant_degree
+  outdata['interpolant_level'] = interpolant_level
+  outdata['bri_mpol'] = bri_mpol
+  outdata['bri_ntor'] = bri_ntor
+  #outdata['stz_inits'] = stz_inits
+  #outdata['vpar_inits'] = vpar_inits
+  outdata['tmax'] = tmax
+  pickle.dump(outdata,open(outfile,"wb"))
