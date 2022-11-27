@@ -1,9 +1,16 @@
 import numpy as np
 
-def gauss_quadrature_roots_coeffs(n_nodes=2,a=-1.0,b=1.0):
+def gauss_quadrature_nodes_coeffs(n_nodes=2,a=-1.0,b=1.0):
   """
   Return the roots and coefficients for gauss quadrature.
+
+  With n_nodes nodes we can integrate any polynomial of degree
+  2*n_nodes-1 exactly.
+
   Taken from Numerical Analysis, Burden and Faires
+
+  n_nodes: number of quadrature nodes. 
+  a,b: left and right hand side bounds of the integral.
   """
   assert n_nodes >= 2
   assert n_nodes <= 5
@@ -33,7 +40,7 @@ if __name__ == "__main__":
   a = -1.0
   b = 1.0
   true_int = fint(b) - fint(a)
-  nodes,coeffs = gauss_quadrature_roots_coeffs(n_nodes=2,a=a,b=b)
+  nodes,coeffs = gauss_quadrature_nodes_coeffs(n_nodes=2,a=a,b=b)
   fX = f(nodes)
   print(fX @ coeffs)
   print(true_int)
@@ -43,7 +50,7 @@ if __name__ == "__main__":
   a = -7.0
   b = 9.21
   true_int = fint(b) - fint(a)
-  nodes,coeffs = gauss_quadrature_roots_coeffs(n_nodes=2,a=a,b=b)
+  nodes,coeffs = gauss_quadrature_nodes_coeffs(n_nodes=2,a=a,b=b)
   fX = f(nodes)
   print(fX @ coeffs)
   print(true_int)
@@ -55,7 +62,7 @@ if __name__ == "__main__":
   b = 4.0
   true_int = fint(b) - fint(a)
   n_nodes = 4
-  nodes,coeffs = gauss_quadrature_roots_coeffs(n_nodes=n_nodes,a=a,b=b)
+  nodes,coeffs = gauss_quadrature_nodes_coeffs(n_nodes=n_nodes,a=a,b=b)
   fX = f(nodes)
   print(fX @ coeffs)
   print(true_int)
