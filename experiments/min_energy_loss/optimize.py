@@ -6,7 +6,7 @@ from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
 #from skquant.opt import minimize as skq_minimize
 from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc, minimize as sp_minimize
 from scipy.integrate import simpson
-debug = True
+debug = False
 if debug:
   sys.path.append("../../utils")
   sys.path.append("../../trace")
@@ -47,7 +47,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 600
+maxfev = 400
 max_step = 1.0
 min_step = 1e-8
 # trace boozer params
@@ -84,12 +84,16 @@ elif objective_type == "mean_time":
 
 if vmec_label == "nfp2_QA_cold_high_res":
   vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
+elif vmec_label == "nfp2_QA_cold_high_res_mirror_feas":
+  vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res_mirror_feasible"
 elif vmec_label == "nfp2_QA_high_res":
   vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
 elif vmec_label == "nfp4_QH_warm_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
 elif vmec_label == "nfp4_QH_cold_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res"
+elif vmec_label == "nfp4_QH_cold_high_res_mirror_feas":
+  vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res_mirror_feasible"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -261,7 +265,7 @@ def objective(x):
 
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
-    c_times = np.zeros(n_particles)
+    c_times = np.zeros(len(vpars))
 
 
   if objective_type == "mean_energy": 
