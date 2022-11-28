@@ -50,6 +50,7 @@ prob = LeastSquaresProblem.from_tuples([(vmec.aspect, aspect_target, 1),
 if mpi.proc0_world:
     print("Quasisymmetry objective before optimization:", qs.total())
     print("Total objective before optimization:", prob.objective())
+    print('volavgB',vmec.wout.volavgB)
 
 
 for step in range(largest_mode):

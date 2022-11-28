@@ -2,6 +2,7 @@
 
 import os
 import numpy as np
+import pickle
 from mpi4py import MPI
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
@@ -17,18 +18,25 @@ throughout the volume.
 
 mpi = MpiPartition()
 largest_mode = 3
-major_radius = 13.6
+target_volavgB = 5.0
 aspect_target = 8.0
-input_config = "input.nfp4_QH_cold_high_res"
-vmec_input = "../../vmec_input_files/" + input_config
-outfile = input_config + "_quasysymmetry_opt"
+major_radius = 1.7*aspect_target
+# input file extension
+vmec_label = "nfp4_QH_cold_high_res"
 
+vmec_input = "../../vmec_input_files/" +"input." + vmec_label
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
 surf = vmec.boundary
 
 # rescale the major radius
 factor = major_radius/surf.get("rc(0,0)")
 surf.x = surf.x*factor
+
+# rescale the B field
+avg_minor_rad = surf.get('rc(0,0)')/surf.aspect_ratio() # true avg minor radius
+vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
+vmec.need_to_run_code = True
+
 
 # Configure quasisymmetry objective:
 qs = QuasisymmetryRatioResidual(vmec,
@@ -42,6 +50,7 @@ prob = LeastSquaresProblem.from_tuples([(vmec.aspect, aspect_target, 1),
 if mpi.proc0_world:
     print("Quasisymmetry objective before optimization:", qs.total())
     print("Total objective before optimization:", prob.objective())
+    print('volavgB',vmec.wout.volavgB)
 
 
 for step in range(largest_mode):
@@ -75,7 +84,18 @@ for step in range(largest_mode):
         print("Total objective after optimization:", prob.objective())
     
     # write the data to a file
-    vmec.write_input(outfile + f"_max_mode_{max_mode}")
+    outfilename = "input." + vmec_label + f"_max_mode_{max_mode}_quasisymmetry_opt"
+    vmec.write_input(outfilename)
+
+    if mpi.proc0_world:
+      outdata = {}
+      outdata['xopt'] = np.copy(surf.x)
+      outdata['max_mode'] = max_mode
+      outdata['major_radius'] = major_radius
+      outdata['aspect_target'] = aspect_target
+      outdata['target_volavgB'] = target_volavgB
+      outfilename = "data_" + vmec_label + f"_max_mode_{max_mode}_quasisymmetry_opt.pickle"
+      pickle.dump(outdata,open(outfilename,"wb"))
 
 if mpi.proc0_world:
     print("============================================")
