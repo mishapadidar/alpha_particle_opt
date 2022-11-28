@@ -49,7 +49,7 @@ s_max = 1.0
 # optimizer params
 maxfev = 250
 max_step = 1.0
-min_step = 1e-8
+min_step = 1e-6
 # trace boozer params
 tracing_tol = 1e-8
 interpolant_degree = 3
@@ -150,8 +150,8 @@ def aspect_ratio(x):
   if np.isnan(asp):
     asp = np.inf
 
-  #if rank == 0:
-  #  print("aspect",asp)
+  if rank == 0:
+    print("aspect",asp)
   return asp
 
 # constraint on mirror ratio
@@ -317,20 +317,20 @@ if method == "pdfo":
   mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
   constraints = [aspect_constraint,mirror_constraint]
 
-  def penalty_obj(x):
-    """penalty formulation for bobyqa"""
-    c_asp = max([aspect_ratio(x)-aspect_target,0.0])**2
-    B = B_field(x)
-    obj = evw(x)
-    c_mirr_ub = np.mean(np.maximum(B - B_ub, 0.0)**2)
-    c_mirr_lb = np.mean(np.maximum(B_lb - B, 0.0)**2)
-    ret = obj + c_asp + 10*(c_mirr_ub + c_mirr_lb)
-    if rank == 0:
-      print('p-obj:',ret,'asp',aspect_ratio(x),'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
-      #print("")
-    return ret
-  res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-  #res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+  #def penalty_obj(x):
+  #  """penalty formulation for bobyqa"""
+  #  c_asp = max([aspect_ratio(x)-aspect_target,0.0])**2
+  #  B = B_field(x)
+  #  obj = evw(x)
+  #  c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
+  #  c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
+  #  ret = obj + c_asp + (c_mirr_ub + c_mirr_lb)
+  #  if rank == 0:
+  #    print('p-obj:',ret,'asp',aspect_ratio(x),'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
+  #    #print("")
+  #  return ret
+  #res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+  res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = np.copy(res.x)
 
 #elif method == 'snobfit':
@@ -382,15 +382,16 @@ c_times_opt = tracer.compute_confinement_times(xopt,stz_inits,vpar_inits,tmax)
 
 tracer.surf.x = np.copy(xopt)
 aspect_opt = tracer.vmec.aspect()
-if rank == 0:
-  print('aspect(xopt)',aspect_opt)
-  print('E[c_time(xopt)]',np.mean(c_times_opt))
-  print('Loss fraction',np.mean(c_times_opt<tmax))
-  print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_opt/tmax)))
 
 # out of sample performance
 stz_rand,vpar_rand = get_random_points(sampling_level)
 c_times_out_of_sample = tracer.compute_confinement_times(xopt,stz_rand,vpar_rand,tmax)
+
+if rank == 0:
+  print('aspect(xopt)',aspect_opt)
+  print('E[c_time(xopt)]',np.mean(c_times_out_of_sample))
+  print('Loss fraction',np.mean(c_times_out_of_sample<tmax))
+  print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_out_of_sample/tmax)))
 
 # save results
 if rank == 0:
