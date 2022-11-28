@@ -90,6 +90,7 @@ for step in range(largest_mode):
     if mpi.proc0_world:
       outdata = {}
       outdata['xopt'] = np.copy(surf.x)
+      outdata['vmec_input'] = vmec_input
       outdata['max_mode'] = max_mode
       outdata['major_radius'] = major_radius
       outdata['aspect_target'] = aspect_target
