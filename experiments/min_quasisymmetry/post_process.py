@@ -73,4 +73,4 @@ for infile in filelist:
   if rank == 0:
     indata['c_times'] = c_times
     indata['tmax'] = tmax
-    pickle.dump(indata,open(infilename,"wb"))
+    pickle.dump(indata,open(infile,"wb"))
