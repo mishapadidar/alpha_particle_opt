@@ -151,6 +151,7 @@ class TraceBoozer:
     self.bri_ntor=bri_ntor
 
     # placeholders
+    self.x_field = []
     self.field = None
     self.bri = None
 
@@ -159,6 +160,7 @@ class TraceBoozer:
     Sync the np.random.seed of the various worker groups.
     The seed is a random number <1e6.
     """
+    # TODO: only sync across mpi group
     seed = np.zeros(1)
     if self.comm.proc0_world:
       if sd:
@@ -255,6 +257,7 @@ class TraceBoozer:
     """
     Sample the volume using the radial density sampler
     """
+    # TODO: use MPI group comm
     # divide the particles
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
@@ -286,6 +289,7 @@ class TraceBoozer:
     """
     Sample the volume using the radial density sampler
     """
+    # TODO: use MPI group comm
     # divide the particles
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
@@ -312,7 +316,7 @@ class TraceBoozer:
 
   def compute_boozer_field(self,x):
     # to save on recomputes
-    if np.all(self.surf.x == x) and self.field is not None:
+    if np.all(self.x_field == x):
       return self.field,self.bri
 
     self.surf.x = np.copy(x)
@@ -335,6 +339,7 @@ class TraceBoozer:
                        zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
     self.field = field
     self.bri = bri
+    self.x_field = np.copy(x)
     return field,bri
 
 
@@ -539,13 +544,11 @@ class TraceBoozer:
 if __name__ == "__main__":
 
   #vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
-  vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
+  #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
+  vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res_quasysymmetry_opt'
   minor_radius = 1.7
   major_radius = 8.0*1.7
   target_volavgB = 5.0
-  x0 = np.array([-0.35319591,  1.93400039,  1.30165125, -1.43444221, -1.16246714,
-       -1.45368856,  6.86567159, -1.0194772 ])
-  x0_max_mode = 1
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
                       max_mode=2,
@@ -556,10 +559,7 @@ if __name__ == "__main__":
                       interpolant_degree=1,
                       interpolant_level=10,
                       bri_mpol=16,
-                      bri_ntor=16,
-                      x0=x0,
-                      x0_max_mode=x0_max_mode,
-                      x0_major_radius=major_radius)
+                      bri_ntor=16)
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
@@ -567,15 +567,17 @@ if __name__ == "__main__":
 
   # compute the field and 
   field,bri = tracer.compute_boozer_field(x0)
-  mu_crit = tracer.compute_mu_crit(field,bri)
-  print(mu_crit)
+  #mu_crit = tracer.compute_mu_crit(field,bri)
+  
+  # compute the mirror ratio
+  modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
+  print('mirror ratio',np.max(modB)/np.min(modB))
 
   # tracing points
-  n_particles = 100
+  n_particles = 1000
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
   #stz_inits,vpar_inits = tracer.flux_grid(8,8,8,8,s_min=0.05)
   mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
-  print(mu)
 
   import time
   t0  = time.time()
@@ -584,5 +586,6 @@ if __name__ == "__main__":
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   print('time',time.time() - t0)
   print('mean',np.mean(c_times))
+  print('loss fraction',np.mean(c_times < tmax))
   print(c_times.shape)
 
