@@ -57,8 +57,8 @@ for step in range(largest_mode):
     max_mode = step + 1
 
     # VMEC's mpol & ntor will be 3, 4, 5, 6:
-    vmec.indata.mpol = 3 + step
-    vmec.indata.ntor = vmec.indata.mpol
+    #vmec.indata.mpol = 3 + step
+    #vmec.indata.ntor = vmec.indata.mpol
 
     if mpi.proc0_world:
         print("")
