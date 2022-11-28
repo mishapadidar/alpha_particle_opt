@@ -47,7 +47,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 400
+maxfev = 250
 max_step = 1.0
 min_step = 1e-8
 # trace boozer params
@@ -150,8 +150,8 @@ def aspect_ratio(x):
   if np.isnan(asp):
     asp = np.inf
 
-  if rank == 0:
-    print("aspect",asp)
+  #if rank == 0:
+  #  print("aspect",asp)
   return asp
 
 # constraint on mirror ratio
@@ -316,7 +316,21 @@ if method == "pdfo":
   aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
   mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
   constraints = [aspect_constraint,mirror_constraint]
-  res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+
+  def penalty_obj(x):
+    """penalty formulation for bobyqa"""
+    c_asp = max([aspect_ratio(x)-aspect_target,0.0])**2
+    B = B_field(x)
+    obj = evw(x)
+    c_mirr_ub = np.mean(np.maximum(B - B_ub, 0.0)**2)
+    c_mirr_lb = np.mean(np.maximum(B_lb - B, 0.0)**2)
+    ret = obj + c_asp + 10*(c_mirr_ub + c_mirr_lb)
+    if rank == 0:
+      print('p-obj:',ret,'asp',aspect_ratio(x),'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
+      #print("")
+    return ret
+  res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+  #res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = np.copy(res.x)
 
 #elif method == 'snobfit':
