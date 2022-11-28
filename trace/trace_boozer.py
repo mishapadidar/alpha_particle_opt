@@ -61,8 +61,8 @@ class TraceBoozer:
 
     # For Garabedian rep
     # load vmec and mpi
-    #self.comm = MpiPartition(n_partitions)
-    #vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    #self.mpi = MpiPartition(n_partitions)
+    #vmec = Vmec(vmec_input, mpi=self.mpi,keep_all_files=False,verbose=False)
 
     # build a garabedian surface
     #self.surf = SurfaceGarabedian.from_RZFourier(vmec.boundary)
@@ -77,8 +77,8 @@ class TraceBoozer:
     #                 nmin=-max_mode, nmax=max_mode, fixed=False)
 
     # For RZFourier rep
-    self.comm = MpiPartition(n_partitions)
-    self.vmec = Vmec(vmec_input, mpi=self.comm,keep_all_files=False,verbose=False)
+    self.mpi = MpiPartition(n_partitions)
+    self.vmec = Vmec(vmec_input, mpi=self.mpi,keep_all_files=False,verbose=False)
     # get the boundary rep
     self.surf = self.vmec.boundary
 
@@ -162,12 +162,14 @@ class TraceBoozer:
     """
     # TODO: only sync across mpi group
     seed = np.zeros(1)
-    if self.comm.proc0_world:
+    #if self.mpi.proc0_world:
+    if self.mpi.proc0_groups:
       if sd:
         seed = sd*np.ones(1)
       else:
         seed = np.random.randint(int(1e6))*np.ones(1)
-    self.comm.comm_world.Bcast(seed,root=0)
+    #self.mpi.comm_world.Bcast(seed,root=0)
+    self.mpi.comm_groups.Bcast(seed,root=0)
     np.random.seed(int(seed[0]))
     return int(seed[0])
 
@@ -258,17 +260,14 @@ class TraceBoozer:
     Sample the volume using the radial density sampler
     """
     # TODO: use MPI group comm
-    # divide the particles
-    comm = MPI.COMM_WORLD
-    size = comm.Get_size()
-    rank = comm.Get_rank()
 
     # SAA sampling over (s,theta,zeta,vpar)
     s_inits = np.zeros(n_particles)
     theta_inits = np.zeros(n_particles)
     zeta_inits = np.zeros(n_particles)
     vpar_inits = np.zeros(n_particles)
-    if rank == 0:
+    #if rank == 0:
+    if self.mpi.proc0_groups:
       sampler = RadialDensity(1000)
       s_inits = sampler.sample(n_particles)
       # randomly sample theta,zeta,vpar
@@ -277,10 +276,10 @@ class TraceBoozer:
       zeta_inits = np.random.uniform(0,2*np.pi/self.surf.nfp,n_particles)
       vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
     # broadcast the points
-    comm.Bcast(s_inits,root=0)
-    comm.Bcast(theta_inits,root=0)
-    comm.Bcast(zeta_inits,root=0)
-    comm.Bcast(vpar_inits,root=0)
+    self.mpi.comm_groups.Bcast(s_inits,root=0)
+    self.mpi.comm_groups.Bcast(theta_inits,root=0)
+    self.mpi.comm_groups.Bcast(zeta_inits,root=0)
+    self.mpi.comm_groups.Bcast(vpar_inits,root=0)
     # stack the samples
     stp_inits = np.vstack((s_inits,theta_inits,zeta_inits)).T
     return stp_inits,vpar_inits
@@ -290,25 +289,26 @@ class TraceBoozer:
     Sample the volume using the radial density sampler
     """
     # TODO: use MPI group comm
-    # divide the particles
-    comm = MPI.COMM_WORLD
-    size = comm.Get_size()
-    rank = comm.Get_rank()
+    ## divide the particles
+    #comm = MPI.COMM_WORLD
+    #size = comm.Get_size()
+    #rank = comm.Get_rank()
     # SAA sampling over (theta,zeta,vpar) for a fixed surface
     s_inits = s_label*np.ones(n_particles)
     theta_inits = np.zeros(n_particles)
     zeta_inits = np.zeros(n_particles)
     vpar_inits = np.zeros(n_particles)
-    if rank == 0:
+    #if rank == 0:
+    if self.mpi.proc0_groups:
       # randomly sample theta,zeta,vpar
       # theta is [0,pi] with stellsym
       theta_inits = np.random.uniform(0,2*np.pi,n_particles)
       zeta_inits = np.random.uniform(0,2*np.pi/self.surf.nfp,n_particles)
       vpar_inits = np.random.uniform(-V_MAX,V_MAX,n_particles)
     # broadcast the points
-    comm.Bcast(theta_inits,root=0)
-    comm.Bcast(zeta_inits,root=0)
-    comm.Bcast(vpar_inits,root=0)
+    self.mpi.comm_groups.Bcast(theta_inits,root=0)
+    self.mpi.comm_groups.Bcast(zeta_inits,root=0)
+    self.mpi.comm_groups.Bcast(vpar_inits,root=0)
     # stack the samples
     stp_inits = np.vstack((s_inits,theta_inits,zeta_inits)).T
     return stp_inits,vpar_inits
@@ -396,7 +396,7 @@ class TraceBoozer:
      
 
     # TODO: do we want the group comm here rather than world?
-    comm = MPI.COMM_WORLD
+    #comm = MPI.COMM_WORLD
 
     # trace
     try:
@@ -410,7 +410,7 @@ class TraceBoozer:
           Ekin=FUSION_ALPHA_PARTICLE_ENERGY, 
           tol=self.tracing_tol, 
           mode='gc_vac',
-          comm=comm,
+          comm=self.mpi.comm_groups,
           stopping_criteria=stopping_criteria,
           forget_exact_path=True
           )
@@ -435,6 +435,61 @@ class TraceBoozer:
    
 
     return exit_times
+
+
+  #def jacobian_confinement_times(self,x,stz_inits,vpar_inits,tmax,h=1e-4,method='forward'):
+  #  """
+  #  Evaluate the objective jacobian by distributing the 
+  #  finite difference over the worker groups. 
+  #  Use this function if n_partitions > 1 AND
+  #  if all worker groups are evaluating the jacobian 
+  #  together at the same point, such as in a single
+  #  optimization run. Do not use this function for 
+  #  concurrent jacobian evaluations at distinct points.
+  #  y: input variables describing surface
+  #  y: array of size (self.dim_x,)
+  #  h: step size
+  #  h: float
+  #  method: 'forward' or 'central'
+  #  method: string
+  #  return: jacobian of self.eval
+  #  return: array of size (self.dim_F,self.dim_x)
+  #  """
+  #  assert method in ['forward','central']
+  #  assert self.n_partitions > 1
+
+  #  # divide the evals across groups
+  #  idxs,counts = divide_work(n_points,self.n_partitions)
+  #  idx = idxs[self.mpi.group]
+
+  #  h2   = h/2.0
+  #  Ep   = y + h2*np.eye(self.dim_x)
+  #  Fp   = self.evalp(Ep)
+  #  if method == 'forward':
+  #    jac = (Fp - self.eval(y))/(h2)
+  #  elif method == 'central': # central difference
+  #    Em  = y - h2*np.eye(self.dim_x)
+  #    Fm  = self.evalp(Em)
+  #    jac = (Fp - Fm)/(h)
+
+  #  # do the evals
+  #  f   = np.array([self.compute_confinement_times(y,stz_inits,vpar_inits,tmax) for y in Y[idx]]).flatten()
+
+  #  # head leader gathers all evals
+  #  F = np.zeros(n_points*self.dim_raw)
+  #  counts = self.dim_raw*np.array(counts).astype(int)
+  #  self.mpi.comm_leaders.Gatherv(f,(F,counts),root=0)
+  #  # broadcast to leaders
+  #  self.mpi.comm_leaders.Bcast(F,root=0)
+  #  # broadcast internally within group
+  #  self.mpi.comm_groups.Bcast(F,root=0)
+
+  #  # reshape to 2D-array
+  #  F = np.reshape(F,(-1,self.dim_raw))
+
+  #  
+  #  return np.copy(jac.T)
+    
 
   ## set up the objective
   #def compute_confinement_times_manual(self,x,stz_inits,vpar_inits,tmax,tracing_tol=1e-6):
@@ -544,14 +599,14 @@ class TraceBoozer:
 if __name__ == "__main__":
 
   #vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
-  #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
-  vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res_quasysymmetry_opt'
+  vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
+  #vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res_quasysymmetry_opt'
   minor_radius = 1.7
-  major_radius = 8.0*1.7
+  major_radius = 2.0*1.7
   target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
-                      max_mode=2,
+                      max_mode=1,
                       minor_radius=minor_radius,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
@@ -563,7 +618,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-2
+  tmax = 1e-4
 
   # compute the field and 
   field,bri = tracer.compute_boozer_field(x0)
@@ -574,7 +629,7 @@ if __name__ == "__main__":
   print('mirror ratio',np.max(modB)/np.min(modB))
 
   # tracing points
-  n_particles = 1000
+  n_particles = 100
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
   #stz_inits,vpar_inits = tracer.flux_grid(8,8,8,8,s_min=0.05)
   mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
@@ -584,8 +639,7 @@ if __name__ == "__main__":
   #c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax,field=field,bri=bri)
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  print('time',time.time() - t0)
-  print('mean',np.mean(c_times))
-  print('loss fraction',np.mean(c_times < tmax))
-  print(c_times.shape)
+  print(tracer.mpi.rank_world,tracer.mpi.group,'time',time.time() - t0)
+  print(tracer.mpi.rank_world,tracer.mpi.group,'mean',np.mean(c_times))
+  print(tracer.mpi.rank_world,tracer.mpi.group,'loss fraction',np.mean(c_times < tmax))
 
