@@ -4,32 +4,33 @@ TMAX='0.001'
 SAMPLINGTYPE='grid' # grid, random, SAA
 #SAMPLINGTYPE='SAA' # grid, random, SAA
 
-SURFS=('0.3' '0.5' '0.7' 'full') 
+SURFS=('0.3' '0.5' 'full') 
 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
 
 METHOD="pdfo" # pdfo, nelder, snobfit, diff_evol, sidpsm
-MAXMODE=3
+MAXMODE=1
 
-VMEC="nfp2_QA_cold_high_res"
+#VMEC="nfp2_QA_cold_high_res"
+VMEC="nfp2_QA_cold_high_res_mirror_feas"
 #VMEC="nfp4_QH_warm_high_res"
 #VMEC="nfp4_QH_cold_high_res"
 
-#WARM=("None" "None" "None" "None") # None or filename
-WARM=("../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.001_pdfo_mmode_2.pickle" 
-      "../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.001_pdfo_mmode_2.pickle" 
-      "../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_0.7_tmax_0.001_pdfo_mmode_2.pickle" 
-      "../data/data_opt_nfp2_QA_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_pdfo_mmode_2.pickle" 
-      )
+WARM=("None" "None" "None") # None or filename
+#WARM=("../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.001_pdfo_mmode_2.pickle" 
+#      "../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.001_pdfo_mmode_2.pickle" 
+#      "../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.7_tmax_0.001_pdfo_mmode_2.pickle" 
+#      "../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_pdfo_mmode_2.pickle" 
+#      )
 
-NS=7
+NS=10
 NTHETA=6
 NPHI=6
-NVPAR=8
+NVPAR=10
 
 NODES=1
-CORES=8
+CORES=12
 for idx in ${!SURFS[@]}
 do
   surf=${SURFS[idx]}
