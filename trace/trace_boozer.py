@@ -437,7 +437,7 @@ class TraceBoozer:
     return exit_times
 
 
-  #def jacobian_confinement_times(self,x,stz_inits,vpar_inits,tmax,h=1e-4,method='forward'):
+  #def jacobian_bulk(self,x,stz_inits,vpar_inits,tmax,h=1e-4,method='forward',ns=32,ntheta=32,nzeta=32):
   #  """
   #  Evaluate the objective jacobian by distributing the 
   #  finite difference over the worker groups. 
@@ -456,39 +456,73 @@ class TraceBoozer:
   #  return: array of size (self.dim_F,self.dim_x)
   #  """
   #  assert method in ['forward','central']
-  #  assert self.n_partitions > 1
+  #  #assert self.n_partitions > 1
+
+  #  # build a list of evals for finite difference
+  #  h2   = h/2.0
+  #  Ep   = x + h2*np.eye(self.dim_x)
+  #  X = np.vstack((x.reshape((1,-1)),Ep))
+  #  n_points = len(X)
 
   #  # divide the evals across groups
-  #  idxs,counts = divide_work(n_points,self.n_partitions)
+  #  idxs,counts = divide_work(len(X),self.mpi.ngroups)
   #  idx = idxs[self.mpi.group]
 
-  #  h2   = h/2.0
-  #  Ep   = y + h2*np.eye(self.dim_x)
-  #  Fp   = self.evalp(Ep)
-  #  if method == 'forward':
-  #    jac = (Fp - self.eval(y))/(h2)
-  #  elif method == 'central': # central difference
-  #    Em  = y - h2*np.eye(self.dim_x)
-  #    Fm  = self.evalp(Em)
-  #    jac = (Fp - Fm)/(h)
+  #  # sizes
+  #  n_points_loc = len(X[idx])
+  #  n_c_times = len(vpar_inits)
+  #  n_modB = ns*ntheta*nzeta
+  #  print('number of local points',n_points_loc,'n groups',self.mpi.ngroups)
 
+  #  t0 = time.time()
   #  # do the evals
-  #  f   = np.array([self.compute_confinement_times(y,stz_inits,vpar_inits,tmax) for y in Y[idx]]).flatten()
+  #  c_times_loc = np.zeros((n_points_loc,n_c_times))
+  #  modB_loc = np.zeros((n_points_loc,n_modB))
+  #  for ii,xx in enumerate(X[idx]):
+  #    #field,bri = self.compute_boozer_field(xx)
+  #    #c_times_loc[ii] = self.compute_confinement_times(xx,stz_inits,vpar_inits,tmax,field=field,bri=bri)
+  #    #modB_loc[ii] = self.compute_modB(field,bri,ns=ns,ntheta=ntheta,nphi=nzeta)
+  #    c_times_loc[ii] = self.compute_confinement_times(xx,stz_inits,vpar_inits,tmax)
 
+  #  print(c_times_loc)
+  #  print('evalulation complete',time.time()-t0)
+  #  t0 = time.time()
+
+  #  # barrier
+  #  self.mpi.comm_world.Barrier()
   #  # head leader gathers all evals
-  #  F = np.zeros(n_points*self.dim_raw)
-  #  counts = self.dim_raw*np.array(counts).astype(int)
-  #  self.mpi.comm_leaders.Gatherv(f,(F,counts),root=0)
+  #  c_times = np.zeros(n_points*n_c_times)
+  #  counts_c_times = n_c_times*np.array(counts).astype(int)
+  #  self.mpi.comm_leaders.Gatherv(c_times_loc.flatten(),(c_times,counts_c_times),root=0)
   #  # broadcast to leaders
-  #  self.mpi.comm_leaders.Bcast(F,root=0)
+  #  self.mpi.comm_leaders.Bcast(c_times,root=0)
   #  # broadcast internally within group
-  #  self.mpi.comm_groups.Bcast(F,root=0)
-
+  #  self.mpi.comm_groups.Bcast(c_times,root=0)
   #  # reshape to 2D-array
-  #  F = np.reshape(F,(-1,self.dim_raw))
+  #  c_times = np.reshape(c_times,(-1,n_c_times))
 
+  #  print('first brodcast complete',time.time()-t0)
+
+  #  # barrier
+  #  self.mpi.comm_world.Barrier()
+  #  # head leader gathers all evals
+  #  modB = np.zeros(n_points*n_modB)
+  #  counts_modB = n_modB*np.array(counts).astype(int)
+  #  self.mpi.comm_leaders.Gatherv(modB_loc.flatten(),(modB,counts_modB),root=0)
+  #  # broadcast to leaders
+  #  self.mpi.comm_leaders.Bcast(modB,root=0)
+  #  # broadcast internally within group
+  #  self.mpi.comm_groups.Bcast(modB,root=0)
+  #  # reshape to 2D-array
+  #  modB = np.reshape(modB,(-1,n_modB))
+
+  #  print('brodcast complete',time.time()-t0)
+
+  #  # forward difference
+  #  jac_c_times = (c_times[1:] - c_times[0])/(h2)
+  #  jac_modB = (modB[1:] - modB[0])/(h2)
   #  
-  #  return np.copy(jac.T)
+  #  return np.copy(jac_c_times.T),np.copy(jac_modB.T)
     
 
   ## set up the objective
@@ -605,7 +639,7 @@ if __name__ == "__main__":
   major_radius = 2.0*1.7
   target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
-                      n_partitions=1,
+                      n_partitions=8,
                       max_mode=1,
                       minor_radius=minor_radius,
                       major_radius=major_radius,
@@ -618,7 +652,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-2
+  tmax = 1e-4
 
   # compute the field and 
   field,bri = tracer.compute_boozer_field(x0)
@@ -630,10 +664,10 @@ if __name__ == "__main__":
 
   # gauss quadrature
   from gauss_quadrature import *
-  ns = 6
-  ntheta=6
-  nzeta = 6
-  nvpar = 6
+  ns = 2
+  ntheta=2
+  nzeta = 2
+  nvpar = 2
   s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,0.0,1.0)
   theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
   zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
@@ -650,8 +684,36 @@ if __name__ == "__main__":
   radial_sampler = RadialDensity(1000)
   likelihood = radial_sampler._pdf(stz_inits[:,0])
   likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
-
   import time
+
+  t0  = time.time()
+  print('tracing')
+  x0 = x0 + 1e-3*np.eye(len(x0))[tracer.mpi.group]
+  c_times_loc = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  print('time',time.time() - t0)
+  # sizes
+  n_c_times = len(vpar_inits)
+  n_points = tracer.mpi.ngroups
+  counts = np.ones(n_points)
+  # barrier
+  tracer.mpi.comm_world.Barrier()
+  # head leader gathers all evals
+  c_times = np.zeros(n_points*n_c_times)
+  counts_c_times = n_c_times*np.array(counts).astype(int)
+  tracer.mpi.comm_leaders.Gatherv(c_times_loc.flatten(),(c_times,counts_c_times),root=0)
+  # broadcast to leaders
+  tracer.mpi.comm_leaders.Bcast(c_times,root=0)
+  # broadcast internally within group
+  tracer.mpi.comm_groups.Bcast(c_times,root=0)
+  # reshape to 2D-array
+  c_times = np.reshape(c_times,(-1,n_c_times))
+  print(c_times)
+  quit()
+
+  #jac = tracer.jacobian_bulk(x0,stz_inits,vpar_inits,tmax,h=1e-4,method='forward',ns=32,ntheta=32,nzeta=32)
+  #print(jac)
+  #quit()
+
   t0  = time.time()
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
