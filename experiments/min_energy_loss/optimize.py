@@ -24,7 +24,7 @@ from trace_boozer import TraceBoozer
 from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
-#from gauss_quadrature import gauss_quadrature_nodes_coeffs
+from gauss_quadrature import gauss_quadrature_nodes_coeffs
 #from sid_psm import SIDPSM
 
 comm = MPI.COMM_WORLD
@@ -47,7 +47,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 250
+maxfev = 400
 max_step = 1.0
 min_step = 1e-6
 # trace boozer params
@@ -199,15 +199,23 @@ def get_random_points(sampling_level):
 radial_sampler = RadialDensity(1000)
 
 if sampling_type == "grid" and sampling_level == "full":
-  # use fixed particle locations
-  s_lin = np.linspace(s_min,s_max, ns)
-  theta_lin = np.linspace(0, 2*np.pi, ntheta)
-  zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
-  vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
-  # TODO: gauss quadrature
-  #vpar_lin,vpar_coeffs = gauss_quadrature_nodes_coeffs(n_vpar,-V_MAX,V_MAX)
+  # simpson
+  #s_lin = np.linspace(s_min,s_max, ns)
+  #theta_lin = np.linspace(0, 2*np.pi, ntheta)
+  #zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+  #vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
+  #[surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin)
+
+  # gauss quadrature
+  s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,s_min,s_max)
+  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
+  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
+  vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
+  [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin,indexing='ij')
+  [w1,w2,w3,w4] = np.meshgrid(s_weights,theta_weights,zeta_weights,vpar_weights,indexing='ij')
+  quad_weights = w1*w2*w3*w4
+
   # build a mesh
-  [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin)
   stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
   stz_inits[:, 0] = surfaces.flatten()
   stz_inits[:, 1] = thetas.flatten()
@@ -220,12 +228,22 @@ if sampling_type == "grid" and sampling_level == "full":
 elif sampling_type == "grid":
   # grid over (theta,phi,vpar) for a fixed surface label
   s_label = float(sampling_level)
-  # use fixed particle locations
-  theta_lin = np.linspace(0, 2*np.pi, ntheta)
-  zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
-  vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
+
+  ## simpson
+  #theta_lin = np.linspace(0, 2*np.pi, ntheta)
+  #zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+  #vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
+  #[thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin)
+
+  # gauss quadrature
+  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
+  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
+  vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
+  [thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin,indexing='ij')
+  [w1,w2,w3] = np.meshgrid(theta_weights,zeta_weights,vpar_weights,indexing='ij')
+  quad_weights = w1*w2*w3
+
   # build a mesh
-  [thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin)
   stz_inits = np.zeros((ntheta*nzeta*nvpar, 3))
   stz_inits[:, 0] = s_label
   stz_inits[:, 1] = thetas.flatten()
@@ -281,18 +299,32 @@ def objective(x):
     # sample average
     res = np.mean(feat)
   elif sampling_type == "grid" and sampling_level == "full":
+    # gauss quadrature
     int0 = feat*likelihood
     int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-    int1 = simpson(int0,vpar_lin,axis=-1)
-    int2 = simpson(int1,zeta_lin,axis=-1)
-    int3 = simpson(int2,theta_lin,axis=-1)
-    res = simpson(int3,s_lin,axis=-1)
+    int0 = int0*quad_weights
+    res = np.sum(int0)
+
+    # simpson
+    #int0 = feat*likelihood
+    #int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
+    #int1 = simpson(int0,vpar_lin,axis=-1)
+    #int2 = simpson(int1,zeta_lin,axis=-1)
+    #int3 = simpson(int2,theta_lin,axis=-1)
+    #res = simpson(int3,s_lin,axis=-1)
   elif sampling_type == "grid":
+    # gauss quadrature
     int0 = feat*likelihood
     int0 = int0.reshape((ntheta,nzeta,nvpar))
-    int1 = simpson(int0,vpar_lin,axis=-1)
-    int2 = simpson(int1,zeta_lin,axis=-1)
-    res = simpson(int2,theta_lin,axis=-1)
+    int0 = int0*quad_weights
+    res = np.sum(int0)
+
+    # simpson
+    #int0 = feat*likelihood
+    #int0 = int0.reshape((ntheta,nzeta,nvpar))
+    #int1 = simpson(int0,vpar_lin,axis=-1)
+    #int2 = simpson(int1,zeta_lin,axis=-1)
+    #res = simpson(int2,theta_lin,axis=-1)
 
   if rank == 0:
     loss_frac = np.mean(c_times<tmax)
