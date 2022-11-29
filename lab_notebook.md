@@ -3,7 +3,7 @@
 
 ## TODO:
 - do optimization with cobyla
-- set up gauss quadrature.
+- set up gradient based optimization
 
 - Build module to compute probabilities of theta,zeta.
 - set up composite optimization with concurrent evaluations
