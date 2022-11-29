@@ -618,7 +618,7 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-4
+  tmax = 1e-2
 
   # compute the field and 
   field,bri = tracer.compute_boozer_field(x0)
@@ -628,18 +628,53 @@ if __name__ == "__main__":
   modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
   print('mirror ratio',np.max(modB)/np.min(modB))
 
-  # tracing points
-  n_particles = 100
-  stz_inits,vpar_inits = tracer.sample_volume(n_particles)
-  #stz_inits,vpar_inits = tracer.flux_grid(8,8,8,8,s_min=0.05)
-  mu = tracer.compute_mu(field,bri,stz_inits,vpar_inits)
+  # gauss quadrature
+  from gauss_quadrature import *
+  ns = 6
+  ntheta=6
+  nzeta = 6
+  nvpar = 6
+  s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,0.0,1.0)
+  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
+  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
+  vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
+  [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin,indexing='ij')
+  [w1,w2,w3,w4] = np.meshgrid(s_weights,theta_weights,zeta_weights,vpar_weights,indexing='ij')
+  quad_weights = w1*w2*w3*w4
+  stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
+  stz_inits[:, 0] = surfaces.flatten()
+  stz_inits[:, 1] = thetas.flatten()
+  stz_inits[:, 2] = zetas.flatten()
+  vpar_inits = vpars.flatten()
+  # radial likelihood
+  radial_sampler = RadialDensity(1000)
+  likelihood = radial_sampler._pdf(stz_inits[:,0])
+  likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
 
   import time
   t0  = time.time()
-  #c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax,field=field,bri=bri)
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  print(tracer.mpi.rank_world,tracer.mpi.group,'time',time.time() - t0)
-  print(tracer.mpi.rank_world,tracer.mpi.group,'mean',np.mean(c_times))
-  print(tracer.mpi.rank_world,tracer.mpi.group,'loss fraction',np.mean(c_times < tmax))
+  print('time',time.time() - t0)
 
+  # quadrature
+  feat = c_times
+  int0 = feat*likelihood
+  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
+  int0 = int0*quad_weights
+  res = np.sum(int0)
+  print('mean',res)
+
+  """
+  Now compute statistics with monte carlo
+  """
+
+  # tracing points
+  n_particles = 4000
+  stz_inits,vpar_inits = tracer.sample_volume(n_particles)
+  print('tracing')
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  std_err = np.std(c_times)/np.sqrt(len(c_times))
+  mu = np.mean(c_times)
+  print('mean',mu-2*std,mu+2*std)
+  print('loss fraction',np.mean(c_times < tmax))
