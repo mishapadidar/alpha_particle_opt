@@ -676,5 +676,5 @@ if __name__ == "__main__":
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   std_err = np.std(c_times)/np.sqrt(len(c_times))
   mu = np.mean(c_times)
-  print('mean',mu-2*std,mu+2*std)
+  print('mean',mu-2*std_err,mu+2*std_err)
   print('loss fraction',np.mean(c_times < tmax))
