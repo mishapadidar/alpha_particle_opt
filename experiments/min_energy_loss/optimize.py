@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py random 0.5 mean_energy pdfo 1 nfp4_QH_warm_high_res None 0.0001 10 10 10 10
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 5 5 5 5
 """
 
 
@@ -47,9 +47,11 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 300
-max_step = 1.0 # for max_mode=1,2
+maxfev = 400
+max_step = 1.0 # for max_mode=1
+#max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
+#max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
 # trace boozer params
 tracing_tol = 1e-8
@@ -158,9 +160,37 @@ def aspect_ratio(x):
 # constraint on mirror ratio
 ns_B=ntheta_B=nzeta_B=32
 len_B_field_out = ns_B*ntheta_B*nzeta_B
-def B_field(x):
+#def B_field(x):
+#  """
+#  Compute modB on a grid
+#  """
+#  field,bri = tracer.compute_boozer_field(x)
+#  if field is None:
+#    return np.zeros(len_B_field_out)
+#  modB = tracer.compute_modB(field,bri,ns=ns_B,ntheta=ntheta_B,nphi=nzeta_B)
+#  if rank == 0:
+#    print("B interval:",np.min(modB),np.max(modB))
+#    print("Mirror Ratio:",np.max(modB)/np.min(modB))
+#  return modB
+#B_mean = 5.0
+#mirror_target = 1.35
+#eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
+#B_ub = B_mean*(1 + eps_B)*np.ones(len_B_field_out)
+#B_lb = B_mean*(1 - eps_B)*np.ones(len_B_field_out)
+
+mirror_target = 1.35
+eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
+def B_field_volavg_con(x):
   """
-  Compute modB on a grid
+  Use volavgB instead of 5 as the middle point of
+  the B field constraints:
+    volavgB(1-eps) <= B <= volavgB(1+eps)
+  where 
+    eps = (1.35 -1)/(1.35 + 1).
+
+  return inequality constraints c(x) <= 0
+    B - volavgB(1+eps) <= 0
+    volavgB(1-eps) - B <= 0
   """
   field,bri = tracer.compute_boozer_field(x)
   if field is None:
@@ -169,13 +199,18 @@ def B_field(x):
   if rank == 0:
     print("B interval:",np.min(modB),np.max(modB))
     print("Mirror Ratio:",np.max(modB)/np.min(modB))
-  return modB
-B_mean = 5.0
-mirror_target = 1.35
-eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
-B_ub = B_mean*(1 + eps_B)*np.ones(len_B_field_out)
-B_lb = B_mean*(1 - eps_B)*np.ones(len_B_field_out)
-
+  # get volavgB
+  B_mean = tracer.vmec.wout.volavgB
+  rhs = B_mean*(1 + eps_B)
+  lhs = B_mean*(1 - eps_B)
+  # constraints c(x) <= 0
+  c_ub = modB - rhs
+  c_lb = lhs - modB
+  con = np.append(c_ub,c_lb)
+  return np.copy(con)
+B_ub = np.zeros(2*len_B_field_out)
+B_lb = -np.inf*np.ones(2*len_B_field_out)
+  
 
 """
 Generate points for tracing
@@ -347,7 +382,8 @@ if method == "cobyla":
   rhobeg = max_step
   rhoend = min_step
   aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
-  mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
+  #mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
+  mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
   constraints = [aspect_constraint,mirror_constraint]
 
   res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
@@ -360,13 +396,13 @@ elif method == "bobyqa":
   def penalty_obj(x):
     """penalty formulation for bobyqa"""
     c_asp = max([aspect_ratio(x)-aspect_target,0.0])**2
-    B = B_field(x)
+    #B = B_field(x)
+    B = B_field_volavg_con(x)
     obj = evw(x)
     c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
-    c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
-    ret = obj + c_asp + 100*(c_mirr_ub + c_mirr_lb)
+    ret = obj + c_asp + 10*c_mirr_ub
     if rank == 0:
-      print('p-obj:',ret,'asp',aspect_ratio(x),'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
+      print('p-obj:',ret,'asp',aspect_ratio(x),'c_mirr_ub',c_mirr_ub)
       #print("")
     return ret
   res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
