@@ -47,7 +47,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 400
+maxfev = 300
 max_step = 1.0 # for max_mode=1
 #max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
@@ -194,7 +194,7 @@ def B_field_volavg_con(x):
   """
   field,bri = tracer.compute_boozer_field(x)
   if field is None:
-    return np.zeros(len_B_field_out)
+    return np.zeros(2*len_B_field_out)
   modB = tracer.compute_modB(field,bri,ns=ns_B,ntheta=ntheta_B,nphi=nzeta_B)
   if rank == 0:
     print("B interval:",np.min(modB),np.max(modB))
