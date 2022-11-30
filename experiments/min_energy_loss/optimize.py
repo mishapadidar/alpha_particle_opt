@@ -42,14 +42,15 @@ ex.
 n_partitions = 1
 minor_radius = 1.7
 aspect_target = 8.0
+iota_target = 0.42 # only for QA
 major_radius = aspect_target*minor_radius
 target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
 maxfev = 300
-max_step = 1.0 # for max_mode=1
-#max_step = 0.1 # for max_mode=2
+#max_step = 1.0 # for max_mode=1
+max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
@@ -156,6 +157,28 @@ def aspect_ratio(x):
   if rank == 0:
     print("aspect",asp)
   return asp
+
+def rotational_transform(x):
+  """
+  Compute iota
+  """
+  # update the surface
+  tracer.surf.x = np.copy(x)
+
+  # evaluate the objectives
+  try:
+    iota = tracer.vmec.mean_iota()
+  except:
+    iota = np.inf
+
+  # catch partial failures
+  if np.isnan(iota):
+    iota = np.inf
+
+  if rank == 0:
+    print("iota",iota)
+  return iota
+
 
 # constraint on mirror ratio
 ns_B=ntheta_B=nzeta_B=32
@@ -382,9 +405,13 @@ if method == "cobyla":
   rhobeg = max_step
   rhoend = min_step
   aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
+  iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
   #mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
   mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
-  constraints = [aspect_constraint,mirror_constraint]
+  if "QA" in vmec_input:
+    constraints = [aspect_constraint,mirror_constraint,iota_constraint]
+  else:
+    constraints = [aspect_constraint,mirror_constraint]
 
   res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = np.copy(res.x)
@@ -480,6 +507,8 @@ if rank == 0:
   outdata['aspect_opt'] = aspect_opt
   outdata['c_times_opt'] = c_times_opt
   outdata['c_times_out_of_sample'] = c_times_out_of_sample
+  outdata['aspect_target'] = aspect_target
+  outdata['iota_target'] = iota_target
   outdata['major_radius'] = major_radius
   outdata['minor_radius'] =  minor_radius
   outdata['target_volavgB'] = target_volavgB
