@@ -71,7 +71,7 @@ max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
 warm_start_file = sys.argv[7] # filename or "None"
 tmax = float(sys.argv[8]) # tmax
-constrain_iota = bool(sys.argv[9]) 
+constrain_iota = (sys.argv[9] == "True")
 ns = int(sys.argv[10])  # number of surface samples
 ntheta = int(sys.argv[11]) # num theta samples
 nzeta = int(sys.argv[12]) # num phi samples
