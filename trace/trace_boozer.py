@@ -22,7 +22,6 @@ class TraceBoozer:
   def __init__(self,vmec_input,
     n_partitions=1,
     max_mode=1,
-    minor_radius=1.7,
     major_radius=13.6,
     target_volavgB=5.0,
     tracing_tol=1e-8,
@@ -31,15 +30,11 @@ class TraceBoozer:
     bri_mpol=32,
     bri_ntor=32,
     x0=[],
-    x0_max_mode=None,
-    x0_major_radius=13.6):
+    x0_max_mode=1):
     """
     vmec_input: vmec input file
     n_partitions: number of partitions used by vmec mpi.
     max_mode: number of modes used by vmec
-    minor_radius: set Delta(0,0) to this value.
-      Delta(0,0) would be approximately the minor radius of a torus.
-      The minor radius is better approximated from the aspect ratio.
     major_radius: will rescale entire device so that this is the major radius.
               If the surface is purely a torus, then setting the major and minor radius
               like this will give you the right aspect ratio. But if the surface
@@ -59,23 +54,6 @@ class TraceBoozer:
     self.vmec_input = vmec_input
     self.max_mode = max_mode
 
-    # For Garabedian rep
-    # load vmec and mpi
-    #self.mpi = MpiPartition(n_partitions)
-    #vmec = Vmec(vmec_input, mpi=self.mpi,keep_all_files=False,verbose=False)
-
-    # build a garabedian surface
-    #self.surf = SurfaceGarabedian.from_RZFourier(vmec.boundary)
-
-    # tell vmec it has a garabedian surface now
-    #vmec.boundary = self.surf
-    #self.vmec = vmec
-
-    # make the descision variables
-    #self.surf.fix_all()
-    #self.surf.fix_range(mmin=1-max_mode, mmax=1+max_mode,
-    #                 nmin=-max_mode, nmax=max_mode, fixed=False)
-
     # For RZFourier rep
     self.mpi = MpiPartition(n_partitions)
     self.vmec = Vmec(vmec_input, mpi=self.mpi,keep_all_files=False,verbose=False)
@@ -87,51 +65,44 @@ class TraceBoozer:
       Load a point with. We assume that x0_max_mode <= max_mode, that 
       the major radius of the configuration was fixed and is not represented
       in the array x0.
+      We assume that the toroidal flux was rescaled by target_volavgB.
       """
       assert x0_max_mode <= max_mode,"we cannot decrease the max_mode"
-      # load the starting point
+      # set up the boundary representation for x0
       self.surf.fix_all()
       self.surf.fixed_range(mmin=0, mmax=x0_max_mode,
                        nmin=-x0_max_mode, nmax=x0_max_mode, fixed=False)
-      # assume the point was scaled to the given major radius
-      self.surf.set("rc(0,0)",x0_major_radius) 
+
+      # rescale the vmec_input point to the major radius
+      factor = major_radius/self.surf.get("rc(0,0)")
+      self.surf.x = self.surf.x*factor
+      self.surf.set("rc(0,0)",major_radius) 
       self.surf.fix("rc(0,0)") # fix the Major radius
+
+      # set the toroidal flux based off the vmec input, not the current point
+      avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
+      self.vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
+      self.vmec.need_to_run_code = True
+
+      # now set x0 as the boundary
       self.surf.x = np.copy(x0)
     
-    # set the resolution
+    # set the desired resolution
     self.surf.fix_all()
     self.surf.fixed_range(mmin=0, mmax=max_mode,
                      nmin=-max_mode, nmax=max_mode, fixed=False)
     
-    # rescale the surface by the major radius
-    if major_radius is not None:
-      # Delta(1,0) is major radius
-      #factor = major_radius/self.surf.get("Delta(1,0)")
-      # rc(0,0) is the major radius
+    # rescale the surface by the major radius; if we havent already.
+    if len(x0) == 0:
       factor = major_radius/self.surf.get("rc(0,0)")
       self.surf.x = self.surf.x*factor
 
-    ## set the approximate minor radius Delta(0,0)
-    #if minor_radius is not None:
-    #  self.surf.set('Delta(0,0)', minor_radius) # fix minor radius
+    # fix the major radius
+    self.surf.fix("rc(0,0)") 
 
-    #print(self.surf.local_dof_names)
-    #print(self.surf.x)
-    #print(major_radius)
-    #print(minor_radius)
-
-    ### fix the radii
-    #self.surf.fix("Delta(1,0)") # fix the Major radius
-    #self.surf.fix("Delta(0,0)") # fix the Minor radius
-    self.surf.fix("rc(0,0)") # fix the Major radius
-
-    # fix the phiedge to get the correct scaling
-    if target_volavgB is not None:
-      #self.vmec.run()
-      #major_radius = self.surf.get('Delta(1,0)')
-      major_radius = self.surf.get('rc(0,0)')
-      #avg_minor_rad = major_radius/self.vmec.aspect() # true avg minor radius
-      avg_minor_rad = major_radius/self.surf.aspect_ratio() # true avg minor radius
+    # rescale the toroidal flux; if we havent already
+    if len(x0) == 0:
+      avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
       self.vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
       self.vmec.need_to_run_code = True
       #self.vmec.run()
@@ -151,7 +122,7 @@ class TraceBoozer:
     self.bri_ntor=bri_ntor
 
     # placeholders
-    self.x_field = []
+    self.x_field = np.zeros(self.dim_x)
     self.field = None
     self.bri = None
 
@@ -160,7 +131,7 @@ class TraceBoozer:
     Sync the np.random.seed of the various worker groups.
     The seed is a random number <1e6.
     """
-    # TODO: only sync across mpi group
+    # only sync across mpi group
     seed = np.zeros(1)
     #if self.mpi.proc0_world:
     if self.mpi.proc0_groups:
@@ -259,7 +230,6 @@ class TraceBoozer:
     """
     Sample the volume using the radial density sampler
     """
-    # TODO: use MPI group comm
 
     # SAA sampling over (s,theta,zeta,vpar)
     s_inits = np.zeros(n_particles)
@@ -288,7 +258,6 @@ class TraceBoozer:
     """
     Sample the volume using the radial density sampler
     """
-    # TODO: use MPI group comm
     ## divide the particles
     #comm = MPI.COMM_WORLD
     #size = comm.Get_size()
@@ -395,7 +364,6 @@ class TraceBoozer:
     stopping_criteria = [MaxToroidalFluxStoppingCriterion(0.99),MinToroidalFluxStoppingCriterion(0.01)]
      
 
-    # TODO: do we want the group comm here rather than world?
     #comm = MPI.COMM_WORLD
 
     # trace
@@ -631,43 +599,49 @@ class TraceBoozer:
   
 
 if __name__ == "__main__":
+  import pickle
+  infile = "../experiments/min_energy_loss/data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_1.pickle"
+  x0 = pickle.load(open(infile,"rb"))['xopt']
 
   #vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
-  vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
+  vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res'
+  #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
   #vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res_quasysymmetry_opt'
   minor_radius = 1.7
-  major_radius = 2.0*1.7
+  major_radius = 8.0*1.7
   target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
-                      n_partitions=8,
-                      max_mode=1,
-                      minor_radius=minor_radius,
+                      n_partitions=1,
+                      max_mode=2,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
                       tracing_tol=1e-8,
-                      interpolant_degree=1,
+                      interpolant_degree=3,
                       interpolant_level=10,
                       bri_mpol=16,
-                      bri_ntor=16)
+                      bri_ntor=16,
+                      x0 = x0,
+                      x0_max_mode=1)
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-4
+  tmax = 1e-3
 
-  # compute the field and 
-  field,bri = tracer.compute_boozer_field(x0)
-  #mu_crit = tracer.compute_mu_crit(field,bri)
-  
-  # compute the mirror ratio
-  modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
-  print('mirror ratio',np.max(modB)/np.min(modB))
+
+  ## compute the field and 
+  #field,bri = tracer.compute_boozer_field(x0)
+  ##mu_crit = tracer.compute_mu_crit(field,bri)
+  #
+  ## compute the mirror ratio
+  #modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
+  #print('mirror ratio',np.max(modB)/np.min(modB))
 
   # gauss quadrature
   from gauss_quadrature import *
-  ns = 2
-  ntheta=2
-  nzeta = 2
-  nvpar = 2
+  ns = 9
+  ntheta=9
+  nzeta = 9
+  nvpar = 9
   s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,0.0,1.0)
   theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
   zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
@@ -686,29 +660,31 @@ if __name__ == "__main__":
   likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
   import time
 
-  t0  = time.time()
-  print('tracing')
-  x0 = x0 + 1e-3*np.eye(len(x0))[tracer.mpi.group]
-  c_times_loc = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  print('time',time.time() - t0)
-  # sizes
-  n_c_times = len(vpar_inits)
-  n_points = tracer.mpi.ngroups
-  counts = np.ones(n_points)
-  # barrier
-  tracer.mpi.comm_world.Barrier()
-  # head leader gathers all evals
-  c_times = np.zeros(n_points*n_c_times)
-  counts_c_times = n_c_times*np.array(counts).astype(int)
-  tracer.mpi.comm_leaders.Gatherv(c_times_loc.flatten(),(c_times,counts_c_times),root=0)
-  # broadcast to leaders
-  tracer.mpi.comm_leaders.Bcast(c_times,root=0)
-  # broadcast internally within group
-  tracer.mpi.comm_groups.Bcast(c_times,root=0)
-  # reshape to 2D-array
-  c_times = np.reshape(c_times,(-1,n_c_times))
-  print(c_times)
-  quit()
+  #t0  = time.time()
+  #print('tracing')
+  #Ep = x0 + 1e-4*np.eye(len(x0))
+  #X = np.vstack((x0.reshape((1,-1)),Ep))
+  #x = X[tracer.mpi.group]
+  #c_times_loc = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
+  #print('time',time.time() - t0)
+  ## sizes
+  #n_c_times = len(vpar_inits)
+  #n_points = tracer.mpi.ngroups
+  #counts = np.ones(n_points)
+  ## barrier
+  #tracer.mpi.comm_world.Barrier()
+  ## head leader gathers all evals
+  #c_times = np.zeros(n_points*n_c_times)
+  #counts_c_times = n_c_times*np.array(counts).astype(int)
+  #tracer.mpi.comm_leaders.Gatherv(c_times_loc.flatten(),(c_times,counts_c_times),root=0)
+  ## broadcast to leaders
+  #tracer.mpi.comm_leaders.Bcast(c_times,root=0)
+  ## broadcast internally within group
+  #tracer.mpi.comm_groups.Bcast(c_times,root=0)
+  ## reshape to 2D-array
+  #c_times = np.reshape(c_times,(-1,n_c_times))
+  #print(c_times)
+  #quit()
 
   #jac = tracer.jacobian_bulk(x0,stz_inits,vpar_inits,tmax,h=1e-4,method='forward',ns=32,ntheta=32,nzeta=32)
   #print(jac)
@@ -726,17 +702,25 @@ if __name__ == "__main__":
   int0 = int0*quad_weights
   res = np.sum(int0)
   print('mean',res)
+  feat = 3.5*np.exp(-2*c_times/tmax)
+  int0 = feat*likelihood
+  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
+  int0 = int0*quad_weights
+  res = np.sum(int0)
+  print('energy',res)
 
   """
   Now compute statistics with monte carlo
   """
 
   # tracing points
-  n_particles = 4000
+  n_particles = 5000
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   std_err = np.std(c_times)/np.sqrt(len(c_times))
   mu = np.mean(c_times)
-  print('mean',mu-2*std_err,mu+2*std_err)
+  nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
+  print('mean',mu,std_err)
+  print('energy',nrg)
   print('loss fraction',np.mean(c_times < tmax))
