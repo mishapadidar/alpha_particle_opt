@@ -23,12 +23,10 @@ NODES=1
 CORES=('2' '2' '8')
 
 # iota constraint; bool
-iota=1
+iota='True' # True or False
 
 VMEC="nfp2_QA_cold_high_res_mirror_feas"
 #VMEC="nfp4_QH_cold_high_res"
-#VMEC="nfp4_QH_warm_high_res"
-#VMEC="nfp2_QA_cold_high_res"
 
 
 WARM=("None" "None" "None") # None or filename
