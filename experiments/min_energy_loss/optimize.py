@@ -48,7 +48,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 300
+maxfev = 400
 #max_step = 1.0 # for max_mode=1
 max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
@@ -108,19 +108,16 @@ if warm_start_file != "None":
   data_x0 = pickle.load(open(warm_start_file,"rb"))
   x0 = data_x0['xopt']
   x0_max_mode = data_x0['max_mode']
-  x0_major_radius = data_x0['major_radius']
   del data_x0
 else:
   x0 = []
   x0_max_mode=max_mode
-  x0_major_radius = major_radius
 
 # build a tracer object
 #tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
                       max_mode=max_mode,
-                      minor_radius=minor_radius,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
                       tracing_tol=tracing_tol,
@@ -129,8 +126,7 @@ tracer = TraceBoozer(vmec_input,
                       bri_mpol=bri_mpol,
                       bri_ntor=bri_ntor,
                       x0=x0,
-                      x0_max_mode=x0_max_mode,
-                      x0_major_radius=x0_major_radius)
+                      x0_max_mode=x0_max_mode)
 tracer.sync_seeds()
 x0 = tracer.x0
 dim_x = tracer.dim_x
@@ -408,10 +404,11 @@ if method == "cobyla":
   iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
   #mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
   mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
-  if "QA" in vmec_input:
-    constraints = [aspect_constraint,mirror_constraint,iota_constraint]
-  else:
-    constraints = [aspect_constraint,mirror_constraint]
+  #if "QA" in vmec_input:
+  #  constraints = [aspect_constraint,mirror_constraint,iota_constraint]
+  #else:
+  #  constraints = [aspect_constraint,mirror_constraint]
+  constraints = [aspect_constraint,mirror_constraint]
 
   res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = np.copy(res.x)
