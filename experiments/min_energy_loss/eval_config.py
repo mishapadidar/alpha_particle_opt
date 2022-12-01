@@ -11,10 +11,8 @@ from trace_boozer import TraceBoozer
 
 infile = sys.argv[1]
 indata = pickle.load(open(infile,"rb"))
-#vmec_input = indata['vmec_input']
-vmec_input="../../vmec_input_files/input.nfp2_QA_cold_high_res"
-#vmec_input="../../vmec_input_files/input.nfp2_QA_high_res"
-#vmec_input="../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
+vmec_input = indata['vmec_input']
+vmec_input = vmec_input[3:] # remove the first ../
 
 # build a tracer object
 n_partitions=1
