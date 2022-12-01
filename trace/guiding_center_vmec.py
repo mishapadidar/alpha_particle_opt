@@ -527,6 +527,70 @@ def interpolatedVmecField(vs,s,theta,phi,method='linear'):
     return results
 
 
+class GuidingCenterVmec:
+    """
+    A guiding center object for tracing a single particle.
+    """
+   
+    def __init__(self,interp,y0):
+        self.interp = interp
+        self.mass =ALPHA_PARTICLE_MASS
+        self.charge=ALPHA_PARTICLE_CHARGE
+        # compute mu = vperp^2/2B
+        stz   = y0[:3]
+        v_par = y0[3]
+        modB = interp.modB(stz).flatten()
+        vperp_squared = FUSION_ALPHA_SPEED_SQUARED - v_par**2
+        self.mu = vperp_squared/2/modB
+
+    def GuidingCenterVmecRHS(self,ys):
+        """
+        Guiding center right hand side for vmec tracing.
+        ys: (4,) array [s,t,z,vpar]
+        """
+        # struct with interpolators
+        interp = self.interp
+
+        # compute the values for the rhs
+        mu = self.mu
+        Omega = self.charge*modB/self.mass
+        sqrt_g_vmec = interp.sqrt_g_vmec(ys).item()
+        modB = interp.modB(ys).item()
+        d_B_d_s = interp.d_B_d_s(ys).item()
+        d_B_d_theta_vmec = interp.d_B_d_theta_vmec(ys).item()
+        d_B_d_phi = interp.d_B_d_phi(ys).item()
+        B_sup_theta_vmec = interp.B_sup_theta_vmec(ys).item()
+        B_sup_phi = interp.B_sup_phi(ys).item()
+        B_sub_s = interp.B_sub_s(ys).item()
+        B_sub_theta_vmec = interp.B_sub_theta_vmec(ys).item()
+        B_sub_phi = interp.B_sub_phi(ys).item()
+        d_B_sub_s_d_theta_vmec = interp.d_B_sub_s_d_theta_vmec(ys).item()
+        d_B_sub_s_d_phi = interp.d_B_sub_s_d_phi(ys).item()
+        d_B_sub_theta_vmec_d_s = interp.d_B_sub_theta_vmec_d_s(ys).item()
+        d_B_sub_theta_vmec_d_phi = interp.d_B_sub_theta_vmec_d_phi(ys).item()
+        d_B_sub_phi_d_s = interp.d_B_sub_phi_d_s(ys).item()
+        d_B_sub_phi_d_theta_vmec = interp.d_B_sub_phi_d_theta_vmec(ys).item()
+
+        # vpar**2
+        vp_sp = vpar**2
+
+        # ds/dt
+        coeff = (1.0/B)*(1.0/Omega/sqrt_g_vmec)
+        a1 = -mu*B_sub_phi*d_B_d_theta_vmec
+        a2 = mu*B_sub_theta_mvec*d_B_d_phi
+        a3 = vp_sq*d_B_sub_phi_d_theta_vmec
+        a4 = -vp_sq*B_sub_phi*d_B_d_theta_vmec/B
+        a5 = -vp_sq*d_B_theta_vmec_d_phi
+        a6 = vp_sq*B_sub_theta_vmec*d_B_d_phi/B
+        d_s_d_t = coeff*(a1+a2+a3+a4+a5+a6)
+
+        # TODO:dtheta/dt
+        # TODO:dphi/dt
+        # TODO:dvpar/dt
+ 
+        return np.array([d_s_d_t,d_theta_vmec_d_t,d_phi_d_t,d_vpar_d_t])
+        
+
 def trace_particles_vmec(gc_rhs,
           stp_inits, 
           vpar_inits, 
@@ -553,15 +617,7 @@ def trace_particles_vmec(gc_rhs,
 
     return res_traj
 
-class GuidingCenterVmec:
-   
-    def __init__(self):
 
-    def GuidingCenterVmecRHS(self,ys):
-        """
-        Guiding center right hand side for boozer vacuum tracing.
-        ys: (4,) array [s,t,z,vpar]
-        """
 
 
 
