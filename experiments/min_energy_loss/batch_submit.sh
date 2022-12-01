@@ -14,13 +14,16 @@ METHOD="cobyla" # pdfo, nelder, snobfit, diff_evol, sidpsm
 
 MAXMODE=1
 
-NS=5
-NTHETA=5
-NPHI=5
-NVPAR=5
+NS=7
+NTHETA=7
+NPHI=7
+NVPAR=7
 
 NODES=1
 CORES=('2' '2' '8')
+
+# iota constraint; bool
+iota=1
 
 VMEC="nfp2_QA_cold_high_res_mirror_feas"
 #VMEC="nfp4_QH_cold_high_res"
@@ -29,9 +32,9 @@ VMEC="nfp2_QA_cold_high_res_mirror_feas"
 
 
 WARM=("None" "None" "None") # None or filename
-#WARM=("../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.3_tmax_0.001_pdfo_mmode_1.pickle" 
-#      "../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.5_tmax_0.001_pdfo_mmode_1.pickle" 
-#      "../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_full_tmax_0.001_pdfo_mmode_1.pickle" 
+#WARM=("../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_1.pickle" 
+#      "../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_1.pickle" 
+#      "../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_1.pickle" 
 #      )
 #WARM=("../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_1.pickle" 
 #      "../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_1.pickle" 
@@ -46,7 +49,7 @@ do
   cores=${CORES[idx]}
 
   # make a dir
-  dir="_batch_${VMEC}_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_tmax_${TMAX}_${METHOD}_mmode_${MAXMODE}"
+  dir="_batch_${VMEC}_${OBJECTIVE}_${SAMPLINGTYPE}_surf_${surf}_tmax_${TMAX}_${METHOD}_mmode_${MAXMODE}_iota_${iota}"
   mkdir $dir
 
   # copy the compute data
@@ -77,8 +80,7 @@ do
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
-  #printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$cores] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${warm} ${TMAX} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$cores] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${warm} ${TMAX} ${iota} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"

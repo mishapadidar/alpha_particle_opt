@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 0 5 5 5 5
 """
 
 
@@ -49,8 +49,8 @@ s_min = 0.0
 s_max = 1.0
 # optimizer params
 maxfev = 400
-#max_step = 1.0 # for max_mode=1
-max_step = 0.1 # for max_mode=2
+max_step = 1.0 # for max_mode=1
+#max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
@@ -71,10 +71,11 @@ max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
 warm_start_file = sys.argv[7] # filename or "None"
 tmax = float(sys.argv[8]) # tmax
-ns = int(sys.argv[9])  # number of surface samples
-ntheta = int(sys.argv[10]) # num theta samples
-nzeta = int(sys.argv[11]) # num phi samples
-nvpar = int(sys.argv[12]) # num vpar samples
+constrain_iota = bool(sys.argv[9]) 
+ns = int(sys.argv[10])  # number of surface samples
+ntheta = int(sys.argv[11]) # num theta samples
+nzeta = int(sys.argv[12]) # num phi samples
+nvpar = int(sys.argv[13]) # num vpar samples
 assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['cobyla','bobyqa','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
@@ -405,10 +406,11 @@ if method == "cobyla":
   #mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
   mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
   #if "QA" in vmec_input:
-  #  constraints = [aspect_constraint,mirror_constraint,iota_constraint]
-  #else:
-  #  constraints = [aspect_constraint,mirror_constraint]
-  constraints = [aspect_constraint,mirror_constraint]
+  if constrain_iota:
+    constraints = [aspect_constraint,mirror_constraint,iota_constraint]
+  else:
+    constraints = [aspect_constraint,mirror_constraint]
+  #constraints = [aspect_constraint,mirror_constraint]
 
   res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
   xopt = np.copy(res.x)
@@ -496,7 +498,7 @@ if rank == 0:
 # save results
 if rank == 0:
   print(res)
-  outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}.pickle"
+  outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{constrain_iota}.pickle"
   outdata = {}
   outdata['X'] = evw.X
   outdata['FX'] = evw.FX
@@ -506,6 +508,7 @@ if rank == 0:
   outdata['c_times_out_of_sample'] = c_times_out_of_sample
   outdata['aspect_target'] = aspect_target
   outdata['iota_target'] = iota_target
+  outdata['constrain_iota'] = constrain_iota
   outdata['major_radius'] = major_radius
   outdata['minor_radius'] =  minor_radius
   outdata['target_volavgB'] = target_volavgB
