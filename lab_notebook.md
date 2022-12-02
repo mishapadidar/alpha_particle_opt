@@ -5,8 +5,8 @@
 - finish optimizing to 4 modes tmax=1e-3
 - set up tracing in vmec coords
 
-- Build module to compute probabilities of theta,zeta.
 - set up gradient based optimization
+- Build module to compute probabilities of theta,zeta.
 - set up composite optimization with concurrent evaluations
 
 - post process results
