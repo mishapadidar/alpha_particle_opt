@@ -1,8 +1,12 @@
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.interpolate import RegularGridInterpolator
+from scipy.integrate import solve_ivp
 from simsopt.mhd import Vmec
 from simsopt._core.util import Struct
+import sys
+sys.path.append("../utils")
+from constants import ALPHA_PARTICLE_MASS,ALPHA_PARTICLE_CHARGE,FUSION_ALPHA_SPEED_SQUARED 
 
 
 def vmec_splines(vmec):
@@ -543,7 +547,11 @@ class GuidingCenterVmec:
         vperp_squared = FUSION_ALPHA_SPEED_SQUARED - v_par**2
         self.mu = vperp_squared/2/modB
 
+    # TODO: write a GuidingCenter Vacumm RHS
+
     def GuidingCenterVmecRHS(self,ys):
+        #TODO: use field period symmetry and stellarator symmetry
+        # to map particles back to interpolation range.
         """
         Guiding center right hand side for vmec tracing.
         ys: (4,) array [s,t,z,vpar]
@@ -551,39 +559,41 @@ class GuidingCenterVmec:
         # struct with interpolators
         interp = self.interp
 
+        # unpack point
+        stp = ys[:3]
+        vpar = ys[-1]
+
         # compute the values for the rhs
         mu = self.mu
+        sqrt_g_vmec = interp.sqrt_g_vmec(stp).item()
+        modB = interp.modB(stp).item()
+        d_B_d_s = interp.d_B_d_s(stp).item()
+        d_B_d_theta_vmec = interp.d_B_d_theta_vmec(stp).item()
+        d_B_d_phi = interp.d_B_d_phi(stp).item()
+        B_sup_theta_vmec = interp.B_sup_theta_vmec(stp).item()
+        B_sup_phi = interp.B_sup_phi(stp).item()
+        B_sub_s = interp.B_sub_s(stp).item()
+        B_sub_theta_vmec = interp.B_sub_theta_vmec(stp).item()
+        B_sub_phi = interp.B_sub_phi(stp).item()
+        d_B_sub_s_d_theta_vmec = interp.d_B_sub_s_d_theta_vmec(stp).item()
+        d_B_sub_s_d_phi = interp.d_B_sub_s_d_phi(stp).item()
+        d_B_sub_theta_vmec_d_s = interp.d_B_sub_theta_vmec_d_s(stp).item()
+        d_B_sub_theta_vmec_d_phi = interp.d_B_sub_theta_vmec_d_phi(stp).item()
+        d_B_sub_phi_d_s = interp.d_B_sub_phi_d_s(stp).item()
+        d_B_sub_phi_d_theta_vmec = interp.d_B_sub_phi_d_theta_vmec(stp).item()
         Omega = self.charge*modB/self.mass
-        sqrt_g_vmec = interp.sqrt_g_vmec(ys).item()
-        modB = interp.modB(ys).item()
-        d_B_d_s = interp.d_B_d_s(ys).item()
-        d_B_d_theta_vmec = interp.d_B_d_theta_vmec(ys).item()
-        d_B_d_phi = interp.d_B_d_phi(ys).item()
-        B_sup_theta_vmec = interp.B_sup_theta_vmec(ys).item()
-        B_sup_phi = interp.B_sup_phi(ys).item()
-        B_sub_s = interp.B_sub_s(ys).item()
-        B_sub_theta_vmec = interp.B_sub_theta_vmec(ys).item()
-        B_sub_phi = interp.B_sub_phi(ys).item()
-        d_B_sub_s_d_theta_vmec = interp.d_B_sub_s_d_theta_vmec(ys).item()
-        d_B_sub_s_d_phi = interp.d_B_sub_s_d_phi(ys).item()
-        d_B_sub_theta_vmec_d_s = interp.d_B_sub_theta_vmec_d_s(ys).item()
-        d_B_sub_theta_vmec_d_phi = interp.d_B_sub_theta_vmec_d_phi(ys).item()
-        d_B_sub_phi_d_s = interp.d_B_sub_phi_d_s(ys).item()
-        d_B_sub_phi_d_theta_vmec = interp.d_B_sub_phi_d_theta_vmec(ys).item()
 
         # vpar**2
-        vp_sp = vpar**2
-
-       # TODO: drop some components b/c of vacuum
+        vp_sq = vpar**2
 
         # ds/dt
-        coeff = (1.0/B)*(1.0/Omega/sqrt_g_vmec)
+        coeff = (1.0/modB)*(1.0/Omega/sqrt_g_vmec)
         a1 = -mu*B_sub_phi*d_B_d_theta_vmec
-        a2 = mu*B_sub_theta_mvec*d_B_d_phi
+        a2 = mu*B_sub_theta_vmec*d_B_d_phi
         a3 = vp_sq*d_B_sub_phi_d_theta_vmec
-        a4 = -vp_sq*B_sub_phi*d_B_d_theta_vmec/B
-        a5 = -vp_sq*d_B_theta_vmec_d_phi
-        a6 = vp_sq*B_sub_theta_vmec*d_B_d_phi/B
+        a4 = -vp_sq*B_sub_phi*d_B_d_theta_vmec/modB
+        a5 = -vp_sq*d_B_sub_theta_vmec_d_phi
+        a6 = vp_sq*B_sub_theta_vmec*d_B_d_phi/modB
         d_s_d_t = coeff*(a1+a2+a3+a4+a5+a6)
 
         # dtheta/dt
@@ -591,9 +601,9 @@ class GuidingCenterVmec:
         a2 = mu*B_sub_phi*d_B_d_s
         a3 = -mu*B_sub_s*d_B_d_phi
         a4 = -vp_sq*d_B_sub_phi_d_s
-        a5 = (vp_sq/B)*B_sub_phi*d_B_d_s
+        a5 = (vp_sq/modB)*B_sub_phi*d_B_d_s
         a6 = vp_sq*d_B_sub_s_d_phi
-        a7 = -(vp_sq/B)*B_sub_s*d_B_d_phi
+        a7 = -(vp_sq/modB)*B_sub_s*d_B_d_phi
         d_theta_vmec_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
  
         # dphi/dt
@@ -601,10 +611,10 @@ class GuidingCenterVmec:
         a2 = -mu*B_sub_theta_vmec*d_B_d_s
         a3 = mu*B_sub_s*d_B_d_theta_vmec
         a4 = vp_sq*d_B_sub_theta_vmec_d_s
-        a5 = -(vp_sq/B)*B_sub_theta_vmec*d_B_d_s
+        a5 = -(vp_sq/modB)*B_sub_theta_vmec*d_B_d_s
         a6 = -vp_sq*d_B_sub_s_d_theta_vmec
-        a7 = (vp_sq/B)*B_sub_s*d_B_d_theta_vmec
-        d_theta_vmec_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
+        a7 = (vp_sq/modB)*B_sub_s*d_B_d_theta_vmec
+        d_phi_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
 
         # dvpar/dt
         a1 = -(mu/modB)*(B_sup_theta_vmec*d_B_d_theta_vmec + B_sup_phi*d_B_d_phi)
@@ -620,38 +630,57 @@ class GuidingCenterVmec:
         return np.array([d_s_d_t,d_theta_vmec_d_t,d_phi_d_t,d_vpar_d_t])
         
 
-def trace_particles_vmec(gc_rhs,
+def trace_particles_vmec(interp,
           stp_inits, 
           vpar_inits, 
-          tmax=tmax, 
+          tmax=1e-4, 
           atol=1e-6,
           min_step=0.0,
           comm=None,
-          stopping_criteria=stopping_criteria,
-          forget_exact_path=True): 
-
-    # build a guiding center object
-    #gc_rhs = GuidingCenterVmec(field,mass,charge,Ekin).GuidingCenterRHS
-
-    # TODO: set the stoping criteria
+          stopping_criteria=None):
+    # TODO: set up the mpi comms
 
     n_particles = len(stp_inits)
+
+    # storage
+    res_traj = []
+    res_events = []
     for ii,stp in enumerate(stp_inits):
       # get the initial point
       vp = vpar_inits[ii]
       y0 = np.append(stp,vp)
+      # define the guiding center eqns
+      gc_rhs = GuidingCenterVmec(interp,y0).GuidingCenterVmecRHS
       # solve the ode
       res = solve_ivp(gc_rhs,(0,tmax),y0,events=stopping_criteria,atol=atol,min_step=min_step)
-      # TODO: now unpack the results
+      # now unpack the results
+      res_traj.append(np.vstack((res.t,res.y)).T) # trajectories [[t,s,theta,phi],...]
+      res_events.append([res.t_events,res.y_events]) 
 
-    return res_traj
+    return res_traj,res_events
 
 
 
+def MaxStoppingCriteria(t,y):
+    """
+    Finds a zero of g(s) = s - 1.
+    """
+    return y[0] - 1.0
+MaxStoppingCriteria.direction = 1.0
+MaxStoppingCriteria.terminal = True
+
+def MinStoppingCriteria(t,y):
+    """
+    Finds a zero of g(s) = s - 1.
+    """
+    return y[0] - 0.01
+MinStoppingCriteria.direction = -1.0
+MinStoppingCriteria.terminal = True
 
 
 if __name__ == "__main__":
   from simsopt.util.mpi import MpiPartition
+  from constants import V_MAX
   vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
   mpi = MpiPartition()
   vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
@@ -660,7 +689,40 @@ if __name__ == "__main__":
   s = np.linspace(0.01,1,10)
   theta = np.linspace(0, 2 * np.pi, 50)
   phi = np.linspace(0, 2 * np.pi / 2, 60)
-  #vs = vmec_splines(vmec)
-  #data = vmec_compute_geometry(vs, s, theta, phi)
-  data = interpolatedVmecField(vmec,s,theta,phi,'cubic')
-  print(data.d_B_d_s([0.5,np.pi,np.pi/2]))
+  interp = interpolatedVmecField(vmec,s,theta,phi,'cubic')
+
+  y0 = np.array([0.5,np.pi/2,np.pi/2,V_MAX/2])
+  gc_rhs = GuidingCenterVmec(interp,y0).GuidingCenterVmecRHS
+  print(gc_rhs(y0))
+
+  quit()
+
+  # use fixed particle locations
+  ns = ntheta=nphi=3
+  nvpar=3
+  surfaces = np.linspace(0,1, ns)
+  thetas = np.linspace(0, 2*np.pi, ntheta)
+  phis = np.linspace(0,2*np.pi/surf.nfp, nphi)
+  vpars = np.linspace(-V_MAX,V_MAX,nvpar)
+  # build a mesh
+  [surfaces,thetas,phis,vpars] = np.meshgrid(surfaces,thetas,phis,vpars)
+  stp_inits = np.zeros((ns*ntheta*nphi*nvpar, 3))
+  stp_inits[:, 0] = surfaces.flatten()
+  stp_inits[:, 1] = thetas.flatten()
+  stp_inits[:, 2] = phis.flatten()
+  vpar_inits = vpars.flatten()
+  tmax = 1e-4
+  # stopping criteria
+  stopping_criteria = [MinStoppingCriteria,MinStoppingCriteria]
+  # trace
+  res_traj, res_events = trace_particles_vmec(interp,
+          stp_inits, 
+          vpar_inits, 
+          tmax=tmax, 
+          atol=1e-6,
+          min_step=0.0,
+          comm=None,
+          stopping_criteria=stopping_criteria)
+
+  print(res_events)
+  print(res_events.shape)
