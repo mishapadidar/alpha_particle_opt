@@ -574,6 +574,8 @@ class GuidingCenterVmec:
         # vpar**2
         vp_sp = vpar**2
 
+       # TODO: drop some components b/c of vacuum
+
         # ds/dt
         coeff = (1.0/B)*(1.0/Omega/sqrt_g_vmec)
         a1 = -mu*B_sub_phi*d_B_d_theta_vmec
@@ -584,10 +586,37 @@ class GuidingCenterVmec:
         a6 = vp_sq*B_sub_theta_vmec*d_B_d_phi/B
         d_s_d_t = coeff*(a1+a2+a3+a4+a5+a6)
 
-        # TODO:dtheta/dt
-        # TODO:dphi/dt
-        # TODO:dvpar/dt
+        # dtheta/dt
+        a1 = vpar*B_sup_theta_vmec/modB
+        a2 = mu*B_sub_phi*d_B_d_s
+        a3 = -mu*B_sub_s*d_B_d_phi
+        a4 = -vp_sq*d_B_sub_phi_d_s
+        a5 = (vp_sq/B)*B_sub_phi*d_B_d_s
+        a6 = vp_sq*d_B_sub_s_d_phi
+        a7 = -(vp_sq/B)*B_sub_s*d_B_d_phi
+        d_theta_vmec_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
  
+        # dphi/dt
+        a1 = vpar*B_sup_phi/modB
+        a2 = -mu*B_sub_theta_vmec*d_B_d_s
+        a3 = mu*B_sub_s*d_B_d_theta_vmec
+        a4 = vp_sq*d_B_sub_theta_vmec_d_s
+        a5 = -(vp_sq/B)*B_sub_theta_vmec*d_B_d_s
+        a6 = -vp_sq*d_B_sub_s_d_theta_vmec
+        a7 = (vp_sq/B)*B_sub_s*d_B_d_theta_vmec
+        d_theta_vmec_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
+
+        # dvpar/dt
+        a1 = -(mu/modB)*(B_sup_theta_vmec*d_B_d_theta_vmec + B_sup_phi*d_B_d_phi)
+        coeff = -mu*vpar/modB/Omega/sqrt_g_vmec
+        a2 = d_B_d_s*d_B_sub_phi_d_theta_vmec
+        a3 = -d_B_d_s*d_B_sub_theta_vmec_d_phi
+        a4 = -d_B_d_theta_vmec*d_B_sub_phi_d_s
+        a5 = d_B_d_theta_vmec*d_B_sub_s_d_phi
+        a6 = d_B_d_phi*d_B_sub_theta_vmec_d_s
+        a7 = -d_B_d_phi*d_B_sub_s_d_theta_vmec
+        d_vpar_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
+
         return np.array([d_s_d_t,d_theta_vmec_d_t,d_phi_d_t,d_vpar_d_t])
         
 
