@@ -23,6 +23,7 @@ class TraceBoozer:
     n_partitions=1,
     max_mode=1,
     major_radius=13.6,
+    aspect_target=8.0, 
     target_volavgB=5.0,
     tracing_tol=1e-8,
     interpolant_degree=3,
@@ -80,8 +81,9 @@ class TraceBoozer:
       self.surf.fix("rc(0,0)") # fix the Major radius
 
       # set the toroidal flux based off the vmec input, not the current point
-      avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
-      self.vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
+      #avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
+      target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
+      self.vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
       self.vmec.need_to_run_code = True
 
       # now set x0 as the boundary
@@ -102,8 +104,9 @@ class TraceBoozer:
 
     # rescale the toroidal flux; if we havent already
     if len(x0) == 0:
-      avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
-      self.vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
+      #avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
+      target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
+      self.vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
       self.vmec.need_to_run_code = True
       #self.vmec.run()
     #print('aspect',self.vmec.aspect())
@@ -599,42 +602,28 @@ class TraceBoozer:
   
 
 if __name__ == "__main__":
-  import pickle
-  infile = "../experiments/min_energy_loss/data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_1.pickle"
-  x0 = pickle.load(open(infile,"rb"))['xopt']
 
-  #vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
   vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res'
-  #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
-  #vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res_quasysymmetry_opt'
   minor_radius = 1.7
-  major_radius = 8.0*1.7
+  aspect_target = 8.0
+  major_radius = aspect_target*minor_radius
   target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
                       max_mode=2,
                       major_radius=major_radius,
+                      aspect_target=aspect_target,
                       target_volavgB=target_volavgB,
                       tracing_tol=1e-8,
                       interpolant_degree=3,
                       interpolant_level=10,
                       bri_mpol=16,
-                      bri_ntor=16,
-                      x0 = x0,
-                      x0_max_mode=1)
+                      bri_ntor=16)
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
   tmax = 1e-3
 
-
-  ## compute the field and 
-  #field,bri = tracer.compute_boozer_field(x0)
-  ##mu_crit = tracer.compute_mu_crit(field,bri)
-  #
-  ## compute the mirror ratio
-  #modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
-  #print('mirror ratio',np.max(modB)/np.min(modB))
 
   # gauss quadrature
   from gauss_quadrature import *
@@ -658,38 +647,8 @@ if __name__ == "__main__":
   radial_sampler = RadialDensity(1000)
   likelihood = radial_sampler._pdf(stz_inits[:,0])
   likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
+
   import time
-
-  #t0  = time.time()
-  #print('tracing')
-  #Ep = x0 + 1e-4*np.eye(len(x0))
-  #X = np.vstack((x0.reshape((1,-1)),Ep))
-  #x = X[tracer.mpi.group]
-  #c_times_loc = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
-  #print('time',time.time() - t0)
-  ## sizes
-  #n_c_times = len(vpar_inits)
-  #n_points = tracer.mpi.ngroups
-  #counts = np.ones(n_points)
-  ## barrier
-  #tracer.mpi.comm_world.Barrier()
-  ## head leader gathers all evals
-  #c_times = np.zeros(n_points*n_c_times)
-  #counts_c_times = n_c_times*np.array(counts).astype(int)
-  #tracer.mpi.comm_leaders.Gatherv(c_times_loc.flatten(),(c_times,counts_c_times),root=0)
-  ## broadcast to leaders
-  #tracer.mpi.comm_leaders.Bcast(c_times,root=0)
-  ## broadcast internally within group
-  #tracer.mpi.comm_groups.Bcast(c_times,root=0)
-  ## reshape to 2D-array
-  #c_times = np.reshape(c_times,(-1,n_c_times))
-  #print(c_times)
-  #quit()
-
-  #jac = tracer.jacobian_bulk(x0,stz_inits,vpar_inits,tmax,h=1e-4,method='forward',ns=32,ntheta=32,nzeta=32)
-  #print(jac)
-  #quit()
-
   t0  = time.time()
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
