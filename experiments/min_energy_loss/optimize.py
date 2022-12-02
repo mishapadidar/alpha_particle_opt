@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 0 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 False 5 5 5 5
 """
 
 
@@ -356,12 +356,20 @@ def objective(x):
   if sampling_type in ["SAA", "random"]:
     # sample average
     res = np.mean(feat)
+    loss_frac = np.mean(c_times<tmax)
   elif sampling_type == "grid" and sampling_level == "full":
     # gauss quadrature
     int0 = feat*likelihood
     int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
     int0 = int0*quad_weights
     res = np.sum(int0)
+
+    # loss frac for printing
+    loss_frac = c_times<tmax
+    int0 = loss_frac*likelihood
+    int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
+    int0 = int0*quad_weights
+    loss_frac = np.sum(int0)
 
     # simpson
     #int0 = feat*likelihood
@@ -377,6 +385,13 @@ def objective(x):
     int0 = int0*quad_weights
     res = np.sum(int0)
 
+    # loss fraction for printing
+    loss_frac = c_times<tmax
+    int0 = loss_frac*likelihood
+    int0 = int0.reshape((ntheta,nzeta,nvpar))
+    int0 = int0*quad_weights
+    loss_frac = np.sum(int0)
+
     # simpson
     #int0 = feat*likelihood
     #int0 = int0.reshape((ntheta,nzeta,nvpar))
@@ -385,8 +400,7 @@ def objective(x):
     #res = simpson(int2,theta_lin,axis=-1)
 
   if rank == 0:
-    loss_frac = np.mean(c_times<tmax)
-    print('obj:',res,'E[tau]',np.mean(c_times),'std[tau]',np.std(c_times),'P(loss):',loss_frac)
+    print('obj:',res,'P(loss):',loss_frac)
   sys.stdout.flush()
 
   return res
