@@ -1,23 +1,11 @@
 
 # Lab Notebook
 
-## Questions for Matt
-- look at results
-  - does QA need iota constraint?
-  - Why is |B| so ridiculous? Even in quasisymmetry optimization.
-  - In construction do we control |B| or toroidal flux?
-  - solutions are not QS.
-- Optimization summary
-  - highly constrained problem
-  - gradient based opt could be used for t<=1e-3 or surface based opt
-  - need concurrent evals.
-- How do we set up Trace VMEC?
-
 ## TODO:
-- Build module to compute probabilities of theta,zeta.
-- do optimization with cobyla
-
+- finish optimizing to 4 modes tmax=1e-3
 - set up tracing in vmec coords
+
+- Build module to compute probabilities of theta,zeta.
 - set up gradient based optimization
 - set up composite optimization with concurrent evaluations
 
