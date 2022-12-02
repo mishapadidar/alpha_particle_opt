@@ -485,35 +485,36 @@ def vmec_compute_geometry(vs, s, theta, phi, phi_center=0):
     return results
 
 
-def interpolatedVmecField(vs,s,theta,phi,method='linear'):
+def interpolatedVmecField(vmec,s,theta,phi,method='linear'):
     """
     Do 3d interpolation of the fields used for particle tracing in VMEC 
     coords. 
-
-    For inputs see vmec_compute_geometry
+    
+    vmec: Vmec object
+    s,theta,phi: 1d arrays to build interpolants from.
+    method: interpolation method 'linear' or 'cubic'
     return: a struct with interpolants.
     """
-
-    # get the values in 3d
-    data = vmec_compute_geometry(vs, s, theta, phi)
+    # get vmec data on a 3d mesh
+    vmec_data = vmec_compute_geometry(vmec, s, theta, phi)
 
     # do 3d interpolation
-    sqrt_g_vmec = RegularGridInterpolator((s,theta,phi), data.sqrt_g_vmec,method=method)
-    modB = RegularGridInterpolator((s,theta,phi), data.modB,method=method)
-    d_B_d_s = RegularGridInterpolator((s,theta,phi), data.d_B_d_s,method=method)
-    d_B_d_theta_vmec = RegularGridInterpolator((s,theta,phi), data.d_B_d_theta_vmec,method=method)
-    d_B_d_phi = RegularGridInterpolator((s,theta,phi), data.d_B_d_phi,method=method)
-    B_sup_theta_vmec = RegularGridInterpolator((s,theta,phi), data.B_sup_theta_vmec,method=method)
-    B_sup_phi = RegularGridInterpolator((s,theta,phi), data.B_sup_phi,method=method)
-    B_sub_s = RegularGridInterpolator((s,theta,phi), data.B_sub_s,method=method)
-    B_sub_theta_vmec = RegularGridInterpolator((s,theta,phi), data.B_sub_theta_vmec,method=method)
-    B_sub_phi = RegularGridInterpolator((s,theta,phi), data.B_sub_phi,method=method)
-    d_B_sub_s_d_theta_vmec = RegularGridInterpolator((s,theta,phi), data.d_B_sub_s_d_theta_vmec,method=method)
-    d_B_sub_s_d_phi = RegularGridInterpolator((s,theta,phi), data.d_B_sub_s_d_phi,method=method)
-    d_B_sub_theta_vmec_d_s = RegularGridInterpolator((s,theta,phi), data.d_B_sub_theta_vmec_d_s,method=method)
-    d_B_sub_theta_vmec_d_phi = RegularGridInterpolator((s,theta,phi), data.d_B_sub_theta_vmec_d_phi,method=method)
-    d_B_sub_phi_d_s = RegularGridInterpolator((s,theta,phi), data.d_B_sub_phi_d_s,method=method)
-    d_B_sub_phi_d_theta_vmec = RegularGridInterpolator((s,theta,phi), data.d_B_sub_phi_d_theta_vmec,method=method)
+    sqrt_g_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.sqrt_g_vmec,method=method)
+    modB = RegularGridInterpolator((s,theta,phi), vmec_data.modB,method=method)
+    d_B_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_s,method=method)
+    d_B_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_theta_vmec,method=method)
+    d_B_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_phi,method=method)
+    B_sup_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.B_sup_theta_vmec,method=method)
+    B_sup_phi = RegularGridInterpolator((s,theta,phi), vmec_data.B_sup_phi,method=method)
+    B_sub_s = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_s,method=method)
+    B_sub_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_theta_vmec,method=method)
+    B_sub_phi = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_phi,method=method)
+    d_B_sub_s_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_s_d_theta_vmec,method=method)
+    d_B_sub_s_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_s_d_phi,method=method)
+    d_B_sub_theta_vmec_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_theta_vmec_d_s,method=method)
+    d_B_sub_theta_vmec_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_theta_vmec_d_phi,method=method)
+    d_B_sub_phi_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_phi_d_s,method=method)
+    d_B_sub_phi_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_phi_d_theta_vmec,method=method)
 
     results = Struct()
     variables = [
@@ -661,6 +662,7 @@ def trace_particles_vmec(interp,
 
 
 
+# TODO: generalize this stopping criteria
 def MaxStoppingCriteria(t,y):
     """
     Finds a zero of g(s) = s - 1.
@@ -669,6 +671,7 @@ def MaxStoppingCriteria(t,y):
 MaxStoppingCriteria.direction = 1.0
 MaxStoppingCriteria.terminal = True
 
+# TODO: generalize this stopping criteria
 def MinStoppingCriteria(t,y):
     """
     Finds a zero of g(s) = s - 1.
@@ -686,9 +689,15 @@ if __name__ == "__main__":
   vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
   surf = vmec.boundary
 
-  s = np.linspace(0.01,1,10)
-  theta = np.linspace(0, 2 * np.pi, 50)
-  phi = np.linspace(0, 2 * np.pi / 2, 60)
+  # TODO: need to shut up the elements in vmec_compute_geometry that
+  # complain when we evaluate at s=0
+  # TODO: exploit stellsym and field period symmetry in interpolants
+
+  # build 3d interpolants
+  s = np.linspace(0,1, 16)
+  theta = np.linspace(0, 2*np.pi, 32)
+  phi = np.linspace(0,2*np.pi/surf.nfp, 32)
+  vmec_data = vmec_compute_geometry(vmec, s, theta, phi)
   interp = interpolatedVmecField(vmec,s,theta,phi,'cubic')
 
   y0 = np.array([0.5,np.pi/2,np.pi/2,V_MAX/2])
