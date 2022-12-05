@@ -76,6 +76,10 @@ for step in range(largest_mode):
     least_squares_mpi_solve(prob, mpi, grad=True)
     #least_squares_mpi_solve(prob, mpi, grad=True,max_nfev=1)
 
+    # get xopt
+    xopt = np.copy(prob.x)
+    surf.x = np.copy(xopt)
+
     if mpi.proc0_world:
         print("Done optimization with max_mode =", max_mode, \
               ". Final vmec iteration = ", vmec.iter)
@@ -84,8 +88,6 @@ for step in range(largest_mode):
         print("Quasisymmetry objective after optimization:", qs.total())
         print("Total objective after optimization:", prob.objective())
     
-    xopt = np.copy(prob.x)
-
     # write the data to a file
     outfilename = "input." + vmec_label + f"_max_mode_{max_mode}_quasisymmetry_opt"
     vmec.write_input(outfilename)
