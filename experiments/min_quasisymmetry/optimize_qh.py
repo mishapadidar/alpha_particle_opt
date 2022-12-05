@@ -17,7 +17,7 @@ throughout the volume.
 """
 
 mpi = MpiPartition()
-largest_mode = 3
+largest_mode = 5
 target_volavgB = 5.7
 aspect_target = 8.0
 major_radius = 1.7*aspect_target
