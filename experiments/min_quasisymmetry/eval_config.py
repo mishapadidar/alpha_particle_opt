@@ -23,12 +23,11 @@ xopt = indata['xopt']
 max_mode = indata['max_mode']
 major_radius = indata['major_radius']
 aspect_target = indata['aspect_target']
-minor_radius = major_radius/aspect_target
 target_volavgB = indata['target_volavgB']
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
                       max_mode=max_mode,
-                      minor_radius=minor_radius,
+                      aspect_target=aspect_target,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB)
 tracer.sync_seeds()
