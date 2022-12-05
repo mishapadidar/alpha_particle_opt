@@ -288,7 +288,7 @@ class TraceBoozer:
 
   def compute_boozer_field(self,x):
     # to save on recomputes
-    if np.all(self.x_field == x):
+    if np.all(self.x_field == x) and (self.field is not None):
       return self.field,self.bri
 
     self.surf.x = np.copy(x)
