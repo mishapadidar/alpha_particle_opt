@@ -11,9 +11,6 @@ from trace_boozer import TraceBoozer
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-minor_radius = 1.7
-major_radius = 8.0*1.7
-target_volavgB = 5.0
 tmax = 1e-2
 n_particles = 10000
 
@@ -37,7 +34,7 @@ for infile in filelist:
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
                       max_mode=max_mode,
-                      minor_radius=minor_radius,
+                      aspect_target=aspect_target,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
                       tracing_tol=1e-8,
@@ -51,8 +48,12 @@ for infile in filelist:
   # compute the mirror ratio
   field,bri = tracer.compute_boozer_field(x0)
   modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
+  Bmax = np.max(modB)
+  Bmin = np.min(modB)
+  mirror_ratio = Bmax/Bmin
   if rank == 0:
-    print('mirror ratio',np.max(modB)/np.min(modB))
+    print('mirror ratio',mirror_ratio)
+    print('Bmax',Bmax)
   
   # tracing points
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
@@ -72,5 +73,8 @@ for infile in filelist:
   # dump a pickle file
   if rank == 0:
     indata['c_times'] = c_times
+    indata['mirror_ratio'] = mirror_ratio
+    indata['Bmax'] = Bmax
+    indata['Bmin'] = Bmin
     indata['tmax'] = tmax
     pickle.dump(indata,open(infile,"wb"))
