@@ -18,7 +18,7 @@ throughout the volume.
 
 mpi = MpiPartition()
 largest_mode = 3
-target_volavgB = 5.0
+target_volavgB = 5.7
 aspect_target = 8.0
 major_radius = 1.7*aspect_target
 # input file extension
@@ -33,8 +33,8 @@ factor = major_radius/surf.get("rc(0,0)")
 surf.x = surf.x*factor
 
 # rescale the B field
-avg_minor_rad = surf.get('rc(0,0)')/surf.aspect_ratio() # true avg minor radius
-vmec.indata.phiedge = np.pi*(avg_minor_rad**2)*target_volavgB
+target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
+vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
 vmec.need_to_run_code = True
 
 # Configure quasisymmetry objective:
