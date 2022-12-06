@@ -34,16 +34,16 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 -1.043 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy bobyqa 1 nfp4_QH_warm_high_res None 0.0001 -1.043 7.0 5 5 5 5
 """
 
 
 # configuration parmaeters
 n_partitions = 1
-minor_radius = 1.7
-aspect_target = 8.0
+#aspect_target = 8.0
 #iota_target = 0.42 # only for QA
-major_radius = aspect_target*minor_radius
+minor_radius = 1.7
+#major_radius = 13.6
 target_volavgB = 5.7
 s_min = 0.0
 s_max = 1.0
@@ -76,13 +76,17 @@ if constrain_iota:
   iota_target = float(sys.argv[9])
 else:
   iota_target = 0.0
-ns = int(sys.argv[10])  # number of surface samples
-ntheta = int(sys.argv[11]) # num theta samples
-nzeta = int(sys.argv[12]) # num phi samples
-nvpar = int(sys.argv[13]) # num vpar samples
+aspect_target = float(sys.argv[10]) # float
+ns = int(sys.argv[11])  # number of surface samples
+ntheta = int(sys.argv[12]) # num theta samples
+nzeta = int(sys.argv[13]) # num phi samples
+nvpar = int(sys.argv[14]) # num vpar samples
 assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['cobyla','bobyqa','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
+
+# set the major radius
+major_radius = minor_radius*aspect_target
 
 n_particles = ns*ntheta*nzeta*nvpar
 if objective_type == "mean_energy":
@@ -535,7 +539,7 @@ if rank == 0:
   outdata['iota_target'] = iota_target
   outdata['constrain_iota'] = constrain_iota
   outdata['major_radius'] = major_radius
-  outdata['minor_radius'] =  minor_radius
+  #outdata['minor_radius'] =  minor_radius
   outdata['target_volavgB'] = target_volavgB
   outdata['vmec_input'] = vmec_input
   outdata['max_mode'] = max_mode

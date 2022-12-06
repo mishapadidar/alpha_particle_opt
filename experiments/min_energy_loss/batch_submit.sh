@@ -1,43 +1,52 @@
 
-TMAX='0.001'
+#TMAX='0.001'
+TMAX='0.0001'
 
 SAMPLINGTYPE='grid' # grid, random, SAA
 #SAMPLINGTYPE='SAA' # grid, random, SAA
 
-SURFS=('0.3' '0.5' 'full') 
+SURFS=('0.25' '0.5' 'full') 
 
 OBJECTIVE='mean_energy'
 #OBJECTIVE='mean_time'
 
-#METHOD="bobyqa" # pdfo, nelder, snobfit, diff_evol, sidpsm
-METHOD="cobyla" # pdfo, nelder, snobfit, diff_evol, sidpsm
+METHOD="bobyqa" # pdfo, nelder, snobfit, diff_evol, sidpsm
+#METHOD="cobyla" # pdfo, nelder, snobfit, diff_evol, sidpsm
 
 MAXMODE=1
 
-NS=7
-NTHETA=7
-NPHI=7
-NVPAR=7
+NS=10
+NTHETA=10
+NPHI=10
+NVPAR=10
 
 NODES=1
-CORES=('2' '2' '8')
+CORES=('2' '2' '4')
+#CORES=('2' '2' '8')
 
-# iota constraint; bool
-iota='True' # True or False
+# cold start
+#WARM=("None" "None" "None") # None or filename
 
+# 2 field period
 VMEC="nfp2_QA_cold_high_res_mirror_feas"
+iota=0.42
+aspect=8.0
+#WARM=(
+#"../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_3_iota_False.pickle"
+#"../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_3_iota_False.pickle" 
+#"../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_3_iota_False.pickle" 
+#      )
+
+# 4 field period
 #VMEC="nfp4_QH_cold_high_res"
-
-
-WARM=("None" "None" "None") # None or filename
-#WARM=("../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_1.pickle" 
-#      "../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_1.pickle" 
-#      "../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_1.pickle" 
+#iota= -1.0437511485315838
+#aspect=7.0
+#WARM=(
+#"../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_1_iota_False.pickle" 
+#"../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_1_iota_False.pickle" 
+#"../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_1_iota_False.pickle" 
 #      )
-#WARM=("../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_1.pickle" 
-#      "../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_1.pickle" 
-#      "../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_full_tmax_0.001_cobyla_mmode_1.pickle" 
-#      )
+
 
 
 for idx in ${!SURFS[@]}
@@ -78,7 +87,7 @@ do
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$cores] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${warm} ${TMAX} ${iota} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$cores] python3 optimize.py ${SAMPLINGTYPE} ${surf} ${OBJECTIVE} ${METHOD} ${MAXMODE} ${VMEC} ${warm} ${TMAX} ${iota} ${aspect} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
