@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 None 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 -1.043 5 5 5 5
 """
 
 
@@ -438,16 +438,18 @@ elif method == "bobyqa":
 
   def penalty_obj(x):
     """penalty formulation for bobyqa"""
-    asp = aspect_ratio(x)
-    c_asp = max([asp-aspect_target,0.0])**2
     B = B_field(x)
     #B = B_field_volavg_con(x)
     obj = evw(x)
     # B_lb <= modB <= B_ub
     c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
     c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
+    # aspect <= aspect_target
+    asp = aspect_ratio(x)
+    c_asp = max([asp-aspect_target,0.0])**2
     # iota constraint iota = iota_target
-    iota = rotational_transform(x)
+    #iota = rotational_transform(x)
+    iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
     c_iota = (iota-iota_target)**2
     ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
     if rank == 0:
