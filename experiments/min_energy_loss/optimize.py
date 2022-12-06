@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 False 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy cobyla 1 nfp4_QH_warm_high_res None 0.0001 None 5 5 5 5
 """
 
 
@@ -42,13 +42,13 @@ ex.
 n_partitions = 1
 minor_radius = 1.7
 aspect_target = 8.0
-iota_target = 0.42 # only for QA
+#iota_target = 0.42 # only for QA
 major_radius = aspect_target*minor_radius
-target_volavgB = 5.0
+target_volavgB = 5.7
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 300
+maxfev = 500
 max_step = 1.0 # for max_mode=1
 #max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
@@ -71,7 +71,11 @@ max_mode = int(sys.argv[5]) # max mode
 vmec_label = sys.argv[6] # vmec file
 warm_start_file = sys.argv[7] # filename or "None"
 tmax = float(sys.argv[8]) # tmax
-constrain_iota = (sys.argv[9] == "True")
+constrain_iota = (sys.argv[9] != "None") # None or float
+if constrain_iota:
+  iota_target = float(sys.argv[9])
+else:
+  iota_target = 0.0
 ns = int(sys.argv[10])  # number of surface samples
 ntheta = int(sys.argv[11]) # num theta samples
 nzeta = int(sys.argv[12]) # num phi samples
@@ -434,15 +438,20 @@ elif method == "bobyqa":
 
   def penalty_obj(x):
     """penalty formulation for bobyqa"""
-    c_asp = max([aspect_ratio(x)-aspect_target,0.0])**2
+    asp = aspect_ratio(x)
+    c_asp = max([asp-aspect_target,0.0])**2
     B = B_field(x)
     #B = B_field_volavg_con(x)
     obj = evw(x)
+    # B_lb <= modB <= B_ub
     c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
     c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
-    ret = obj + c_asp + (c_mirr_ub + c_mirr_lb)
+    # iota constraint iota = iota_target
+    iota = rotational_transform(x)
+    c_iota = (iota-iota_target)**2
+    ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
     if rank == 0:
-      print('p-obj:',ret,'asp',aspect_ratio(x),'c_mirr_ub',c_mirr_ub)
+      print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
       #print("")
     return ret
   res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
@@ -512,7 +521,7 @@ if rank == 0:
 # save results
 if rank == 0:
   print(res)
-  outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{constrain_iota}.pickle"
+  outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{iota_target}.pickle"
   outdata = {}
   outdata['X'] = evw.X
   outdata['FX'] = evw.FX
