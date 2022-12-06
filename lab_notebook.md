@@ -1,12 +1,13 @@
 
 # Lab Notebook
 
-## TODO:
-- finish optimizing for QA, QH
-- find why our QS configurations have such bad losses!
 
-- finish optimizing to 4 modes tmax=1e-3
-- finish optimizing to 3 modes tmax=1e-4
+## TODO:
+- finish QA, QH optimization
+  - post process results
+  - save data
+- finish optimizing to 4 modes tmax=1e-4
+  - determine if we need to do phase one on mirror ratio constraints.
 
 - set up tracing in vmec coords
   - finish writing the guiding center eqns
