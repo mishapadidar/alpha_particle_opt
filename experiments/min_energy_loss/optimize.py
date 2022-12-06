@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy bobyqa 1 nfp4_QH_warm_high_res None 0.0001 -1.043 7.0 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy bobyqa 1 nfp4_phase_one None 0.0001 -1.043 7.0 5 5 5 5
 """
 
 
@@ -107,6 +107,10 @@ elif vmec_label == "nfp4_QH_cold_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res"
 elif vmec_label == "nfp4_QH_cold_high_res_mirror_feas":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res_mirror_feasible"
+elif vmec_label == "nfp4_phase_one":
+  vmec_input="../min_quasisymmetry/input.nfp4_QH_cold_high_res_max_mode_1_aspect_7_iota_-1.043"
+elif vmec_label == "nfp2_phase_one":
+  vmec_input="../min_quasisymmetry/input.nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
 
 if not debug:
   vmec_input="../" + vmec_input
