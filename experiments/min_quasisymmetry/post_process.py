@@ -27,7 +27,6 @@ for infile in filelist:
   vmec_input = indata['vmec_input']
   aspect_target = indata['aspect_target']
   major_radius = indata['major_radius']
-  minor_radius = major_radius/aspect_target
   target_volavgB = indata['target_volavgB']
   xopt = indata['xopt']
 
@@ -42,9 +41,9 @@ for infile in filelist:
                       interpolant_level=10,
                       bri_mpol=16,
                       bri_ntor=16)
-  tracer.sync_seeds(0)
+  tracer.sync_seeds()
   x0 = np.copy(xopt)
-  
+
   # compute the mirror ratio
   field,bri = tracer.compute_boozer_field(x0)
   modB = tracer.compute_modB(field,bri,ns=64,ntheta=64,nphi=64)
@@ -54,6 +53,10 @@ for infile in filelist:
   if rank == 0:
     print('mirror ratio',mirror_ratio)
     print('Bmax',Bmax)
+
+  """
+  Find the global losses
+  """
   
   # tracing points
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
@@ -68,11 +71,32 @@ for infile in filelist:
     print('time',time.time() - t0)
     print('mean',np.mean(c_times))
     print('loss fraction',np.mean(c_times < tmax))
+
+  """
+  Now find the losses on the 0.25 surface.
+  """
+  # tracing points
+  s_label = 0.25
+  stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label=s_label)
+  
+  t0  = time.time()
+  if rank == 0:
+    print('computing surface losses')
+
+  c_times_surface = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+
+  if rank == 0:
+    print('time',time.time() - t0)
+    print('s_label',s_label)
+    print('mean',np.mean(c_times_surface))
+    print('loss fraction',np.mean(c_times_surface < tmax))
   
 
   # dump a pickle file
   if rank == 0:
     indata['c_times'] = c_times
+    indata['c_times_surface'] = c_times_surface
+    indata['s_label'] = s_label
     indata['mirror_ratio'] = mirror_ratio
     indata['Bmax'] = Bmax
     indata['Bmin'] = Bmin
