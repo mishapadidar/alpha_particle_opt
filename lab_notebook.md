@@ -2,12 +2,16 @@
 # Lab Notebook
 
 ## TODO:
+- finish optimizing for QA, QH
+- find why our QS configurations have such bad losses!
+
 - finish optimizing to 4 modes tmax=1e-3
+- finish optimizing to 3 modes tmax=1e-4
 
 - set up tracing in vmec coords
   - finish writing the guiding center eqns
   - test the guiding center eqns
-  - generalize the stopping criteria
+  - [x] generalize the stopping criteria
   - test the particle tracing
 
 - set up a trace vmec module.
