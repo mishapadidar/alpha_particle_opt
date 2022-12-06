@@ -24,13 +24,11 @@ NODES=1
 CORES=('2' '2' '4')
 #CORES=('2' '2' '8')
 
-# cold start
-#WARM=("None" "None" "None") # None or filename
-
 # 2 field period
-VMEC="nfp2_QA_cold_high_res_mirror_feas"
-iota=0.42
-aspect=8.0
+#VMEC="nfp2_phase_one"
+#iota=0.42
+#aspect=6.0
+#WARM=("None" "None" "None") # None or filename
 #WARM=(
 #"../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_3_iota_False.pickle"
 #"../data/data_opt_nfp2_QA_cold_high_res_mirror_feas_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_3_iota_False.pickle" 
@@ -38,9 +36,10 @@ aspect=8.0
 #      )
 
 # 4 field period
-#VMEC="nfp4_QH_cold_high_res"
-#iota= -1.0437511485315838
-#aspect=7.0
+VMEC="nfp4_phase_one"
+iota=-1.043
+aspect=7.0
+WARM=("None" "None" "None") # None or filename
 #WARM=(
 #"../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.3_tmax_0.001_cobyla_mmode_1_iota_False.pickle" 
 #"../data/data_opt_nfp4_QH_cold_high_res_mean_energy_grid_surface_0.5_tmax_0.001_cobyla_mmode_1_iota_False.pickle" 
