@@ -16,25 +16,25 @@ Optimize a VMEC equilibrium for quasi-axis symmetry (M=1, N=0)
 throughout the volume.
 """
 
-largest_mode = 1
+largest_mode = 5
 
-## for QA optimization
-#QA = True
-#aspect_target = 6.0
-#iota_target = 0.42
-#vmec_label = "nfp2_QA_cold_high_res_phase_one"
-#vmec_input = "../phase_one/input.nfp2_QA_cold_high_res_phase_one"
-##vmec_label = "nfp2_QA_cold_high_res_aspect_6_iota_0.42"
-##vmec_input = "./input.nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
+# for QA optimization
+QA = True
+aspect_target = 6.0
+iota_target = 0.42
+vmec_label = "nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
+vmec_input = "../phase_one/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
+#vmec_label = "nfp2_QA_cold_high_res_aspect_6_iota_0.42"
+#vmec_input = "./input.nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
 
-# for QH optimization
-QA = False
-aspect_target = 7.0
-iota_target = -1.0437569
-vmec_label = "nfp4_QH_cold_high_res_phase_one"
-vmec_input = "../phase_one/input.nfp4_QH_cold_high_res_phase_one"
-#vmec_label = "nfp4_QH_cold_high_res_aspect_7_iota_-1.043"
-#vmec_input = "./input.nfp4_QH_cold_high_res_max_mode_1_aspect_7_iota_-1.043"
+## for QH optimization
+#QA = False
+#aspect_target = 7.0
+#iota_target = -1.043
+#vmec_label = "nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
+#vmec_input = "../phase_one/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
+##vmec_label = "nfp4_QH_cold_high_res_aspect_7_iota_-1.043"
+##vmec_input = "./input.nfp4_QH_cold_high_res_max_mode_1_aspect_7_iota_-1.043"
 
 
 mpi = MpiPartition()
