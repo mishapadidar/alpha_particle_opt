@@ -662,23 +662,35 @@ def trace_particles_vmec(interp,
 
 
 
-# TODO: generalize this stopping criteria
-def MaxStoppingCriteria(t,y):
-    """
-    Finds a zero of g(s) = s - 1.
-    """
-    return y[0] - 1.0
-MaxStoppingCriteria.direction = 1.0
-MaxStoppingCriteria.terminal = True
+class MaxStoppingCriteria:
+  """
+  Stop when a particle reaches a maximum value of s.
+  """
+  def __init__(self,s_max):
+    self.s_max = s_max
 
-# TODO: generalize this stopping criteria
-def MinStoppingCriteria(t,y):
+  def evaluate(t,y):
     """
-    Finds a zero of g(s) = s - 1.
+    Finds a zero of g(s) = s_max - s
     """
-    return y[0] - 0.01
-MinStoppingCriteria.direction = -1.0
-MinStoppingCriteria.terminal = True
+    return self.s_max - y[0]
+  evaluate.direction = -1.0
+  evaluate.terminal = True
+
+def MinStoppingCriteria:
+  """
+  Stop when a particle reaches a minimum value of s.
+  """
+  def __init__(self,s_min):
+    self.s_min = s_min
+
+  def evaluate(t,y):
+    """
+    Finds a zero of g(s) = s - s_min
+    """
+    return y[0] - self.s_min
+  evaluate.direction = -1.0
+  evaluate.terminal = True
 
 
 if __name__ == "__main__":
@@ -722,7 +734,7 @@ if __name__ == "__main__":
   vpar_inits = vpars.flatten()
   tmax = 1e-4
   # stopping criteria
-  stopping_criteria = [MinStoppingCriteria,MinStoppingCriteria]
+  stopping_criteria = [MinStoppingCriteria(s_min).eval,MaxStoppingCriteria(s_max).eval]
   # trace
   res_traj, res_events = trace_particles_vmec(interp,
           stp_inits, 
