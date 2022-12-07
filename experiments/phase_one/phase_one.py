@@ -23,7 +23,7 @@ Phase one optimization to find configuration with
 # for 4 field period
 vmec_label = "nfp4_QH_cold_high_res"
 aspect_target = 7.0
-iota_target = -1.0437569
+iota_target = -1.043
 
 ## for 2 field period
 ##vmec_label = "nfp2_QA_cold_high_res"
@@ -152,8 +152,9 @@ for step in range(largest_mode):
         print("mirror ratio",Bmax/Bmin)
     
     # write the data to a file
-    outfilename = "input." + vmec_label + f"_phase_one"
-    vmec.write_input(outfilename)
+    tail = f"_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
+    outfilename = "input." + vmec_label + tail    
+     vmec.write_input(outfilename)
 
     if mpi.proc0_world:
       outdata = {}
@@ -162,7 +163,8 @@ for step in range(largest_mode):
       outdata['max_mode'] = max_mode
       outdata['aspect_target'] = aspect_target
       outdata['iota_target'] = iota_target
-      outfilename = "data_" + vmec_label + f"_phase_one.pickle"
+      outdata['mirror_target'] = mirror_target
+      outfilename = "data_" + vmec_label + tail
       pickle.dump(outdata,open(outfilename,"wb"))
 
 if mpi.proc0_world:
