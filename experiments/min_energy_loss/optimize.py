@@ -458,8 +458,8 @@ elif method == "bobyqa":
     c_asp = max([asp-aspect_target,0.0])**2
     # iota constraint iota = iota_target
     #iota = rotational_transform(x)
+    iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
     if constrain_iota:
-      iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
       c_iota = (iota-iota_target)**2
     else:
       c_iota = 0.0
