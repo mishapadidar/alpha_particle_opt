@@ -94,11 +94,12 @@ minor_radius = surf.get('rc(0,0)')/aspect_target
 B_mean = vmec.indata.phiedge/np.pi/minor_radius/minor_radius
 mirror = MirrorCon(vmec,B_mean,mirror_target)
 
-# uncomment for phase 1
-# phase one
 prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
                                         (vmec.mean_iota, iota_target, 1),
                                         (mirror.J, 0.0, 1)])
+## phase one without mirror constraint
+#prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
+#                                        (vmec.mean_iota, iota_target, 1)])
 
 if mpi.proc0_world:
     print("Quasisymmetry objective before optimization:", qs.total())
