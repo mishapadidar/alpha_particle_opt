@@ -603,14 +603,15 @@ class TraceBoozer:
 
 if __name__ == "__main__":
 
-  vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res'
+  #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
+  vmec_input = "../experiments/min_quasisymmetry/input.nfp2_QA_cold_high_res_phase_one_max_mode_1_quasisymmetry_opt"
   minor_radius = 1.7
-  aspect_target = 8.0
+  aspect_target = 7.0
   major_radius = aspect_target*minor_radius
   target_volavgB = 5.0
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
-                      max_mode=2,
+                      max_mode=1,
                       major_radius=major_radius,
                       aspect_target=aspect_target,
                       target_volavgB=target_volavgB,
@@ -622,55 +623,26 @@ if __name__ == "__main__":
   tracer.sync_seeds(0)
   x0 = tracer.x0
   dim_x = tracer.dim_x
-  tmax = 1e-3
+  tmax = 1e-2
 
+  print(tracer.vmec.mean_iota())
 
-  # gauss quadrature
-  from gauss_quadrature import *
-  ns = 9
-  ntheta=9
-  nzeta = 9
-  nvpar = 9
-  s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,0.0,1.0)
-  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
-  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
-  vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
-  [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin,indexing='ij')
-  [w1,w2,w3,w4] = np.meshgrid(s_weights,theta_weights,zeta_weights,vpar_weights,indexing='ij')
-  quad_weights = w1*w2*w3*w4
-  stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
-  stz_inits[:, 0] = surfaces.flatten()
-  stz_inits[:, 1] = thetas.flatten()
-  stz_inits[:, 2] = zetas.flatten()
-  vpar_inits = vpars.flatten()
-  # radial likelihood
-  radial_sampler = RadialDensity(1000)
-  likelihood = radial_sampler._pdf(stz_inits[:,0])
-  likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
+  #"""
+  #Now compute statistics with monte carlo
+  #"""
 
-  import time
-  t0  = time.time()
+  # tracing points
+  n_particles = 5000
+  s_label = 0.25
+  stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  print('time',time.time() - t0)
-
-  # quadrature
-  feat = c_times
-  int0 = feat*likelihood
-  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-  int0 = int0*quad_weights
-  res = np.sum(int0)
-  print('mean',res)
-  feat = 3.5*np.exp(-2*c_times/tmax)
-  int0 = feat*likelihood
-  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-  int0 = int0*quad_weights
-  res = np.sum(int0)
-  print('energy',res)
-
-  """
-  Now compute statistics with monte carlo
-  """
+  std_err = np.std(c_times)/np.sqrt(len(c_times))
+  mu = np.mean(c_times)
+  nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
+  print('mean',mu,std_err)
+  print('energy',nrg)
+  print('loss fraction',np.mean(c_times < tmax))
 
   # tracing points
   n_particles = 5000
