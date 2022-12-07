@@ -32,6 +32,7 @@ iota_target = -1.043
 
 # other 
 mirror_target = 1.35
+#mirror_target = 1.5
 largest_mode = 1
 
 vmec_input = "../../vmec_input_files/" +"input." + vmec_label
@@ -154,7 +155,7 @@ for step in range(largest_mode):
     # write the data to a file
     tail = f"_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
     outfilename = "input." + vmec_label + tail    
-     vmec.write_input(outfilename)
+    vmec.write_input(outfilename)
 
     if mpi.proc0_world:
       outdata = {}
