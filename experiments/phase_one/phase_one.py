@@ -151,7 +151,7 @@ for step in range(largest_mode):
         print("mirror ratio",Bmax/Bmin)
     
     # write the data to a file
-    outfilename = "input." + vmec_label + f"_max_mode_{max_mode}_quasisymmetry_opt"
+    outfilename = "input." + vmec_label + f"_phase_one"
     vmec.write_input(outfilename)
 
     if mpi.proc0_world:
@@ -161,7 +161,7 @@ for step in range(largest_mode):
       outdata['max_mode'] = max_mode
       outdata['aspect_target'] = aspect_target
       outdata['iota_target'] = iota_target
-      outfilename = "data_" + vmec_label + f"_max_mode_{max_mode}_quasisymmetry_opt.pickle"
+      outfilename = "data_" + vmec_label + f"_phase_one.pickle"
       pickle.dump(outdata,open(outfilename,"wb"))
 
 if mpi.proc0_world:
