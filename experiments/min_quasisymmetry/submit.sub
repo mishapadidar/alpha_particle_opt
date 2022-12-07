@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J pp                             # Job name
+#SBATCH -J QS                             # Job name
 #SBATCH -o ./slurm_output/job_%j.out    # Name of stdout output file(%j expands to jobId)
 #SBATCH -e ./slurm_output/job_%j.err    # Name of stderr output file(%j expands to jobId)
 #SBATCH -N 4                                 # Total number of nodes requested
@@ -11,6 +11,5 @@
 ##SBATCH --partition=bindel               # Which partition/queue it should run on
 #SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99]
 
-##mpiexec -n 48 python3 optimize_qh.py
-##mpiexec -n 48 python3 optimize_qa.py
-mpiexec -n 48 python3 post_process.py
+mpiexec -n 48 python3 optimize.py
+##mpiexec -n 48 python3 post_process.py

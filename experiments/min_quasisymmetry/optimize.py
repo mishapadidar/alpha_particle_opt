@@ -17,28 +17,36 @@ throughout the volume.
 """
 
 largest_mode = 5
+
+# for QA optimization
+QA = True
 aspect_target = 6.0
 iota_target = 0.42
-
-## cold start; for phase one
-#vmec_label = "nfp2_QA_cold_high_res"
-#vmec_input = "../../vmec_input_files/input.nfp2_QA_cold_high_res"
-# warm start
-vmec_label = "nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
+vmec_label = "nfp2_QA_cold_high_res_aspect_6_iota_0.42"
 vmec_input = "./input.nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
+
+## for QH optimization
+#QA = False
+#aspect_target = 7.0
+#iota_target = -1.0437569
+#vmec_label = "input.nfp4_QH_cold_high_res_aspect_7_iota_-1.043"
+#vmec_input = "./input.nfp4_QH_cold_high_res_max_mode_1_aspect_7_iota_-1.043"
+
 
 mpi = MpiPartition()
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
 surf = vmec.boundary
 
-# Configure quasisymmetry objective:
-qs = QuasisymmetryRatioResidual(vmec,
-                                np.arange(0, 1.01, 0.1),  # Radii to target
-                                helicity_m=1, helicity_n=0)  # (M, N) you want in |B|
-
-# uncomment for phase one
-#prob = LeastSquaresProblem.from_tuples([(vmec.aspect, aspect_target, 1),
-#                                        (vmec.mean_iota, iota_target, 1)])
+if QA:
+    # quasi-axis
+    qs = QuasisymmetryRatioResidual(vmec,
+                                    np.arange(0, 1.01, 0.1),  # Radii to target
+                                    helicity_m=1, helicity_n=0)  # (M, N) you want in |B|
+else:
+    # quasi-helical
+    qs = QuasisymmetryRatioResidual(vmec,
+                                    np.arange(0, 1.01, 0.1),  # Radii to target
+                                    helicity_m=1, helicity_n=-1)  # (M, N) you want in |B|
 
 # Define objective function
 prob = LeastSquaresProblem.from_tuples([(vmec.aspect, aspect_target, 1),
