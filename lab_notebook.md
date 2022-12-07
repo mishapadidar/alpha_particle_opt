@@ -3,12 +3,9 @@
 
 
 ## TODO:
-- optimize QS from phase one to show that good sols exist
-  - test the particle losses
-  - save QS results
-  - save phase one results
 - optimize to 4 modes tmax=1e-4
   - use phase one starting points
+- optimize to 4 modes tmax=1e-3
 
 - set up tracing in vmec coords
   - finish writing the guiding center eqns
