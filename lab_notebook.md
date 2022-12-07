@@ -3,11 +3,12 @@
 
 
 ## TODO:
-- finish QA, QH optimization
-  - post process results
-  - save data
-- finish optimizing to 4 modes tmax=1e-4
-  - determine if we need to do phase one on mirror ratio constraints.
+- optimize QS from phase one to show that good sols exist
+  - test the particle losses
+  - save QS results
+  - save phase one results
+- optimize to 4 modes tmax=1e-4
+  - use phase one starting points
 
 - set up tracing in vmec coords
   - finish writing the guiding center eqns
