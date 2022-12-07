@@ -44,7 +44,7 @@ n_partitions = 1
 #iota_target = 0.42 # only for QA
 minor_radius = 1.7
 #major_radius = 13.6
-target_volavgB = 5.7
+target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
@@ -108,9 +108,9 @@ elif vmec_label == "nfp4_QH_cold_high_res":
 elif vmec_label == "nfp4_QH_cold_high_res_mirror_feas":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res_mirror_feasible"
 elif vmec_label == "nfp4_phase_one":
-  vmec_input="../min_quasisymmetry/input.nfp4_QH_cold_high_res_max_mode_1_aspect_7_iota_-1.043"
+  vmec_input="../phase_one/input.nfp4_QH_cold_high_res_phase_one"
 elif vmec_label == "nfp2_phase_one":
-  vmec_input="../min_quasisymmetry/input.nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
+  vmec_input="../phase_one/input.nfp2_QA_cold_high_res_phase_one"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -190,6 +190,7 @@ def rotational_transform(x):
   return iota
 
 
+# TODO: switch to a constraint that is free of boozxform
 # constraint on mirror ratio
 ns_B=8 # maxB should be on boundary
 ntheta_B=nzeta_B=16
@@ -457,8 +458,11 @@ elif method == "bobyqa":
     c_asp = max([asp-aspect_target,0.0])**2
     # iota constraint iota = iota_target
     #iota = rotational_transform(x)
-    iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
-    c_iota = (iota-iota_target)**2
+    if constrain_iota:
+      iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
+      c_iota = (iota-iota_target)**2
+    else:
+      c_iota = 0.0
     ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
     if rank == 0:
       print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
