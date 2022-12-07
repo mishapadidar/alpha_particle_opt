@@ -98,7 +98,7 @@ mirror = MirrorCon(vmec,B_mean,mirror_target)
 # phase one
 prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
                                         (vmec.mean_iota, iota_target, 1),
-                                        (mirror.J,0.0, 1)])
+                                        (mirror.J, 0.0, 1)])
 
 if mpi.proc0_world:
     print("Quasisymmetry objective before optimization:", qs.total())
@@ -127,7 +127,7 @@ for step in range(largest_mode):
     surf.fix("rc(0,0)") # Major radius
 
     # Carry out the optimization for this step:
-    least_squares_mpi_solve(prob, mpi, grad=True,abs_step=1e-6)
+    least_squares_mpi_solve(prob, mpi, grad=True)
     #max_nfev = 1
     #least_squares_mpi_solve(prob, mpi, grad=True,max_nfev=max_nfev)
 
