@@ -49,8 +49,8 @@ s_min = 0.0
 s_max = 1.0
 # optimizer params
 maxfev = 500
-max_step = 1.0 # for max_mode=1
-#max_step = 0.1 # for max_mode=2
+#max_step = 1.0 # for max_mode=1
+max_step = 0.1 # for max_mode=2
 #max_step = 5e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
@@ -75,7 +75,7 @@ constrain_iota = (sys.argv[9] != "None") # None or float
 if constrain_iota:
   iota_target = float(sys.argv[9])
 else:
-  iota_target = 0.0
+  iota_target = "None"
 aspect_target = float(sys.argv[10]) # float
 ns = int(sys.argv[11])  # number of surface samples
 ntheta = int(sys.argv[12]) # num theta samples
@@ -108,9 +108,9 @@ elif vmec_label == "nfp4_QH_cold_high_res":
 elif vmec_label == "nfp4_QH_cold_high_res_mirror_feas":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res_mirror_feasible"
 elif vmec_label == "nfp4_phase_one":
-  vmec_input="../phase_one/input.nfp4_QH_cold_high_res_phase_one"
+  vmec_input="../phase_one/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
 elif vmec_label == "nfp2_phase_one":
-  vmec_input="../phase_one/input.nfp2_QA_cold_high_res_phase_one"
+  vmec_input="../phase_one/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -431,11 +431,11 @@ if method == "cobyla":
   rhobeg = max_step
   rhoend = min_step
   aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
-  iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
   mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
   #mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
   constraints = [aspect_constraint,mirror_constraint]
   if constrain_iota:
+    iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
     constraints.append(iota_constraint)
 
   res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
