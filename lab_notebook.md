@@ -3,10 +3,14 @@
 
 
 ## TODO:
-- optimize to 4 modes tmax=1e-4
-  - use phase one starting points
-- optimize to 4 modes tmax=1e-3
+- optimize to 4 modes tmax=1e-2
+- set up a batch script for phase one
+- set up dynamic resolution optimization in min energy
+- generate starting points for many iota
+- perform optimization over the range of iota.
 
+
+## Long Term:
 - set up tracing in vmec coords
   - finish writing the guiding center eqns
   - test the guiding center eqns
@@ -21,14 +25,3 @@
 - set up gradient based optimization
 - Build module to compute probabilities of theta,zeta.
 - set up composite optimization with concurrent evaluations
-
-- post process results
-  - out-of-sample performance
-  - establish that our sols are minima.
-  - comparison differences with quasisymmetry solutions.
-    - compare to solutions optimized for quasisymmetry.
-    - are these minima of confinement time.
-    - plot E[confinement time] over trajectory of quasisymmetry optimization.
-      to justify multimodality of E[confinement time]
-  - physics analysis (Matt)
-  - sensitivity to constraint and distribution parameters.
