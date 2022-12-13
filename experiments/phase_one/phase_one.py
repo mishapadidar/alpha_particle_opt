@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import os
+import sys
 import numpy as np
 import pickle
-from mpi4py import MPI
+#from mpi4py import MPI
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
 from simsopt._core import Optimizable
@@ -20,27 +20,41 @@ Phase one optimization to find configuration with
 - bounded |B|
 """
 
-# for 4 field period
-vmec_label = "nfp4_QH_cold_high_res"
-aspect_target = 7.0
-iota_target = -1.043
+debug=False
+if debug:
+    # for 4 field period
+    vmec_label = "nfp4_QH_cold_high_res"
+    aspect_target = 7.0
+    iota_target = -1.043
+    
+    ## for 2 field period
+    ##vmec_label = "nfp2_QA_cold_high_res"
+    #aspect_target = 6.0
+    #iota_target = 0.42
+    
+    # mirror ratio
+    mirror_target = 1.35
+    vmec_input = "../../vmec_input_files/" +"input." + vmec_label
+else:
+    # read inputs
+    vmec_label = sys.argv[1] 
+    mirror_target = float(sys.argv[2])
+    aspect_target = float(sys.argv[3])
+    iota_target = float(sys.argv[4])
+    vmec_input = "../../../vmec_input_files/" +"input." + vmec_label
 
-## for 2 field period
-##vmec_label = "nfp2_QA_cold_high_res"
-#aspect_target = 6.0
-#iota_target = 0.42
 
-# other 
-mirror_target = 1.35
-#mirror_target = 1.5
 largest_mode = 1
-
-vmec_input = "../../vmec_input_files/" +"input." + vmec_label
 
 mpi = MpiPartition()
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
 surf = vmec.boundary
 
+if mpi.proc0_world:
+  print("vmec_input:",vmec_input)
+  print("mirror_target:", mirror_target)
+  print("aspect_target:",aspect_target)
+  print("iota_target:",iota_target)
 
 # Only used for the computation of modB
 qs = QuasisymmetryRatioResidual(vmec,
@@ -165,7 +179,7 @@ for step in range(largest_mode):
       outdata['aspect_target'] = aspect_target
       outdata['iota_target'] = iota_target
       outdata['mirror_target'] = mirror_target
-      outfilename = "data_" + vmec_label + tail
+      outfilename = "data_" + vmec_label + tail + ".pickle"
       pickle.dump(outdata,open(outfilename,"wb"))
 
 if mpi.proc0_world:
