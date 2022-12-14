@@ -34,7 +34,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy bobyqa 1 nfp4_phase_one None 0.0001 -1.043 7.0 5 5 5 5
+  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy bobyqa 1 2 nfp4_phase_one None 0.0001 -1.043 7.0 5 5 5 5
 """
 
 
@@ -50,8 +50,8 @@ s_max = 1.0
 # optimizer params
 maxfev = 500
 #max_step = 1.0 # for max_mode=1
-max_step = 0.1 # for max_mode=2
-#max_step = 5e-2 # for max_mode=3
+#max_step = 0.1 # for max_mode=2
+#max_step = 1e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
 # trace boozer params
@@ -67,20 +67,23 @@ sampling_type = sys.argv[1] # random or grid or SAA
 sampling_level = sys.argv[2] # "full" or a float surface label
 objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
-max_mode = int(sys.argv[5]) # max mode
-vmec_label = sys.argv[6] # vmec file
-warm_start_file = sys.argv[7] # filename or "None"
-tmax = float(sys.argv[8]) # tmax
-constrain_iota = (sys.argv[9] != "None") # None or float
+#max_mode = int(sys.argv[5]) # max mode
+smallest_mode = int(sys.argv[5])
+largest_mode = int(sys.argv[6])
+vmec_label = sys.argv[7] # vmec file
+warm_start_file = sys.argv[8] # filename or "None"
+tmax = float(sys.argv[9]) # tmax
+constrain_iota = (sys.argv[10] != "None") # None or float
 if constrain_iota:
-  iota_target = float(sys.argv[9])
+  iota_target = float(sys.argv[10])
 else:
   iota_target = "None"
-aspect_target = float(sys.argv[10]) # float
-ns = int(sys.argv[11])  # number of surface samples
-ntheta = int(sys.argv[12]) # num theta samples
-nzeta = int(sys.argv[13]) # num phi samples
-nvpar = int(sys.argv[14]) # num vpar samples
+aspect_target = float(sys.argv[11]) # float
+ns = int(sys.argv[12])  # number of surface samples
+ntheta = int(sys.argv[13]) # num theta samples
+nzeta = int(sys.argv[14]) # num phi samples
+nvpar = int(sys.argv[15]) # num vpar samples
+assert largest_mode >= smallest_mode
 assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
 assert method in ['cobyla','bobyqa','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
@@ -122,15 +125,15 @@ if warm_start_file != "None":
   x0 = data_x0['xopt']
   x0_max_mode = data_x0['max_mode']
   del data_x0
+  assert x0_max_mode <= smallest_mode
 else:
   x0 = []
-  x0_max_mode=max_mode
+  x0_max_mode=smallest_mode
 
 # build a tracer object
-#tracer = TraceSimple(vmec_input,n_partitions=n_partitions,max_mode=max_mode,major_radius=major_radius)
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
-                      max_mode=max_mode,
+                      max_mode=x0_max_mode,
                       major_radius=major_radius,
                       aspect_target=aspect_target,
                       target_volavgB=target_volavgB,
@@ -138,12 +141,15 @@ tracer = TraceBoozer(vmec_input,
                       interpolant_degree=interpolant_degree,
                       interpolant_level=interpolant_level,
                       bri_mpol=bri_mpol,
-                      bri_ntor=bri_ntor,
-                      x0=x0,
-                      x0_max_mode=x0_max_mode)
+                      bri_ntor=bri_ntor)
 tracer.sync_seeds()
-x0 = tracer.x0
-dim_x = tracer.dim_x
+
+if warm_start_file != "None": 
+  tracer.x0 = np.copy(x0)
+else:
+  # use the default starting point
+  x0 = np.copy(tracer.x0)
+tracer.surf.x = np.copy(x0)
 
 
 # aspect constraint
@@ -418,154 +424,176 @@ def objective(x):
 
   return res
 
-evw = EvalWrapper(objective,dim_x,1)
 
+for max_mode in range(smallest_mode,largest_mode+1):
 
+  # expand decision space
+  tracer.surf.x = np.copy(x0) # set the point to expand
+  x0 = tracer.expand_x(max_mode)
+  dim_x = len(x0)
 
-if rank == 0:
-  print(f"optimizing with tmax = {tmax}")
+  # set the optimizer step size
+  max_step = pow(10,1-max_mode)
 
+  # resample SAA
+  if sampling_type == "SAA":
+    stz_inits,vpar_inits = get_random_points(sampling_level)
 
-# optimize
-if method == "cobyla":
-  rhobeg = max_step
-  rhoend = min_step
-  aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
-  mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
-  #mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
-  constraints = [aspect_constraint,mirror_constraint]
-  if constrain_iota:
-    iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
-    constraints.append(iota_constraint)
-
-  res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-  xopt = np.copy(res.x)
-
-elif method == "bobyqa":
-  rhobeg = max_step
-  rhoend = min_step
-
-  def penalty_obj(x):
-    """penalty formulation for bobyqa"""
-    B = B_field(x)
-    #B = B_field_volavg_con(x)
-    obj = evw(x)
-    # B_lb <= modB <= B_ub
-    c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
-    c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
-    # aspect <= aspect_target
-    asp = aspect_ratio(x)
-    c_asp = max([asp-aspect_target,0.0])**2
-    # iota constraint iota = iota_target
-    #iota = rotational_transform(x)
-    iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
+  evw = EvalWrapper(objective,dim_x,1)
+  
+  
+  if rank == 0:
+    print(f"optimizing with tmax = {tmax}")
+    print(f"max_mode = {max_mode}")
+  
+  
+  # optimize
+  if method == "cobyla":
+    rhobeg = max_step
+    rhoend = min_step
+    aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
+    mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
+    #mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
+    constraints = [aspect_constraint,mirror_constraint]
     if constrain_iota:
-      c_iota = (iota-iota_target)**2
-    else:
-      c_iota = 0.0
-    ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
-    if rank == 0:
-      print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
-      #print("")
-    return ret
-  res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-  xopt = np.copy(res.x)
+      iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
+      constraints.append(iota_constraint)
+  
+    res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+    xopt = np.copy(res.x)
+  
+  elif method == "bobyqa":
+    rhobeg = max_step
+    rhoend = min_step
+  
+    def penalty_obj(x):
+      """penalty formulation for bobyqa"""
+      B = B_field(x)
+      #B = B_field_volavg_con(x)
+      obj = evw(x)
+      # B_lb <= modB <= B_ub
+      c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
+      c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
+      # aspect <= aspect_target
+      asp = aspect_ratio(x)
+      c_asp = max([asp-aspect_target,0.0])**2
+      # iota constraint iota = iota_target
+      #iota = rotational_transform(x)
+      iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
+      if constrain_iota:
+        c_iota = (iota-iota_target)**2
+      else:
+        c_iota = 0.0
+      ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
+      if rank == 0:
+        print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
+        #print("")
+      return ret
+    res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+    xopt = np.copy(res.x)
+  
+  
+  #elif method == 'snobfit':
+  #  # snobfit
+  #  bounds = np.vstack((x_lb,x_ub)).T
+  #  res, _ = skq_minimize(evw, x0, bounds, maxfev, method='SnobFit')
+  #  xopt = np.copy(res.optpar)
+  #
+  #elif method == "diff_evol":
+  #  # differential evolution
+  #  bounds = np.vstack((x_lb,x_ub)).T
+  #  popsize = 10 # population is popsize*dim_x individuals
+  #  maxiter = int(maxfev/dim_x/popsize)
+  #  res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
+  #  xopt = np.copy(res.x)
+  
+  elif method == "nelder":
+    init_simplex = np.zeros((dim_x+1,dim_x))
+    init_simplex[0] = np.copy(x0)
+    init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
+    def penalty_obj(x):
+      obj = evw(x)
+      asp = aspect_ratio(x)
+      return obj + 1000*np.max([asp-aspect_target,0.0])**2
+    # nelder-mead
+    xatol = min_step # minimum step size
+    res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
+                options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
+    xopt = np.copy(res.x)
+  
+  #elif method == "sidpsm":
+  #  def penalty_obj(x):
+  #    obj = evw(x)
+  #    if objective_type == "mean_energy" and obj >= 3.5:
+  #      return np.inf
+  #    elif objective_type == "mean_time" and obj >=tmax:
+  #      return np.inf
+  #    asp = aspect_ratio(x)
+  #    return obj + 1000*np.max([asp-aspect_target,0.0])**2
+  #  sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
+  #  res = sid.solve()
+  #  xopt = np.copy(res['x'])
+  
+  
+  # evaluate the configuration
+  if sampling_type == "random":
+    stz_inits,vpar_inits = get_random_points(sampling_level)
+  c_times_opt = tracer.compute_confinement_times(xopt,stz_inits,vpar_inits,tmax)
+  
+  tracer.surf.x = np.copy(xopt)
+  aspect_opt = tracer.vmec.aspect()
+  iota_opt = tracer.vmec.mean_iota()
+  
+  # out of sample performance
+  stz_rand,vpar_rand = get_random_points(sampling_level)
+  c_times_out_of_sample = tracer.compute_confinement_times(xopt,stz_rand,vpar_rand,tmax)
+  
+  if rank == 0:
+    print('aspect(xopt)',aspect_opt)
+    print('E[c_time(xopt)]',np.mean(c_times_out_of_sample))
+    print('Loss fraction',np.mean(c_times_out_of_sample<tmax))
+    print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_out_of_sample/tmax)))
+  
+  # reset x0
+  x0 = np.copy(xopt)
+
+  # save results
+  if rank == 0:
+    print(res)
+    outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{iota_target}.pickle"
+    outdata = {}
+    outdata['X'] = evw.X
+    outdata['FX'] = evw.FX
+    outdata['xopt'] = xopt
+    outdata['aspect_opt'] = aspect_opt
+    outdata['iota_opt'] = iota_opt
+    outdata['c_times_opt'] = c_times_opt
+    outdata['c_times_out_of_sample'] = c_times_out_of_sample
+    outdata['aspect_target'] = aspect_target
+    outdata['iota_target'] = iota_target
+    outdata['constrain_iota'] = constrain_iota
+    outdata['major_radius'] = major_radius
+    #outdata['minor_radius'] =  minor_radius
+    outdata['target_volavgB'] = target_volavgB
+    outdata['vmec_input'] = vmec_input
+    outdata['max_mode'] = max_mode
+    outdata['vmec_input'] = vmec_input
+    outdata['warm_start_file'] = warm_start_file 
+    outdata['objective_type'] = objective_type
+    outdata['sampling_type'] = sampling_type
+    outdata['sampling_level'] = sampling_level
+    outdata['method'] = method
+    outdata['maxfev'] = maxfev
+    outdata['max_step'] = max_step
+    outdata['min_step'] = min_step
+    outdata['tracing_tol'] = tracing_tol
+    outdata['interpolant_degree'] = interpolant_degree
+    outdata['interpolant_level'] = interpolant_level
+    outdata['bri_mpol'] = bri_mpol
+    outdata['bri_ntor'] = bri_ntor
+    #outdata['stz_inits'] = stz_inits
+    #outdata['vpar_inits'] = vpar_inits
+    outdata['tmax'] = tmax
+    pickle.dump(outdata,open(outfile,"wb"))
 
 
-#elif method == 'snobfit':
-#  # snobfit
-#  bounds = np.vstack((x_lb,x_ub)).T
-#  res, _ = skq_minimize(evw, x0, bounds, maxfev, method='SnobFit')
-#  xopt = np.copy(res.optpar)
-#
-#elif method == "diff_evol":
-#  # differential evolution
-#  bounds = np.vstack((x_lb,x_ub)).T
-#  popsize = 10 # population is popsize*dim_x individuals
-#  maxiter = int(maxfev/dim_x/popsize)
-#  res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
-#  xopt = np.copy(res.x)
-
-elif method == "nelder":
-  init_simplex = np.zeros((dim_x+1,dim_x))
-  init_simplex[0] = np.copy(x0)
-  init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
-  def penalty_obj(x):
-    obj = evw(x)
-    asp = aspect_ratio(x)
-    return obj + 1000*np.max([asp-aspect_target,0.0])**2
-  # nelder-mead
-  xatol = min_step # minimum step size
-  res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
-              options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
-  xopt = np.copy(res.x)
-
-#elif method == "sidpsm":
-#  def penalty_obj(x):
-#    obj = evw(x)
-#    if objective_type == "mean_energy" and obj >= 3.5:
-#      return np.inf
-#    elif objective_type == "mean_time" and obj >=tmax:
-#      return np.inf
-#    asp = aspect_ratio(x)
-#    return obj + 1000*np.max([asp-aspect_target,0.0])**2
-#  sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
-#  res = sid.solve()
-#  xopt = np.copy(res['x'])
-
-
-# evaluate the configuration
-if sampling_type == "random":
-  stz_inits,vpar_inits = get_random_points(sampling_level)
-c_times_opt = tracer.compute_confinement_times(xopt,stz_inits,vpar_inits,tmax)
-
-tracer.surf.x = np.copy(xopt)
-aspect_opt = tracer.vmec.aspect()
-
-# out of sample performance
-stz_rand,vpar_rand = get_random_points(sampling_level)
-c_times_out_of_sample = tracer.compute_confinement_times(xopt,stz_rand,vpar_rand,tmax)
-
-if rank == 0:
-  print('aspect(xopt)',aspect_opt)
-  print('E[c_time(xopt)]',np.mean(c_times_out_of_sample))
-  print('Loss fraction',np.mean(c_times_out_of_sample<tmax))
-  print('E[Energy]',np.mean(3.5*np.exp(-2*c_times_out_of_sample/tmax)))
-
-# save results
-if rank == 0:
-  print(res)
-  outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{iota_target}.pickle"
-  outdata = {}
-  outdata['X'] = evw.X
-  outdata['FX'] = evw.FX
-  outdata['xopt'] = xopt
-  outdata['aspect_opt'] = aspect_opt
-  outdata['c_times_opt'] = c_times_opt
-  outdata['c_times_out_of_sample'] = c_times_out_of_sample
-  outdata['aspect_target'] = aspect_target
-  outdata['iota_target'] = iota_target
-  outdata['constrain_iota'] = constrain_iota
-  outdata['major_radius'] = major_radius
-  #outdata['minor_radius'] =  minor_radius
-  outdata['target_volavgB'] = target_volavgB
-  outdata['vmec_input'] = vmec_input
-  outdata['max_mode'] = max_mode
-  outdata['vmec_input'] = vmec_input
-  outdata['warm_start_file'] = warm_start_file 
-  outdata['objective_type'] = objective_type
-  outdata['sampling_type'] = sampling_type
-  outdata['sampling_level'] = sampling_level
-  outdata['method'] = method
-  outdata['maxfev'] = maxfev
-  outdata['max_step'] = max_step
-  outdata['min_step'] = min_step
-  outdata['tracing_tol'] = tracing_tol
-  outdata['interpolant_degree'] = interpolant_degree
-  outdata['interpolant_level'] = interpolant_level
-  outdata['bri_mpol'] = bri_mpol
-  outdata['bri_ntor'] = bri_ntor
-  #outdata['stz_inits'] = stz_inits
-  #outdata['vpar_inits'] = vpar_inits
-  outdata['tmax'] = tmax
-  pickle.dump(outdata,open(outfile,"wb"))
