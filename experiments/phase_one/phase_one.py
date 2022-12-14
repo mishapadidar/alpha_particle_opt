@@ -110,7 +110,7 @@ B_mean = vmec.indata.phiedge/np.pi/minor_radius/minor_radius
 mirror = MirrorCon(vmec,B_mean,mirror_target)
 
 prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
-                                        (vmec.mean_iota, iota_target, 1),
+                                        (vmec.mean_iota, iota_target, 100),
                                         (mirror.J, 0.0, 1)])
 ## phase one without mirror constraint
 #prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
@@ -159,12 +159,15 @@ for step in range(largest_mode):
         print("Quasisymmetry objective after optimization:", qs.total())
         print("Total objective after optimization:", prob.objective())
         print('major radius',surf.get("rc(0,0)"))
-        print('aspect',surf.aspect_ratio())
+        aspect_opt = surf.aspect_ratio()
+        print('aspect',aspect_opt)
         print('volavgB',vmec.wout.volavgB)
-        print('iota',vmec.mean_iota())
+        iota_opt = vmec.mean_iota()
+        print('iota',iota_opt)
         Bmin,Bmax = mirror.B_minmax()
         print("Bmin,Bmax",Bmin,Bmax)
-        print("mirror ratio",Bmax/Bmin)
+        mirror_opt = Bmax/Bmin
+        print("mirror ratio",mirror_opt)
     
     # write the data to a file
     tail = f"_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
@@ -174,6 +177,9 @@ for step in range(largest_mode):
     if mpi.proc0_world:
       outdata = {}
       outdata['xopt'] = np.copy(xopt)
+      outdata['aspect_opt'] = aspect_opt
+      outdata['iota_opt'] = iota_opt
+      outdata['mirror_opt'] = mirror_opt
       outdata['vmec_input'] = vmec_input
       outdata['max_mode'] = max_mode
       outdata['aspect_target'] = aspect_target
