@@ -29,9 +29,7 @@ class TraceBoozer:
     interpolant_degree=3,
     interpolant_level=8,
     bri_mpol=32,
-    bri_ntor=32,
-    x0=[],
-    x0_max_mode=1):
+    bri_ntor=32):
     """
     vmec_input: vmec input file
     n_partitions: number of partitions used by vmec mpi.
@@ -61,33 +59,33 @@ class TraceBoozer:
     # get the boundary rep
     self.surf = self.vmec.boundary
 
-    if len(x0) > 0:
-      """
-      Load a point with. We assume that x0_max_mode <= max_mode, that 
-      the major radius of the configuration was fixed and is not represented
-      in the array x0.
-      We assume that the toroidal flux was rescaled by target_volavgB.
-      """
-      assert x0_max_mode <= max_mode,"we cannot decrease the max_mode"
-      # set up the boundary representation for x0
-      self.surf.fix_all()
-      self.surf.fixed_range(mmin=0, mmax=x0_max_mode,
-                       nmin=-x0_max_mode, nmax=x0_max_mode, fixed=False)
+    #if len(x0) > 0:
+    #  """
+    #  Load a point with. We assume that x0_max_mode <= max_mode, that 
+    #  the major radius of the configuration was fixed and is not represented
+    #  in the array x0.
+    #  We assume that the toroidal flux was rescaled by target_volavgB.
+    #  """
+    #  assert x0_max_mode <= max_mode,"we cannot decrease the max_mode"
+    #  # set up the boundary representation for x0
+    #  self.surf.fix_all()
+    #  self.surf.fixed_range(mmin=0, mmax=x0_max_mode,
+    #                   nmin=-x0_max_mode, nmax=x0_max_mode, fixed=False)
 
-      # rescale the vmec_input point to the major radius
-      factor = major_radius/self.surf.get("rc(0,0)")
-      self.surf.x = self.surf.x*factor
-      self.surf.set("rc(0,0)",major_radius) 
-      self.surf.fix("rc(0,0)") # fix the Major radius
+    #  # rescale the vmec_input point to the major radius
+    #  factor = major_radius/self.surf.get("rc(0,0)")
+    #  self.surf.x = self.surf.x*factor
+    #  self.surf.set("rc(0,0)",major_radius) 
+    #  self.surf.fix("rc(0,0)") # fix the Major radius
 
-      # set the toroidal flux based off the vmec input, not the current point
-      #avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
-      target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
-      self.vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
-      self.vmec.need_to_run_code = True
+    #  # set the toroidal flux based off the vmec input, not the current point
+    #  #avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
+    #  target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
+    #  self.vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
+    #  self.vmec.need_to_run_code = True
 
-      # now set x0 as the boundary
-      self.surf.x = np.copy(x0)
+    #  # now set x0 as the boundary
+    #  self.surf.x = np.copy(x0)
     
     # set the desired resolution
     self.surf.fix_all()
@@ -95,20 +93,18 @@ class TraceBoozer:
                      nmin=-max_mode, nmax=max_mode, fixed=False)
     
     # rescale the surface by the major radius; if we havent already.
-    if len(x0) == 0:
-      factor = major_radius/self.surf.get("rc(0,0)")
-      self.surf.x = self.surf.x*factor
+    factor = major_radius/self.surf.get("rc(0,0)")
+    self.surf.x = self.surf.x*factor
 
     # fix the major radius
     self.surf.fix("rc(0,0)") 
 
     # rescale the toroidal flux; if we havent already
-    if len(x0) == 0:
-      #avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
-      target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
-      self.vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
-      self.vmec.need_to_run_code = True
-      #self.vmec.run()
+    #avg_minor_rad = self.surf.get('rc(0,0)')/self.surf.aspect_ratio() # true avg minor radius
+    target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
+    self.vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
+    self.vmec.need_to_run_code = True
+    #self.vmec.run()
     #print('aspect',self.vmec.aspect())
     #print('volavgB',self.vmec.wout.volavgB)
     #print('phiedge',self.vmec.indata.phiedge)
@@ -129,6 +125,23 @@ class TraceBoozer:
     self.field = None
     self.bri = None
 
+  def expand_x(self,max_mode):
+    """
+    Expands the parameter space to the desired max mode.
+
+    return the current point in the higher dim space.
+    """
+    # Define parameter space:
+    self.surf.fix_all()
+    self.surf.fixed_range(mmin=0, mmax=max_mode,
+                     nmin=-max_mode, nmax=max_mode, fixed=False)
+    self.surf.fix("rc(0,0)") # Major radius
+    self.x0 = np.copy(self.surf.x) # nominal starting point
+    self.dim_x = len(self.x0) # dimension
+    self.x_field = np.zeros(self.dim_x)
+    return np.copy(self.x0)
+  
+
   def sync_seeds(self,sd=None):
     """
     Sync the np.random.seed of the various worker groups.
@@ -138,7 +151,7 @@ class TraceBoozer:
     seed = np.zeros(1)
     #if self.mpi.proc0_world:
     if self.mpi.proc0_groups:
-      if sd:
+      if sd is not None:
         seed = sd*np.ones(1)
       else:
         seed = np.random.randint(int(1e6))*np.ones(1)
@@ -604,35 +617,43 @@ class TraceBoozer:
 if __name__ == "__main__":
 
   #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
-  vmec_input = "../experiments/min_quasisymmetry/input.nfp2_QA_cold_high_res_phase_one_max_mode_1_quasisymmetry_opt"
-  minor_radius = 1.7
-  aspect_target = 7.0
-  major_radius = aspect_target*minor_radius
-  target_volavgB = 5.0
+  #vmec_input = "../experiments/min_quasisymmetry/input.nfp2_QA_cold_high_res_phase_one_max_mode_1_quasisymmetry_opt"
+  vmec_input="../experiments/phase_one/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
+  import pickle
+  #data_file = "../experiments/min_energy_loss/data/data_opt_nfp4_phase_one_mean_energy_grid_surface_0.25_tmax_0.001_bobyqa_mmode_2_iota_None.pickle"
+  data_file = "../experiments/min_energy_loss/data/data_opt_nfp4_phase_one_mean_energy_grid_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
+  data = pickle.load(open(data_file,"rb"))
+  x0 = data['xopt']
+  max_mode=data['max_mode']
+  aspect_target = data['aspect_target']
+  major_radius = data['major_radius']
+  target_volavgB = data['target_volavgB']
+
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
-                      max_mode=1,
+                      max_mode=max_mode,
                       major_radius=major_radius,
                       aspect_target=aspect_target,
                       target_volavgB=target_volavgB,
                       tracing_tol=1e-8,
                       interpolant_degree=3,
-                      interpolant_level=10,
+                      interpolant_level=8,
                       bri_mpol=16,
                       bri_ntor=16)
-  tracer.sync_seeds(0)
-  x0 = tracer.x0
-  dim_x = tracer.dim_x
-  tmax = 1e-2
+  tracer.x0 = np.copy(x0)
 
   print(tracer.vmec.mean_iota())
+  print(tracer.surf.get('rc(0,0)'))
+  print(tracer.vmec.indata.phiedge)
 
   #"""
   #Now compute statistics with monte carlo
   #"""
+  tracer.sync_seeds(0)
+  tmax = 1e-2
 
   # tracing points
-  n_particles = 5000
+  n_particles = 1000
   s_label = 0.25
   stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   print('tracing')
@@ -645,7 +666,7 @@ if __name__ == "__main__":
   print('loss fraction',np.mean(c_times < tmax))
 
   # tracing points
-  n_particles = 5000
+  n_particles = 1000
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
   print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
