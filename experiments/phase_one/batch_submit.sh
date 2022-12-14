@@ -1,13 +1,13 @@
 
-## 4 field period
-#vmec="nfp4_QH_cold_high_res"
-#aspect=7.0
+# 4 field period
+vmec="nfp4_QH_cold_high_res"
+aspect=7.0
 
-# for 2 field period
-vmec="nfp2_QA_cold_high_res"
-aspect=6.0
+## for 2 field period
+#vmec="nfp2_QA_cold_high_res"
+#aspect=6.0
 
-IOTAS=('0.28' '0.42' '0.53' '0.71' '0.8' '1.05' '1.29' '1.52' '1.71')
+IOTAS=('0.28' '0.42' '0.53' '0.71' '0.89' '1.05' '1.29' '1.52')
 mirror=1.35
 
 NODES=1
