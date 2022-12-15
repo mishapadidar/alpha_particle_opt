@@ -110,10 +110,34 @@ elif vmec_label == "nfp4_QH_cold_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res"
 elif vmec_label == "nfp4_QH_cold_high_res_mirror_feas":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res_mirror_feasible"
-elif vmec_label == "nfp4_phase_one":
-  vmec_input="../phase_one/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
-elif vmec_label == "nfp2_phase_one":
-  vmec_input="../phase_one/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_-1.043":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.28":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.28"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.42":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.42"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.53":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.53"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.71":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.71"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.89":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.89"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.97":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.97"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_1.05":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.05"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_1.29":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.29"
+elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_1.44":
+  vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.44"
+elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.28":
+  vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.28"
+elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.42":
+  vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
+elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.53":
+  vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.53"
+elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.71":
+  vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.71"
 
 if not debug:
   vmec_input="../" + vmec_input
