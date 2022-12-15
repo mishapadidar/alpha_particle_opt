@@ -4,11 +4,6 @@
 
 ## TODO:
 - optimize to 4 modes tmax=1e-2
-- set up a batch script for phase one
-- set up dynamic resolution optimization in min energy
-- generate starting points for many iota
-- perform optimization over the range of iota.
-
 
 ## Long Term:
 - set up tracing in vmec coords
