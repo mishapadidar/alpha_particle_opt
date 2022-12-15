@@ -456,8 +456,8 @@ for max_mode in range(smallest_mode,largest_mode+1):
   x0 = tracer.expand_x(max_mode)
   dim_x = len(x0)
 
-  # set the optimizer step size
-  max_step = pow(10,1-max_mode)
+  # set the optimizer step size 0.1,0.01,0.001
+  max_step = max(0.1*pow(10,1-max_mode),1e-3)
 
   # resample SAA
   if sampling_type == "SAA":
