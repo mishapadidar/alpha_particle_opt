@@ -1,26 +1,27 @@
 
 #TMAX='0.01'
-#TMAX='0.001'
-TMAX='0.0001'
+TMAX='0.001'
+#TMAX='0.0001'
 
-SAMPLINGTYPE='grid' # grid, random, SAA
-#SAMPLINGTYPE='SAA' # grid, random, SAA
+#SAMPLINGTYPE='grid' # grid, random, SAA
+SAMPLINGTYPE='SAA' # grid, random, SAA
 
-#surf='0.25' # 0.25, 'full'
-surf='full' # 0.25, 'full'
+surf='0.25' # 0.25, 'full'
+#surf='full' # 0.25, 'full'
 NODES=1
-CORES=4
+#CORES=4
+CORES=8
 
-NS=9
+NS=7
 NTHETA=7
 NPHI=7
-NVPAR=9
+NVPAR=7
 
 OBJECTIVE='mean_energy'  # mean_energy, mean_time
 METHOD="bobyqa" # bobyqa, cobyla
 
 MINMODE=1
-MAXMODE=5
+MAXMODE=4
 
 ## 2 field period
 #aspect=6.0
@@ -42,6 +43,7 @@ MAXMODE=5
 aspect=7.0
 iota='None'
 VMEC=(
+"nfp4_phase_one_aspect_7.0_iota_-1.043"
 "nfp4_phase_one_aspect_7.0_iota_0.28"
 "nfp4_phase_one_aspect_7.0_iota_0.42"
 "nfp4_phase_one_aspect_7.0_iota_0.53"
@@ -52,7 +54,7 @@ VMEC=(
 "nfp4_phase_one_aspect_7.0_iota_1.29"
 "nfp4_phase_one_aspect_7.0_iota_1.44"
 )
-WARM=("None" "None" "None" "None" "None" "None" "None" "None" "None") # None or filename
+WARM=("None" "None" "None" "None" "None" "None" "None" "None" "None" "None") # None or filename
 #WARM=(
 #"../data/data_opt_nfp4_phase_one_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
 #"../data/data_opt_nfp4_phase_one_mean_energy_SAA_surface_0.5_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
