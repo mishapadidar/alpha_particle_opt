@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import numpy as np
 import pickle
 from mpi4py import MPI
@@ -25,24 +26,27 @@ if debug:
     qs_type = "QA"
     aspect_target = 6.0
     iota_target = 0.42
+    mirror_target = 1.35
+    nfp=2
 
     ## for 4 field period
     #qs_type = "QH"
     #aspect_target = 7.0
     #iota_target = -1.043
-    
-    # mirror ratio
-    mirror_target = 1.35
-    vmec_label = f"nfp2_{qs_type}_cold_high_res_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
+    #mirror_target = 1.35
+    #nfp = 4
+
+    vmec_label = f"nfp{nfp}_{qs_type}_cold_high_res_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
     vmec_input = "../phase_one/data/input." + vmec_label
 else:
     # read inputs
     qs_type = sys.argv[1] 
+    nfp = int(sys.argv[2])
     # TODO: mirror penalty not implemented
-    mirror_target = float(sys.argv[2])
-    aspect_target = float(sys.argv[3])
-    iota_target = float(sys.argv[4])
-    vmec_label = f"nfp2_{qs_type}_cold_high_res_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
+    mirror_target = float(sys.argv[3])
+    aspect_target = float(sys.argv[4])
+    iota_target = float(sys.argv[5])
+    vmec_label = f"nfp{nfp}_{qs_type}_cold_high_res_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
     vmec_input = "../../phase_one/data/input." + vmec_label
 
 mpi = MpiPartition()
@@ -51,8 +55,9 @@ surf = vmec.boundary
 
 if mpi.proc0_world:
     print(f'Optimizing for {qs_type}')
+    print('nfp',nfp)
     print('iota',iota_target)
-    print('asepct',aspect_target)
+    print('aspect',aspect_target)
     print(vmec_label)
     print(vmec_input)
 

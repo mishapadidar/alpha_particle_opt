@@ -2,10 +2,12 @@
 # 4 field period
 qs_type='QH'
 aspect=7.0
+nfp=4
 IOTAS=('-1.043' '0.28' '0.42' '0.53' '0.71' '0.89' '0.97' '1.05' '1.29' '1.44')
 
 ## for 2 field period
 #qs_type='QA'
+#nfp=2
 #aspect=6.0
 #IOTAS=('0.28' '0.42' '0.53' '0.71')
 
@@ -18,7 +20,7 @@ do
   iota=${IOTAS[idx]}
 
   # make a dir
-  dir="_batch_${qs_type}_mirror_${mirror}_aspect_${aspect}_iota_${iota}"
+  dir="_batch_${qs_type}_nfp${nfp}_mirror_${mirror}_aspect_${aspect}_iota_${iota}"
   mkdir $dir
 
   # copy the compute data
@@ -49,7 +51,7 @@ do
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[29-30],g2-cpu-[97-99],g2-compute-[94-97],luxlab-cpu-02" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${qs_type} ${mirror} ${aspect} ${iota}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 optimize.py ${qs_type} ${nfp} ${mirror} ${aspect} ${iota}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
