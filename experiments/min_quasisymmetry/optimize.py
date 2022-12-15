@@ -13,40 +13,55 @@ from simsopt.solve.mpi import least_squares_mpi_solve
 
 """
 Optimize a VMEC equilibrium for quasi-axis symmetry (M=1, N=0)
+or quasi-helical symmetry (M=-1,N=1)
 throughout the volume.
 """
 
 largest_mode = 5
 
-# for QA optimization
-QA = True
-aspect_target = 6.0
-iota_target = 0.42
-vmec_label = "nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
-vmec_input = "../phase_one/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.42"
-#vmec_label = "nfp2_QA_cold_high_res_aspect_6_iota_0.42"
-#vmec_input = "./input.nfp2_QA_cold_high_res_max_mode_1_aspect_6_iota_0.42"
+debug=False
+if debug: 
+    # for QA optimization
+    qs_type = "QA"
+    aspect_target = 6.0
+    iota_target = 0.42
 
-## for QH optimization
-#QA = False
-#aspect_target = 7.0
-#iota_target = -1.043
-#vmec_label = "nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
-#vmec_input = "../phase_one/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
-##vmec_label = "nfp4_QH_cold_high_res_aspect_7_iota_-1.043"
-##vmec_input = "./input.nfp4_QH_cold_high_res_max_mode_1_aspect_7_iota_-1.043"
-
+    ## for 4 field period
+    #qs_type = "QH"
+    #aspect_target = 7.0
+    #iota_target = -1.043
+    
+    # mirror ratio
+    mirror_target = 1.35
+    vmec_label = f"nfp2_{qs_type}_cold_high_res_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
+    vmec_input = "../phase_one/data/input." + vmec_label
+else:
+    # read inputs
+    qs_type = sys.argv[1] 
+    # TODO: mirror penalty not implemented
+    mirror_target = float(sys.argv[2])
+    aspect_target = float(sys.argv[3])
+    iota_target = float(sys.argv[4])
+    vmec_label = f"nfp2_{qs_type}_cold_high_res_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
+    vmec_input = "../../phase_one/data/input." + vmec_label
 
 mpi = MpiPartition()
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
 surf = vmec.boundary
 
-if QA:
+if mpi.proc0_world:
+    print(f'Optimizing for {qs_type}')
+    print('iota',iota_target)
+    print('asepct',aspect_target)
+    print(vmec_label)
+    print(vmec_input)
+
+if qs_type == "QA":
     # quasi-axis
     qs = QuasisymmetryRatioResidual(vmec,
                                     np.arange(0, 1.01, 0.1),  # Radii to target
                                     helicity_m=1, helicity_n=0)  # (M, N) you want in |B|
-else:
+elif qs_type == "QH":
     # quasi-helical
     qs = QuasisymmetryRatioResidual(vmec,
                                     np.arange(0, 1.01, 0.1),  # Radii to target
@@ -84,6 +99,7 @@ for step in range(largest_mode):
 
     # Carry out the optimization for this step:
     least_squares_mpi_solve(prob, mpi, grad=True)
+    #least_squares_mpi_solve(prob, mpi, grad=True,max_nfev=1)
 
     # get xopt
     xopt = np.copy(prob.x)
@@ -97,9 +113,11 @@ for step in range(largest_mode):
         print("Quasisymmetry objective after optimization:", qs.total())
         print("Total objective after optimization:", prob.objective())
         print('major radius',surf.get("rc(0,0)"))
-        print('aspect',surf.aspect_ratio())
+        aspect_opt = surf.aspect_ratio()
+        print('aspect',aspect_opt)
         print('volavgB',vmec.wout.volavgB)
-        print('iota',vmec.mean_iota())
+        iota_opt = vmec.mean_iota()
+        print('iota',iota_opt)
     
 
     # write the data to a file
@@ -109,6 +127,8 @@ for step in range(largest_mode):
     if mpi.proc0_world:
       outdata = {}
       outdata['xopt'] = np.copy(xopt)
+      outdata['aspect_opt'] = aspect_opt
+      outdata['iota_opt'] = iota_opt
       outdata['vmec_input'] = vmec_input
       outdata['max_mode'] = max_mode
       outdata['aspect_target'] = aspect_target
