@@ -3,7 +3,9 @@
 
 
 ## TODO:
-- optimize to 4 modes tmax=1e-2
+- optimize to 4 modes tmax=1e-3
+- optimize to 4 modes tmax=1e-2, warm start from tmax=1e-3
+- make plot of objective types and performance.
 
 ## Long Term:
 - set up tracing in vmec coords
