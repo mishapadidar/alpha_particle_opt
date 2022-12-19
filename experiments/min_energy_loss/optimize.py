@@ -48,7 +48,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 500
+maxfev = 700
 #max_step = 1.0 # for max_mode=1
 #max_step = 0.1 # for max_mode=2
 #max_step = 1e-2 # for max_mode=3
@@ -456,8 +456,12 @@ for max_mode in range(smallest_mode,largest_mode+1):
   x0 = tracer.expand_x(max_mode)
   dim_x = len(x0)
 
-  # set the optimizer step size 0.1,0.01,0.001
-  max_step = max(0.1*pow(10,1-max_mode),1e-3)
+  if tmax < 5e-3:
+    # set the optimizer step size 0.1,0.01,0.001
+    max_step = max(0.1*pow(10,1-max_mode),1e-3)
+  else:
+    # set the optimizer step size 1,0.1,0.01
+    max_step = max(pow(10,1-max_mode),1e-2)
 
   # resample SAA
   if sampling_type == "SAA":
