@@ -1,18 +1,19 @@
 
-SAMPLINGTYPE='SAA'
-SURFS=('0.2' '0.4' '0.6' '0.8' 'full') 
-NS=10
-NTHETA=10
-NPHI=10
-NVPAR=10
+SAMPLINGTYPES=('SAA' 'simpson' 'gauss' 'random')
+TMAX=0.0001
+surf=0.25
+NS=9
 NODES=1
-CORES=12
-for idx in ${!SURFS[@]}
+CORES=4
+for idx in ${!SAMPLINGTYPES[@]}
 do
-  surf=${SURFS[idx]}
+  SAMPLINGTYPE=${SAMPLINGTYPES[idx]}
+  NTHETA=$NS
+  NPHI=$NS
+  NVPAR=$NS
 
   # make a dir
-  dir="_batch_${SAMPLINGTYPE}_surf_${surf}"
+  dir="_batch_${SAMPLINGTYPE}_tmax_${TMAX}_surf_${surf}_ns_${NS}"
   mkdir $dir
 
   # copy the compute data
@@ -35,7 +36,7 @@ do
   printf '%s\n' "#SBATCH -o ./job_%j.out    # Name of stdout output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -e ./job_%j.err    # Name of stderr output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -N ${NODES}       # Total number of nodes requested" >> ${SUB}
-  printf '%s\n' "#SBATCH -n ${CORES}       # Total number of cores requested" >> ${SUB}
+  printf '%s\n' "#SBATCH -n $[$NODES*$CORES]  # Total number of cores requested" >> ${SUB}
   printf '%s\n' "#SBATCH --ntasks-per-node ${CORES}    # Total number of cores requested" >> ${SUB}
   printf '%s\n' "#SBATCH --get-user-env     # Tells sbatch to retrieve the users login environment" >> ${SUB}
   printf '%s\n' "#SBATCH -t 96:00:00        # Time limit (hh:mm:ss)" >> ${SUB}
@@ -43,8 +44,7 @@ do
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97]" >> ${SUB}
-  printf '%s\n' "#SBATCH --exclusive" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${SAMPLINGTYPE} ${surf} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${SAMPLINGTYPE} ${surf} ${TMAX} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
