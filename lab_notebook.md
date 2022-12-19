@@ -3,9 +3,19 @@
 
 
 ## TODO:
-- optimize to 4 modes tmax=1e-3
-- optimize to 4 modes tmax=1e-2, warm start from tmax=1e-3
-- make plot of objective types and performance.
+- current experiments nfp4, tmax=0.01 opt warm started from
+  - tmax=1e-3, mmode=2 solution. optimizing from 2 to 5 modes
+  - tmax=1e-3, mmode=1 solution. optimizing from 1 to 4 modes grid and SAA.
+  This exp should tell us if we need to warm start from mmode=2 or mmode=1 sols.
+- make plot of iota0 vs losses for tmax=0.01
+  - [x] generate nfp5 phase-one points
+  - optimize losses for nfp4 and nfp5
+  - warm start from sol where tmax=0.001, mmode=2
+- make 1d plots of objective.
+  - [x] write scripts to generate data for tmax=1e-4
+  - plot results in notebook and decide on plot format
+  - generate data for tmax=1e-2
+  
 
 ## Long Term:
 - set up tracing in vmec coords
