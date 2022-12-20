@@ -326,6 +326,7 @@ n_points_per = len(T)
 
 # use an orthogonal frame
 #Q = np.eye(dim_x)
+np.random.seed(0) # make sure we get the same directions
 Q = np.random.randn(dim_x,dim_x)
 Q,_ = np.linalg.qr(Q)
 Q = Q.T
