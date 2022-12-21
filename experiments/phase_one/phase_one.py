@@ -44,7 +44,7 @@ else:
     vmec_input = "../../../vmec_input_files/" +"input." + vmec_label
 
 
-largest_mode = 1
+largest_mode = 2
 
 mpi = MpiPartition()
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
@@ -110,7 +110,7 @@ B_mean = vmec.indata.phiedge/np.pi/minor_radius/minor_radius
 mirror = MirrorCon(vmec,B_mean,mirror_target)
 
 prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
-                                        (vmec.mean_iota, iota_target, 100),
+                                        (vmec.mean_iota, iota_target, 1),
                                         (mirror.J, 0.0, 1)])
 ## phase one without mirror constraint
 #prob = LeastSquaresProblem.from_tuples([(surf.aspect_ratio, aspect_target, 1),
@@ -170,7 +170,7 @@ for step in range(largest_mode):
         print("mirror ratio",mirror_opt)
     
     # write the data to a file
-    tail = f"_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}"
+    tail = f"_phase_one_mirror_{mirror_target}_aspect_{aspect_target}_iota_{iota_target}_mmode_{max_mode}"
     outfilename = "input." + vmec_label + tail    
     vmec.write_input(outfilename)
 
