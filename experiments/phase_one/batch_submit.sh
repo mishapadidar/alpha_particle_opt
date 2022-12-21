@@ -1,7 +1,11 @@
 
-# 4 field period
-vmec="nfp4_QH_cold_high_res"
-aspect=7.0
+# 5 field period
+vmec="nfp5_cold_high_res"
+aspect=5.0
+
+## 4 field period
+#vmec="nfp4_QH_cold_high_res"
+#aspect=7.0
 
 ## for 2 field period
 #vmec="nfp2_QA_cold_high_res"
