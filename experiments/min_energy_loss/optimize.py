@@ -48,7 +48,7 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 700
+maxfev = 400
 #max_step = 1.0 # for max_mode=1
 #max_step = 0.1 # for max_mode=2
 #max_step = 1e-2 # for max_mode=3
@@ -110,6 +110,7 @@ elif vmec_label == "nfp4_QH_cold_high_res":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res"
 elif vmec_label == "nfp4_QH_cold_high_res_mirror_feas":
   vmec_input="../../vmec_input_files/input.nfp4_QH_cold_high_res_mirror_feasible"
+
 elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_-1.043":
   vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
 elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_0.28":
@@ -130,6 +131,7 @@ elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_1.29":
   vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.29"
 elif vmec_label == "nfp4_phase_one_aspect_7.0_iota_1.44":
   vmec_input="../phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.44"
+
 elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.28":
   vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.28"
 elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.42":
@@ -138,6 +140,25 @@ elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.53":
   vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.53"
 elif vmec_label == "nfp2_phase_one_aspect_6.0_iota_0.71":
   vmec_input="../phase_one/data/input.nfp2_QA_cold_high_res_phase_one_mirror_1.35_aspect_6.0_iota_0.71"
+
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_0.28":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_0.28_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_0.42":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_0.42_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_0.53":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_0.53_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_0.71":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_0.71_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_0.89":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_0.89_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_0.97":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_0.97_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_1.05":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_1.05_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_1.29":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_1.29_mmode_2"
+elif vmec_label == "nfp5_phase_one_aspect_5.0_iota_1.44":
+  vmec_input="../phase_one/data/input.nfp5_cold_high_res_phase_one_mirror_1.35_aspect_5.0_iota_1.44_mmode_2"
 
 if not debug:
   vmec_input="../" + vmec_input
@@ -460,12 +481,13 @@ for max_mode in range(smallest_mode,largest_mode+1):
     # set the optimizer step size 0.1,0.01,0.001
     max_step = max(0.1*pow(10,1-max_mode),1e-3)
   else:
-    # set the optimizer step size 1,0.1,0.01
-    max_step = max(pow(10,1-max_mode),1e-2)
+    # set the optimizer step size 1,0.1,0.01,0.001
+    max_step = max(pow(10,1-max_mode),1e-3)
 
-  # resample SAA
-  if sampling_type == "SAA":
-    stz_inits,vpar_inits = get_random_points(sampling_level)
+  # TODO: should this be off?
+  ## resample SAA
+  #if sampling_type == "SAA":
+  #  stz_inits,vpar_inits = get_random_points(sampling_level)
 
   evw = EvalWrapper(objective,dim_x,1)
   
