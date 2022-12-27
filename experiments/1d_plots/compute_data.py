@@ -105,10 +105,15 @@ def get_random_points(sampling_level):
 radial_sampler = RadialDensity(1000)
 
 if sampling_type == "gauss" and sampling_level == "full":
+  # linspace on theta/zeta
+  theta_lin = np.linspace(0, 2*np.pi, ntheta)
+  theta_weights = np.ones(ntheta)
+  zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+  zeta_weights = np.ones(nzeta)
+  #theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
+  #zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
   # gauss quadrature
   s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,s_min,s_max)
-  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
-  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
   vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
   [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin,indexing='ij')
   [w1,w2,w3,w4] = np.meshgrid(s_weights,theta_weights,zeta_weights,vpar_weights,indexing='ij')
@@ -129,8 +134,14 @@ elif sampling_type == "gauss":
   s_label = float(sampling_level)
 
   # gauss quadrature
-  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
-  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
+  #theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
+  #zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
+  # linspace on theta/zeta
+  theta_lin = np.linspace(0, 2*np.pi, ntheta)
+  theta_weights = np.ones(ntheta)
+  zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+  zeta_weights = np.ones(nzeta)
+  # gauss quadrature on vpar
   vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
   [thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin,indexing='ij')
   [w1,w2,w3] = np.meshgrid(theta_weights,zeta_weights,vpar_weights,indexing='ij')
@@ -364,13 +375,18 @@ for ii in range(n_directions):
       outdata['stz_inits'] = stz_inits
       outdata['vpar_inits'] = vpar_inits
     
-    if sampling_type == 'simpson':
+#     if sampling_type == 'simpson':
+#       if sampling_level == "full":
+#         outdata['s_lin'] = s_lin
+#       outdata['theta_lin'] = theta_lin
+#       outdata['zeta_lin'] = zeta_lin
+#       outdata['vpar_lin'] = vpar_lin
+    if sampling_type in ['simpson', 'gauss']:
       if sampling_level == "full":
         outdata['s_lin'] = s_lin
       outdata['theta_lin'] = theta_lin
       outdata['zeta_lin'] = zeta_lin
       outdata['vpar_lin'] = vpar_lin
-    if sampling_type in ['simpson', 'gauss']:
       outdata['likelihood'] = likelihood
       outdata['quad_weights'] = quad_weights
 
