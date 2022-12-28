@@ -9,12 +9,6 @@
 - are tmax=0.1 configurations quasisymmetric?
   - just look at the results for the tmax=0.1 configs
 
-- set up constraint gradients in post processor.
-
-- post process results
-  - make sure they are minima
-  - look at the linesearch along the QS grad direction.
-
 - make plot of iota0 vs losses for tmax=0.01
   - [x] generate nfp5 phase-one points with mmode=1,2 in phase-one.
   - [x] generate nfp2 phase-one points with mmode=1,2 in phase-one.
@@ -23,11 +17,16 @@
   - optimize losses for nfp5
     - currently running t=0.01 optimization to 4 modes.
 
+- set up constraint gradients in post processor.
+
+- post process results
+  - make sure they are minima
+  - look at the linesearch along the QS grad direction.
+
 - make 1d plots of objective, and objective approximation plots
   - [x] write scripts to generate data
-  - generate data for tmax=1e-4
+  - [x] generate data for tmax=1e-4
   - generate data for tmax=1e-3
-  - plot results in notebook and decide on plot format
 
 - select 1 sol with large losses
   - establish (local) optimality
