@@ -1,6 +1,6 @@
 
 filelist=(
-'../../min_energy_loss/data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle'
+'../../min_energy_loss/data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle'
 )
 NODES=1
 CORES=4

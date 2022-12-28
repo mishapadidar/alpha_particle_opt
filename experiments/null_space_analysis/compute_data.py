@@ -24,6 +24,9 @@ Compute the following information around a point
 - linesearch the energy objective along the QS direction
 """
 
+# TODO: should we rescale our configs to a standard size?
+# TODO: and also rescale the B-field?
+
 
 # tracing params
 s_label = 0.25 # 0.25 or full
