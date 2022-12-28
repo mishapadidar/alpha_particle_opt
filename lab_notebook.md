@@ -6,6 +6,8 @@
 
 
 ## TODO:
+- write a script to plot the radial density
+
 - are tmax=0.1 configurations quasisymmetric?
   - just look at the results for the tmax=0.1 configs
 
