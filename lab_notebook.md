@@ -9,6 +9,8 @@
 - are tmax=0.1 configurations quasisymmetric?
   - just look at the results for the tmax=0.1 configs
 
+- set up constraint gradients in post processor.
+
 - post process results
   - make sure they are minima
   - look at the linesearch along the QS grad direction.
