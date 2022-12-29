@@ -13,6 +13,7 @@ def compute_det_jac_dcart_dbooz(field,stz_grid):
   stz_grid: (n_points,3) array of (s,theta,zeta)
   """
   n_points = len(stz_grid)
+  field.set_points(stz_grid)
 
   # convert points to cylindrical
   R = field.R() # (n_points,1)
@@ -80,9 +81,17 @@ if __name__ == "__main__":
   field,bri = tracer.compute_boozer_field(x0)
   
   # generate point in Boozer space
-  ns = ntheta=nzeta=16
-  stz_grid,_ = tracer.flux_grid(ns,ntheta,nzeta,1)
-  field.set_points(stz_grid)
+  s_label = 0.25
+  ntheta=nzeta=128
+  nfp = tracer.surf.nfp
+  thetas = np.linspace(0, 2*np.pi, ntheta)
+  zetas = np.linspace(0,2*np.pi/nfp, nzeta)
+  # build a mesh
+  [thetas,zetas] = np.meshgrid(thetas, zetas)
+  stz_grid = np.zeros((ntheta*nzeta, 3))
+  stz_grid[:, 0] = s_label
+  stz_grid[:, 1] = thetas.flatten()
+  stz_grid[:, 2] = zetas.flatten()
 
   # compute the determinant of the jacobian
   detjac = compute_det_jac_dcart_dbooz(field,stz_grid)
@@ -91,11 +100,14 @@ if __name__ == "__main__":
   import pickle
   outdata = {}
   outdata['vmec_input'] = vmec_input
+  outdata['thetas'] = thetas
+  outdata['zetas'] = zetas
   outdata['stz_grid'] = stz_grid
   outdata['detjac'] = detjac
-  outdata['ns'] = ns
+  outdata['s_label'] = s_label
   outdata['ntheta'] = ntheta
   outdata['nzeta'] = nzeta
-  outfilename = "./anlge_density_data.pickle"
+  outdata['nfp'] = nfp
+  outfilename = "./angle_density_data.pickle"
   pickle.dump(outdata,open(outfilename,"wb"))
   
