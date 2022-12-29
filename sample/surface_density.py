@@ -4,67 +4,79 @@ sys.path.append("../trace")
 from trace_boozer import TraceBoozer
 
 
+def compute_det_jac_dcart_dbooz(field,stz_grid):
+  """
+  Compute the abs determinant jacobian of cart wrt booz
+    |D(X,Y,Z)/D(s,theta,zeta)|
 
+  input: BoozerMagneticField object
+  stz_grid: (n_points,3) array of (s,theta,zeta)
+  """
+  n_points = len(stz_grid)
 
-vmec_input = "../vmec_input_files/input.nfp4_QH_warm_start_high_res"
-max_mode = 1
-aspect_target = 7.0
-major_radius = 1.7*aspect_target
-target_volavgB = 5.0
+  # convert points to cylindrical
+  R = field.R() # (n_points,1)
+  Z = field.Z() # (n_points,1)
+  Phi = stz_grid[:,-1].reshape((-1,1)) # phi = zeta
+  
+  # dcylindrical/dboozer
+  R_derivs = field.R_derivs() # (n_points,3)
+  Z_derivs = field.Z_derivs() # (n_points,3)
+  # dphi/dzeta = 1
+  Phi_derivs = np.zeros((n_points,3))
+  Phi_derivs[:,-1] = 1.0
+  
+  # compute dcartesian/dBoozer
+  # X = R*cos(Phi)
+  dX_dR = np.cos(Phi) # (n_points,1)
+  dX_dPhi = -R*np.sin(Phi) # (n_points,1)
+  # (Dcyl/Dbooz).T @ dX/dcyl 
+  X_derivs = R_derivs*dX_dR + Phi_derivs*dX_dPhi  # (n_points,3)
+  # Y = R*sin(Phi)
+  dY_dR = np.sin(Phi) # (n_points,1)
+  dY_dPhi = R*np.cos(Phi) # (n_points,1)
+  # (Dcyl/Dbooz).T @ dY/dcyl 
+  Y_derivs = R_derivs*dY_dR + Phi_derivs*dY_dPhi  # (n_points,3)
+  
+  # build the (3,3) jacobians
+  dcart_dbooz = np.zeros((n_points,3,3))
+  dcart_dbooz[:,0,:]  = np.copy(X_derivs)
+  dcart_dbooz[:,1,:]  = np.copy(Y_derivs)
+  dcart_dbooz[:,2,:]  = np.copy(Z_derivs)
+  
+  # density \propto |determinant(jacobian)|
+  jac = np.abs(np.linalg.det(dcart_dbooz))
+  return jac
+  
+  
+  
 
-# buld a tracer
-tracer = TraceBoozer(vmec_input,
-                    n_partitions=1,
-                    max_mode=max_mode,
-                    major_radius=major_radius,
-                    aspect_target=aspect_target,
-                    target_volavgB=target_volavgB,
-                    tracing_tol=1e-8,
-                    interpolant_degree=3,
-                    interpolant_level=8,
-                    bri_mpol=16,
-                    bri_ntor=16)
-
-x0 = tracer.x0
-
-# compute the boozer field
-field,bri = tracer.compute_boozer_field(x0)
-
-# generate point in Boozer space
-ns = ntheta=nphi=16
-stz_grid,_ = tracer.flux_grid(ns,ntheta,nphi,1)
-n_points = len(stz_grid)
-field.set_points(stz_grid)
-print(n_points)
-
-# convert points to cylindrical
-# TODO: check the shape
-R = field.R()
-Z = field.Z()
-print(R.shape,Z.shape)
-# assume phi = zeta
-Phi = stz_grid[:,-1]
-
-# dcylindrical/dboozer
-# TODO: check the shape
-R_derivs = field.R_derivs()
-Z_derivs = field.Z_derivs()
-# assume phi = zeta, so deriv = 1
-Phi_derivs = np.zeros((n_points,3))
-Phi_derivs[:,-1] = 1.0
-print(R_derivs.shape,Z_derivs.shape)
-quit()
-quit()
-# TODO: compute dcartesian/dcylindrical
-JD = np.vstack((np.cos(phi)*D[:,0] + np.sin(phi)*D[:,1],
-               (-np.sin(phi)*D[:,0] + np.cos(phi)*D[:,1])/r,
-               D[:,2])).T
-
-# TODO: chain rule the derivatives
-
-# TODO: now compute the determinants of the jacobians
-
-# plot the density
-# TODO: plot the density as a color, and use R and Z as contours.
-
-
+if __name__ == "__main__":
+  vmec_input = "../vmec_input_files/input.nfp4_QH_warm_start_high_res"
+  max_mode = 1
+  aspect_target = 7.0
+  major_radius = 1.7*aspect_target
+  target_volavgB = 5.0
+  
+  # buld a tracer
+  tracer = TraceBoozer(vmec_input,
+                      n_partitions=1,
+                      max_mode=max_mode,
+                      major_radius=major_radius,
+                      aspect_target=aspect_target,
+                      target_volavgB=target_volavgB,
+                      tracing_tol=1e-8,
+                      interpolant_degree=3,
+                      interpolant_level=8,
+                      bri_mpol=16,
+                      bri_ntor=16)
+  
+  x0 = tracer.x0
+  
+  # compute the boozer field
+  field,bri = tracer.compute_boozer_field(x0)
+  
+  # generate point in Boozer space
+  ns = ntheta=nzeta=16
+  stz_grid,_ = tracer.flux_grid(ns,ntheta,nzeta,1)
+  field.set_points(stz_grid)
