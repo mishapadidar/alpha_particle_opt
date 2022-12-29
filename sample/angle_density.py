@@ -52,6 +52,9 @@ def compute_det_jac_dcart_dbooz(field,stz_grid):
   
 
 if __name__ == "__main__":
+  """
+  Run with mpiexec 
+  """
   vmec_input = "../vmec_input_files/input.nfp4_QH_warm_start_high_res"
   max_mode = 1
   aspect_target = 7.0
@@ -80,3 +83,19 @@ if __name__ == "__main__":
   ns = ntheta=nzeta=16
   stz_grid,_ = tracer.flux_grid(ns,ntheta,nzeta,1)
   field.set_points(stz_grid)
+
+  # compute the determinant of the jacobian
+  detjac = compute_det_jac_dcart_dbooz(field,stz_grid)
+
+  # dump a pickle file
+  import pickle
+  outdata = {}
+  outdata['vmec_input'] = vmec_input
+  outdata['stz_grid'] = stz_grid
+  outdata['detjac'] = detjac
+  outdata['ns'] = ns
+  outdata['ntheta'] = ntheta
+  outdata['nzeta'] = nzeta
+  outfilename = "./anlge_density_data.pickle"
+  pickle.dump(outdata,open(outfilename,"wb"))
+  
