@@ -82,7 +82,7 @@ if __name__ == "__main__":
   
   # generate point in Boozer space
   s_label = 0.25
-  ntheta=nzeta=128
+  ntheta=nzeta=256
   nfp = tracer.surf.nfp
   thetas = np.linspace(0, 2*np.pi, ntheta)
   zetas = np.linspace(0,2*np.pi/nfp, nzeta)
