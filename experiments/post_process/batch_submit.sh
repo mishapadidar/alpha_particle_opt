@@ -1,9 +1,9 @@
 
 filelist=(
-'../../min_energy_loss/data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle'
+'../../min_energy_loss/data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_1_iota_None.pickle'
 )
 NODES=1
-CORES=4
+CORES=5
 for idx in ${!filelist[@]}
 do
   datafile=${filelist[idx]}
@@ -28,7 +28,7 @@ do
     rm "${SUB}"
   fi
   printf '%s\n' "#!/bin/bash" >> ${SUB}
-  printf '%s\n' "#SBATCH -J ns_${idx} # Job name" >> ${SUB}
+  printf '%s\n' "#SBATCH -J pp_${idx} # Job name" >> ${SUB}
   printf '%s\n' "#SBATCH -o ./job_%j.out    # Name of stdout output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -e ./job_%j.err    # Name of stderr output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -N ${NODES}       # Total number of nodes requested" >> ${SUB}
