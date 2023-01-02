@@ -1,6 +1,7 @@
 import numpy as np
 from mpi4py import MPI
 from simsopt.mhd.vmec_diagnostics import QuasisymmetryRatioResidual
+from simsopt._core import Optimizable
 import sys
 import pickle
 debug = False
@@ -21,7 +22,12 @@ rank = comm.Get_rank()
 Compute the following information around a point
 - the gradient of the energy objective
 - the gradient of the quasisymmetry objective
+- the gradient of the aspect ratio 
+- the gradient of the B-field constraint
 - linesearch the energy objective along the QS direction
+
+Run 
+  mpiexec -n 1 python3 compute_data.py ../vmec_input_files/data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_1_iota_None.pickle
 """
 
 # TODO: should we rescale our configs to a standard size?
@@ -77,13 +83,79 @@ qsrr = QuasisymmetryRatioResidual(tracer.vmec,
                                 np.arange(0, 1.01, 0.1),  # Radii to target
                                 helicity_m=helicity_m, helicity_n=helicity_n)  # (M, N) you want in |B|
 
+# bounds on the mirror ratio
+class MirrorCon(Optimizable):
+    """
+    Constraints on |B|:
+    |B| <= B_mean(1+eps_B)
+    |B| >= B_mean(1-eps_B)
+    where B_mean is, say, 5 Tesla.
+    """
+    def __init__(self, v, B_mean,mirror_target):
+        self.v = v
+        Optimizable.__init__(self, depends_on=[v])
+        eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
+        self.B_ub = B_mean*(1 + eps_B)
+        self.B_lb = B_mean*(1 - eps_B)
+
+    def resid(self):
+        """
+        Constraint penalty. 
+
+        return the residuals
+          [np.max(|B| - B_ub,0.0),np.max(B_lb - |B|,0.0)]
+        """
+        # get modB from quasisymmetry function
+        data = qsrr.compute()
+        modB = data.modB
+        #print(np.min(modB),np.max(modB))
+        # modB <= B_ub
+        c_ub = np.maximum(modB - self.B_ub,0.0)
+        # modB >= B_lb
+        c_lb = np.maximum(self.B_lb - modB,0.0)
+        ret = np.append(c_ub,c_lb)
+        return ret
+
+    def total(self):
+        """
+        Sum of squares objectve.
+        """
+        resid = self.resid()
+        return np.sum(resid**2)
+
+    def B_minmax(self):
+        data = qs.compute()
+        modB = data.modB
+        return np.min(modB),np.max(modB)
+
+    def mirror_ratio(self):
+        Bmin,Bmax =  self.B_minmax()
+        return Bmax/Bmin
+
+# mirror ratio constraint
+B_mean = 5.0
+mirror_target = 1.35
+mirror = MirrorCon(tracer.vmec,B_mean,mirror_target)
+
+def compute_values(x):
+  """
+  Compute the values
+  [ QS sum of squares, mirror constraint sum of squares, aspect ratio]
+  """
+  tracer.surf.x = np.copy(x)
+  ret = np.array([qsrr.total(),mirror.total(),tracer.surf.aspect_ratio()])
+  if rank == 0:
+    print(ret)
+    sys.stdout.flush()
+  return ret
+
 if rank == 0:
     print('aspect',tracer.surf.aspect_ratio())
     print('iota',tracer.vmec.mean_iota())
     print('major radius',tracer.surf.get('rc(0,0)'))
     print('toroidal flux',tracer.vmec.indata.phiedge)
     print('qs total',qsrr.total())
-
+    sys.stdout.flush()
 
 """
 Compute the gradient of quasisymmetry objective
@@ -93,21 +165,49 @@ if rank == 0:
   print("")
   print('computing gradient of QS with finite difference')
   print('dim_x',len(x0))
+  sys.stdout.flush()
 
-def compute_quasisymmetry(x):
-  tracer.surf.x = np.copy(x)
-  return qsrr.total()
-
-# Quasisymmetry gradient
+# gradients
 Ep   = x0 + h_fdiff_qs*np.eye(dim_x)
-qs_plus = np.array([compute_quasisymmetry(e) for e in Ep])
-qs0 = compute_quasisymmetry(x0)
-grad_qs = (qs_plus - qs0)/h_fdiff_qs
+Fp = np.array([compute_values(e) for e in Ep])
+F0 = compute_values(x0)
+jac = (Fp - F0).T/h_fdiff_qs
+qs0 = F0[0]
+mirror0 = F0[1]
+aspect0 = F0[2]
+qs_plus = Fp[:,0]
+mirror_plus = Fp[:,1]
+aspect_plus = Fp[:,2]
+grad_qs = jac[0]
+grad_mirror = jac[1]
+grad_aspect = jac[2]
+
 
 if rank == 0:
   print('qs total',qs0)
   print('norm qs grad',np.linalg.norm(grad_qs))
+  print('mirror total',mirror0)
+  print('norm mirror grad',np.linalg.norm(grad_mirror))
+  print('aspect',aspect0)
+  print('norm aspect grad',np.linalg.norm(grad_aspect))
+  sys.stdout.flush()
 
+# save data
+outdata = {}
+outdata['qs0'] = qs0
+outdata['qs_plus'] = qs_plus
+outdata['grad_qs'] = grad_qs
+outdata['mirror0'] = mirror0
+outdata['mirror_plus'] = mirror_plus
+outdata['grad_mirror'] = grad_mirror
+outdata['aspect0'] = aspect0
+outdata['aspect_plus'] = aspect_plus
+outdata['grad_aspect'] = grad_aspect
+outdata['h_fdiff_qs'] = h_fdiff_qs
+outdata['helicity_m'] = helicity_m
+outdata['helicity_n'] = helicity_n
+indata[f'post_process_s_{s_label}'] = outdata
+pickle.dump(indata,open(data_file,"wb"))
 
 """
 Compute the gradient of the energy objective
@@ -141,13 +241,9 @@ if rank == 0:
   print('norm qs grad',np.linalg.norm(grad_qs))
 
 # save data
-outdata = {}
 outdata['tmax'] = tmax
 outdata['n_particles'] = n_particles
 outdata['h_fdiff'] = h_fdiff
-outdata['s_label'] = s_label
-outdata['helicity_m'] = helicity_m
-outdata['helicity_n'] = helicity_n
 outdata['s_label'] = s_label
 outdata['x0'] = x0
 outdata['Xp'] = Ep
@@ -155,10 +251,7 @@ outdata['c_times_plus'] = c_times_plus
 outdata['c_times0'] = c_times0
 outdata['energy0'] = energy0
 outdata['energy_plus'] = energy_plus
-outdata['qs0'] = qs0
-outdata['qs_plus'] = qs_plus
 outdata['grad_energy'] =grad_energy
-outdata['grad_qs'] = grad_qs
 
 # dump data
 indata[f'post_process_s_{s_label}'] = outdata
