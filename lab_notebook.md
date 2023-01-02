@@ -7,10 +7,6 @@
 
 
 ## TODO:
-- set up constraint gradients in post processor.
-- post process results
-  - make sure they are minima
-  - look at the linesearch along the QS grad direction.
 
 - make objective timing plot
 
@@ -21,7 +17,7 @@
   - currently optimizing losses for nfp5 for tmax=0.01
   - plot data for tmax=0.01
 
-- select 1 sol with large losses
+- select multiple sols and post process results
   - establish (local) optimality
   - determine the constraint activity
   - compute sensitivity to constraint parameters
@@ -29,12 +25,6 @@
     - if the QS sol is different, then we are in a local minima
   - make line between bad sol and nearby QS sol.
   - determine if QS gradient is in hessian null space at the bad sol.
-
-- select 1 sol with small losses
-  - establish (local) optimality
-  - determine the constraint activity
-  - compute sensitivity to constraint parameters
-  - check if the QS gradient is in the null space of the hessian at the good sol
   
 
 ## Long Term:
