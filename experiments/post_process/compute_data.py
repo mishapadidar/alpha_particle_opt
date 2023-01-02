@@ -83,67 +83,118 @@ qsrr = QuasisymmetryRatioResidual(tracer.vmec,
                                 np.arange(0, 1.01, 0.1),  # Radii to target
                                 helicity_m=helicity_m, helicity_n=helicity_n)  # (M, N) you want in |B|
 
-# bounds on the mirror ratio
-class MirrorCon(Optimizable):
+
+class MirrorCon:
     """
     Constraints on |B|:
     |B| <= B_mean(1+eps_B)
     |B| >= B_mean(1-eps_B)
     where B_mean is, say, 5 Tesla.
     """
-    def __init__(self, v, B_mean,mirror_target):
-        self.v = v
-        Optimizable.__init__(self, depends_on=[v])
+    def __init__(self, B_mean,mirror_target):
         eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
         self.B_ub = B_mean*(1 + eps_B)
         self.B_lb = B_mean*(1 - eps_B)
+        self.ns=8 # maxB should be on boundary
+        self.ntheta=16
+        self.nzeta=16
+        self.default = np.zeros(self.ns*self.ntheta*self.nzeta)
 
-    def resid(self):
-        """
-        Constraint penalty. 
+    def B_field(self,x):
+      """
+      Compute modB on a grid
+      """
+      field,bri = tracer.compute_boozer_field(x)
+      if field is None:
+        return self.default
+      modB = tracer.compute_modB(field,bri,ns=self.ns,ntheta=self.ntheta,nphi=self.nzeta)
+      return modB
 
-        return the residuals
-          [np.max(|B| - B_ub,0.0),np.max(B_lb - |B|,0.0)]
-        """
-        # get modB from quasisymmetry function
-        data = qsrr.compute()
-        modB = data.modB
-        #print(np.min(modB),np.max(modB))
-        # modB <= B_ub
-        c_ub = np.maximum(modB - self.B_ub,0.0)
-        # modB >= B_lb
-        c_lb = np.maximum(self.B_lb - modB,0.0)
+    def B_shifted(self,x):
+        """B-field shifted for the constraint c(x) <= 0"""
+        # compute the B-field
+        modB = self.B_field(x)
+        # modB - B_ub <= 0
+        c_ub = modB - self.B_ub
+        # B_lb - modB <= 0
+        c_lb = self.B_lb - modB
         ret = np.append(c_ub,c_lb)
         return ret
 
-    def total(self):
+    def resid(self,x):
+        """penalty residuals"""
+        ret = np.maximum(self.B_shifted(x),0.0)
+        return ret
+
+    def total(self,x):
         """
         Sum of squares objectve.
         """
-        resid = self.resid()
-        return np.sum(resid**2)
+        ret = np.sum(self.resid(x)**2)
+        return ret
 
-    def B_minmax(self):
-        data = qs.compute()
-        modB = data.modB
-        return np.min(modB),np.max(modB)
-
-    def mirror_ratio(self):
-        Bmin,Bmax =  self.B_minmax()
-        return Bmax/Bmin
+## bounds on the mirror ratio
+#class MirrorCon(Optimizable):
+#    """
+#    Constraints on |B|:
+#    |B| <= B_mean(1+eps_B)
+#    |B| >= B_mean(1-eps_B)
+#    where B_mean is, say, 5 Tesla.
+#    """
+#    def __init__(self, v, B_mean,mirror_target):
+#        self.v = v
+#        Optimizable.__init__(self, depends_on=[v])
+#        eps_B = (mirror_target - 1.0)/(mirror_target + 1.0)
+#        self.B_ub = B_mean*(1 + eps_B)
+#        self.B_lb = B_mean*(1 - eps_B)
+#
+#    def resid(self):
+#        """
+#        Constraint penalty. 
+#
+#        return the residuals
+#          [np.max(|B| - B_ub,0.0),np.max(B_lb - |B|,0.0)]
+#        """
+#        # get modB from quasisymmetry function
+#        data = qsrr.compute()
+#        modB = data.modB
+#        #print(np.min(modB),np.max(modB))
+#        # modB <= B_ub
+#        c_ub = np.maximum(modB - self.B_ub,0.0)
+#        # modB >= B_lb
+#        c_lb = np.maximum(self.B_lb - modB,0.0)
+#        ret = np.append(c_ub,c_lb)
+#        return ret
+#
+#    def total(self):
+#        """
+#        Sum of squares objectve.
+#        """
+#        resid = self.resid()
+#        return np.sum(resid**2)
+#
+#    def B_minmax(self):
+#        data = qs.compute()
+#        modB = data.modB
+#        return np.min(modB),np.max(modB)
+#
+#    def mirror_ratio(self):
+#        Bmin,Bmax =  self.B_minmax()
+#        return Bmax/Bmin
 
 # mirror ratio constraint
 B_mean = 5.0
 mirror_target = 1.35
-mirror = MirrorCon(tracer.vmec,B_mean,mirror_target)
+#mirror = MirrorCon(tracer.vmec,B_mean,mirror_target)
+mirror = MirrorCon(B_mean,mirror_target)
 
 def compute_values(x):
   """
   Compute the values
-  [ QS sum of squares, mirror constraint sum of squares, aspect ratio]
+  [ QS sum of squares, mirror constraint residuals, aspect ratio]
   """
   tracer.surf.x = np.copy(x)
-  ret = np.array([qsrr.total(),mirror.total(),tracer.surf.aspect_ratio()])
+  ret = np.array([qsrr.total(),tracer.surf.aspect_ratio(),*mirror.B_shifted(x)])
   if rank == 0:
     print(ret)
     sys.stdout.flush()
@@ -164,22 +215,21 @@ Ep   = x0 + h_fdiff_qs*np.eye(dim_x)
 Fp = np.array([compute_values(e) for e in Ep])
 F0 = compute_values(x0)
 jac = (Fp - F0).T/h_fdiff_qs
-qs0 = F0[0]
-mirror0 = F0[1]
-aspect0 = F0[2]
-qs_plus = Fp[:,0]
-mirror_plus = Fp[:,1]
-aspect_plus = Fp[:,2]
-grad_qs = jac[0]
-grad_mirror = jac[1]
-grad_aspect = jac[2]
+qs0     = F0[0]
+aspect0 = F0[1]
+mirror0 = F0[2:]
+qs_plus     = Fp[:,0]
+aspect_plus = Fp[:,1]
+mirror_plus = Fp[:,2:]
+grad_qs     = jac[0]
+grad_aspect = jac[1]
+grad_mirror = jac[2:]
 
 
 if rank == 0:
   print('qs total',qs0)
   print('norm qs grad',np.linalg.norm(grad_qs))
-  print('mirror total',mirror0)
-  print('norm mirror grad',np.linalg.norm(grad_mirror))
+  print('mirror total',np.sum(np.maximum(mirror0,0.0)**2))
   print('aspect',aspect0)
   print('norm aspect grad',np.linalg.norm(grad_aspect))
   sys.stdout.flush()
@@ -264,7 +314,7 @@ def objectives(x):
   return np.append(c_times,qs)
 
 # linesearch step sizes
-T_ls = np.array([1e-5,1e-4,5e-4,1e-3,5e-3,1e-2,5e-2])
+T_ls = np.array([0.0,1e-5,2e-5,5e-5,1e-4,2e-4,5e-4,1e-3,3e-3,5e-3,7e-3,1e-2,2e-2,5e-2])
 # perform the linesearch along -grad(qs)
 X_ls = x0 - np.array([ti*grad_qs for ti in T_ls])
 F_ls   = np.array([objectives(e) for e in X_ls])
