@@ -27,7 +27,7 @@ Compute the following information around a point
 - linesearch the energy objective along the QS direction
 
 Run 
-  mpiexec -n 1 python3 compute_data.py ../vmec_input_files/data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_1_iota_None.pickle
+  mpiexec -n 1 python3 compute_data.py ../min_energy_loss/data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_1_iota_None.pickle
 """
 
 # TODO: should we rescale our configs to a standard size?
@@ -149,14 +149,6 @@ def compute_values(x):
     sys.stdout.flush()
   return ret
 
-if rank == 0:
-    print('aspect',tracer.surf.aspect_ratio())
-    print('iota',tracer.vmec.mean_iota())
-    print('major radius',tracer.surf.get('rc(0,0)'))
-    print('toroidal flux',tracer.vmec.indata.phiedge)
-    print('qs total',qsrr.total())
-    sys.stdout.flush()
-
 """
 Compute the gradient of quasisymmetry objective
 """
@@ -193,21 +185,22 @@ if rank == 0:
   sys.stdout.flush()
 
 # save data
-outdata = {}
-outdata['qs0'] = qs0
-outdata['qs_plus'] = qs_plus
-outdata['grad_qs'] = grad_qs
-outdata['mirror0'] = mirror0
-outdata['mirror_plus'] = mirror_plus
-outdata['grad_mirror'] = grad_mirror
-outdata['aspect0'] = aspect0
-outdata['aspect_plus'] = aspect_plus
-outdata['grad_aspect'] = grad_aspect
-outdata['h_fdiff_qs'] = h_fdiff_qs
-outdata['helicity_m'] = helicity_m
-outdata['helicity_n'] = helicity_n
-indata[f'post_process_s_{s_label}'] = outdata
-pickle.dump(indata,open(data_file,"wb"))
+if rank == 0:
+  outdata = {}
+  outdata['qs0'] = qs0
+  outdata['qs_plus'] = qs_plus
+  outdata['grad_qs'] = grad_qs
+  outdata['mirror0'] = mirror0
+  outdata['mirror_plus'] = mirror_plus
+  outdata['grad_mirror'] = grad_mirror
+  outdata['aspect0'] = aspect0
+  outdata['aspect_plus'] = aspect_plus
+  outdata['grad_aspect'] = grad_aspect
+  outdata['h_fdiff_qs'] = h_fdiff_qs
+  outdata['helicity_m'] = helicity_m
+  outdata['helicity_n'] = helicity_n
+  indata[f'post_process_s_{s_label}'] = outdata
+  pickle.dump(indata,open(data_file,"wb"))
 
 """
 Compute the gradient of the energy objective
@@ -241,21 +234,22 @@ if rank == 0:
   print('norm qs grad',np.linalg.norm(grad_qs))
 
 # save data
-outdata['tmax'] = tmax
-outdata['n_particles'] = n_particles
-outdata['h_fdiff'] = h_fdiff
-outdata['s_label'] = s_label
-outdata['x0'] = x0
-outdata['Xp'] = Ep
-outdata['c_times_plus'] = c_times_plus
-outdata['c_times0'] = c_times0
-outdata['energy0'] = energy0
-outdata['energy_plus'] = energy_plus
-outdata['grad_energy'] =grad_energy
-
-# dump data
-indata[f'post_process_s_{s_label}'] = outdata
-pickle.dump(indata,open(data_file,"wb"))
+if rank == 0:
+  outdata['tmax'] = tmax
+  outdata['n_particles'] = n_particles
+  outdata['h_fdiff'] = h_fdiff
+  outdata['s_label'] = s_label
+  outdata['x0'] = x0
+  outdata['Xp'] = Ep
+  outdata['c_times_plus'] = c_times_plus
+  outdata['c_times0'] = c_times0
+  outdata['energy0'] = energy0
+  outdata['energy_plus'] = energy_plus
+  outdata['grad_energy'] =grad_energy
+  
+  # dump data
+  indata[f'post_process_s_{s_label}'] = outdata
+  pickle.dump(indata,open(data_file,"wb"))
 
 
 """
@@ -284,14 +278,15 @@ if rank == 0:
   print('energy linesearch',energy_ls)
   print('qs linesearch',qs_ls)
 
-# save the data
-outdata['T_ls'] = T_ls
-outdata['X_ls'] = X_ls
-outdata['qs_ls'] = qs_ls
-outdata['energy_ls'] = energy_ls
-outdata['c_times_ls'] = c_times_ls
-# dump data
-indata[f'post_process_s_{s_label}'] = outdata
-pickle.dump(indata,open(data_file,"wb"))
-
-
+if rank == 0:
+  # save the data
+  outdata['T_ls'] = T_ls
+  outdata['X_ls'] = X_ls
+  outdata['qs_ls'] = qs_ls
+  outdata['energy_ls'] = energy_ls
+  outdata['c_times_ls'] = c_times_ls
+  # dump data
+  indata[f'post_process_s_{s_label}'] = outdata
+  pickle.dump(indata,open(data_file,"wb"))
+  
+  
