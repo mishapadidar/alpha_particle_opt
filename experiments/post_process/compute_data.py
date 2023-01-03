@@ -38,7 +38,7 @@ Run
 s_label = 0.25 # 0.25 or full
 n_particles = 10000
 h_fdiff = 1e-2 # finite difference
-h_fdiff_qs = 1e-5 # finite difference quasisymmetry
+h_fdiff_qs = 1e-4 # finite difference quasisymmetry
 helicity_m = 1 # quasisymmetry M
 helicity_n = -1 # quasisymmetry N
 
@@ -99,6 +99,9 @@ class MirrorCon:
         self.ntheta=16
         self.nzeta=16
         self.default = np.zeros(self.ns*self.ntheta*self.nzeta)
+        # grid points for modB
+        stz_grid,_ = tracer.flux_grid(self.ns,self.ntheta,self.nzeta,1)
+        self.stz_grid = stz_grid
 
     def B_field(self,x):
       """
@@ -107,7 +110,9 @@ class MirrorCon:
       field,bri = tracer.compute_boozer_field(x)
       if field is None:
         return self.default
-      modB = tracer.compute_modB(field,bri,ns=self.ns,ntheta=self.ntheta,nphi=self.nzeta)
+      field.set_points(self.stz_grid)
+      modB = field.modB().flatten()
+      #modB = tracer.compute_modB(field,bri,ns=self.ns,ntheta=self.ntheta,nphi=self.nzeta)
       return modB
 
     def B_shifted(self,x):
@@ -194,7 +199,11 @@ def compute_values(x):
   [ QS sum of squares, mirror constraint residuals, aspect ratio]
   """
   tracer.surf.x = np.copy(x)
-  ret = np.array([qsrr.total(),tracer.surf.aspect_ratio(),*mirror.B_shifted(x)])
+  try:
+    qs = qsrr.total() # quasisymmetry
+  except:
+    qs = np.inf
+  ret = np.array([qs,tracer.surf.aspect_ratio(),*mirror.B_shifted(x)])
   if rank == 0:
     print(ret)
     sys.stdout.flush()
@@ -249,6 +258,10 @@ if rank == 0:
   outdata['h_fdiff_qs'] = h_fdiff_qs
   outdata['helicity_m'] = helicity_m
   outdata['helicity_n'] = helicity_n
+  outdata['mirror_stz_grid'] = mirror.stz_grid
+  outdata['mirror_ns'] = mirror.ns
+  outdata['mirror_ntheta'] = mirror.ntheta
+  outdata['mirror_nzeta'] = mirror.nzeta
   indata[f'post_process_s_{s_label}'] = outdata
   pickle.dump(indata,open(data_file,"wb"))
 
@@ -310,17 +323,24 @@ def objectives(x):
   Compute quasisymmetry and mean-energy objective.
   """
   c_times = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
-  qs = qsrr.total() # quasisymmetry
-  return np.append(c_times,qs)
+  try:
+    qs = qsrr.total() # quasisymmetry
+  except:
+    qs = np.inf
+  asp = tracer.surf.aspect_ratio()
+  mc = mirror.B_shifted(x)
+  return np.array([*c_times,qs,asp,*mc])
 
 # linesearch step sizes
-T_ls = np.array([0.0,1e-5,2e-5,5e-5,1e-4,2e-4,5e-4,1e-3,3e-3,5e-3,7e-3,1e-2,2e-2,5e-2])
+T_ls = np.array([0.0,1e-5,2e-5,5e-5,1e-4,2e-4,5e-4,1e-3,2e-3,3e-3,5e-3,7e-3,8e-3,9e-3,1e-2,2e-2,4e-2,5e-2])
 # perform the linesearch along -grad(qs)
 X_ls = x0 - np.array([ti*grad_qs for ti in T_ls])
 F_ls   = np.array([objectives(e) for e in X_ls])
 # split the arrays
-c_times_ls = F_ls[:,:-1]
-qs_ls = F_ls[:,-1]
+c_times_ls = F_ls[:,:n_particles]
+qs_ls = F_ls[:,n_particles]
+asp_ls = F_ls[:,n_particles+1]
+mirror_ls = F_ls[:,n_particles+2:]
 energy_ls = np.mean(3.5*np.exp(-2*c_times_ls/tmax),axis=1)
 
 if rank == 0:
@@ -333,10 +353,14 @@ if rank == 0:
   outdata['T_ls'] = T_ls
   outdata['X_ls'] = X_ls
   outdata['qs_ls'] = qs_ls
+  outdata['aspect_ls'] = asp_ls
+  outdata['mirror_ls'] = mirror_ls
   outdata['energy_ls'] = energy_ls
   outdata['c_times_ls'] = c_times_ls
   # dump data
   indata[f'post_process_s_{s_label}'] = outdata
   pickle.dump(indata,open(data_file,"wb"))
   
+
+# TODO: linesearch along aspect and mirror constraint gradients
   
