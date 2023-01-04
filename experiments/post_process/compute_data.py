@@ -36,7 +36,7 @@ Run
 
 # tracing params
 s_label = 0.25 # 0.25 or full
-n_particles = 10000
+n_particles = 10000 
 h_fdiff = 1e-2 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
 helicity_m = 1 # quasisymmetry M
@@ -350,17 +350,68 @@ if rank == 0:
 
 if rank == 0:
   # save the data
-  outdata['T_ls'] = T_ls
-  outdata['X_ls'] = X_ls
-  outdata['qs_ls'] = qs_ls
-  outdata['aspect_ls'] = asp_ls
-  outdata['mirror_ls'] = mirror_ls
-  outdata['energy_ls'] = energy_ls
-  outdata['c_times_ls'] = c_times_ls
+  outdata['T_qsls'] = T_ls
+  outdata['X_qsls'] = X_ls
+  outdata['qs_qsls'] = qs_ls
+  outdata['aspect_qsls'] = asp_ls
+  outdata['mirror_qsls'] = mirror_ls
+  outdata['energy_qsls'] = energy_ls
+  outdata['c_times_qsls'] = c_times_ls
   # dump data
   indata[f'post_process_s_{s_label}'] = outdata
   pickle.dump(indata,open(data_file,"wb"))
   
 
-# TODO: linesearch along aspect and mirror constraint gradients
-  
+"""
+Linesearch along active mirror constraint gradients
+"""
+ctol=1e-3
+idx_active_mirror = np.where(mirror0 >= 0.0 - ctol)[0]
+active_mirror_jac = grad_mirror[idx_active_mirror]
+n_active_mirror = np.shape(idx_active_mirror)[0]
+
+
+# save the linesearch directions
+outdata['ctol'] = ctol
+outdata['idx_active_mirror'] = idx_active_mirror
+outdata['active_mirror_jac'] = active_mirror_jac
+
+if n_active_mirror <= 6:
+  for ii in range(n_active_mirror):
+
+    # perform the linesearch along grad(constraint)
+    direction = active_mirror_jac[ii]
+    X_ls = x0 + np.array([ti*direction for ti in T_ls])
+    F_ls   = np.array([objectives(e) for e in X_ls])
+
+    # current constraint index 
+    idx_mirror_con = idx_active_mirror[ii]
+
+    # split the arrays
+    c_times_ls = F_ls[:,:n_particles]
+    qs_ls = F_ls[:,n_particles]
+    asp_ls = F_ls[:,n_particles+1]
+    mirror_ls = F_ls[:,n_particles+2:]
+    mirror_ls = mirror_ls[:,idx_mirror_con] # only keep current constraint
+    energy_ls = np.mean(3.5*np.exp(-2*c_times_ls/tmax),axis=1)
+    
+
+    if rank == 0:
+      print("")
+      print('energy linesearch',energy_ls)
+      print('mirror con',idx_mirror_con, mirror_ls)
+    
+    if rank == 0:
+      # save the data
+      outdata[f'T_mirrorls']  = T_ls
+      outdata[f'idx_mirror_con_mirrorls_{ii}'] = idx_mirror_con # constraint index
+      outdata[f'mirror_mirrorls_{ii}'] = np.copy(mirror_ls) # constraint value
+      outdata[f'X_mirrorls_{ii}']  = np.copy(X_ls)
+      outdata[f'qs_mirrorls_{ii}'] = np.copy(qs_ls)
+      outdata[f'aspect_mirrorls_{ii}'] = np.copy(asp_ls)
+      outdata[f'energy_mirrorls_{ii}'] = np.copy(energy_ls)
+      outdata[f'c_times_mirrorls_{ii}'] = np.copy(c_times_ls)
+      # dump data
+      indata[f'post_process_s_{s_label}'] = outdata
+      pickle.dump(indata,open(data_file,"wb"))
+    
