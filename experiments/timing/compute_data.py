@@ -18,7 +18,7 @@ from trace_boozer import TraceBoozer
 Time the objective computation.
 
 Run 
-  mpiexec -n 1 python3 compute_data.py
+  mpiexec -n 1 python3 compute_data.py 1000
 """
 
 comm = MPI.COMM_WORLD
@@ -27,7 +27,6 @@ size = comm.Get_size()
 
 # tracing params
 s_label = 0.25 
-n_particles = 1000 
 tmax_list = [1e-4,1e-3,1e-2,1e-1]
 infile = "../../min_energy_loss/data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_4_iota_None.pickle"
 # tracing accuracy params
@@ -36,6 +35,9 @@ interpolant_degree=3
 interpolant_level=8
 bri_mpol=16
 bri_ntor=16
+
+# number of particles
+n_particles = int(sys.argv[1])
 
 # load the config
 if debug:
@@ -91,7 +93,7 @@ for ii, tmax in enumerate(tmax_list):
     
 # dump data
 if rank == 0:
-  outfilename = f"./timing_data_nprocs_{size}.pickle"
+  outfilename = f"./timing_data_nprocs_{size}_nparticles_{n_particles}.pickle"
   outdata = {}
   outdata['c_times'] = c_times
   outdata['timings'] = timings
