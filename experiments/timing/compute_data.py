@@ -91,7 +91,7 @@ for ii, tmax in enumerate(tmax_list):
     
 # dump data
 if rank == 0:
-  outfilename = "./timing_data.pickle"
+  outfilename = f"./timing_data_nprocs_{size}.pickle"
   outdata = {}
   outdata['c_times'] = c_times
   outdata['timings'] = timings

@@ -5,7 +5,7 @@ CORES=7
 
 # make a dir
 n_procs=$[$NODES*$CORES]
-dir="_batch_${n_procs}"
+dir="_batch_nprocs_${n_procs}"
 mkdir $dir
 
 # copy the compute data
