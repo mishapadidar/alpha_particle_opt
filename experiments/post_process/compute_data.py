@@ -372,9 +372,10 @@ n_active_mirror = np.shape(idx_active_mirror)[0]
 
 
 # save the linesearch directions
-outdata['ctol'] = ctol
-outdata['idx_active_mirror'] = idx_active_mirror
-outdata['active_mirror_jac'] = active_mirror_jac
+if rank == 0:
+  outdata['ctol'] = ctol
+  outdata['idx_active_mirror'] = idx_active_mirror
+  outdata['active_mirror_jac'] = active_mirror_jac
 
 if n_active_mirror <= 6:
   for ii in range(n_active_mirror):
