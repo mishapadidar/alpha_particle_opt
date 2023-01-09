@@ -37,7 +37,7 @@ Run
 # tracing params
 s_label = 0.25 # 0.25 or full
 n_particles = 10000 
-h_fdiff = 1e-2 # finite difference
+h_fdiff = 5e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
 helicity_m = 1 # quasisymmetry M
 helicity_n = -1 # quasisymmetry N
@@ -280,15 +280,19 @@ if s_label == "full":
 else:
   stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
 
-# forward difference the confinement times
-Ep   = x0 + h_fdiff*np.eye(dim_x)
+# central difference the confinement times
+h2 = h_fdiff/2
+Ep   = x0 + h2*np.eye(dim_x)
+Em   = x0 - h2*np.eye(dim_x)
 c_times_plus   = np.array([tracer.compute_confinement_times(e,stz_inits,vpar_inits,tmax) for e in Ep])
+c_times_minus   = np.array([tracer.compute_confinement_times(e,stz_inits,vpar_inits,tmax) for e in Em])
 c_times0 = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax) 
 # compute energy
 energy0 = np.mean(3.5*np.exp(-2*c_times0/tmax))
 energy_plus = np.mean(3.5*np.exp(-2*c_times_plus/tmax),axis=1)
-# gradient
-grad_energy = (energy_plus - energy0)/h_fdiff
+energy_minus = np.mean(3.5*np.exp(-2*c_times_minus/tmax),axis=1)
+# gradient; central difference
+grad_energy = (energy_plus - energy_minus)/h_fdiff
 
 if rank == 0:
   print('energy',energy0)
@@ -304,10 +308,13 @@ if rank == 0:
   outdata['s_label'] = s_label
   outdata['x0'] = x0
   outdata['Xp'] = Ep
+  outdata['Xm'] = Em
   outdata['c_times_plus'] = c_times_plus
+  outdata['c_times_minus'] = c_times_minus
   outdata['c_times0'] = c_times0
   outdata['energy0'] = energy0
   outdata['energy_plus'] = energy_plus
+  outdata['energy_minus'] = energy_minus
   outdata['grad_energy'] =grad_energy
   
   # dump data
