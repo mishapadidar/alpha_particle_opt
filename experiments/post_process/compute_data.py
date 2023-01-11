@@ -37,8 +37,9 @@ Run
 # tracing params
 s_label = 0.25 # 0.25 or full
 n_particles = 10000 
-h_fdiff = 5e-3 # finite difference
+h_fdiff_x = 5e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
+h_fdiff_y = 1e-2 # finite difference in scaled space
 helicity_m = 1 # quasisymmetry M
 helicity_n = -1 # quasisymmetry N
 
@@ -83,6 +84,62 @@ qsrr = QuasisymmetryRatioResidual(tracer.vmec,
                                 np.arange(0, 1.01, 0.1),  # Radii to target
                                 helicity_m=helicity_m, helicity_n=helicity_n)  # (M, N) you want in |B|
 
+"""
+Compute the Gauss-Newton Hessian
+"""
+def qs_residuals(x):
+  """
+  Compute the QS residuals
+  """
+  tracer.surf.x = np.copy(x)
+  try:
+    qs = qsrr.residuals() # quasisymmetry
+  except:
+    qs = np.inf
+  ret = qs
+  if rank == 0:
+    print(ret)
+    sys.stdout.flush()
+  return ret
+
+# print
+if rank == 0:
+  print("")
+  print('computing jacobian of QS with finite difference')
+  print('dim_x',dim_x)
+  sys.stdout.flush()
+
+# jacobian
+Ep = x0 + h_fdiff_qs*np.eye(dim_x)
+Fp = np.array([qs_residuals(e) for e in Ep])
+F0 = qs_residuals(x0)
+jac = (Fp - F0).T/h_fdiff_qs
+
+"""
+Rescale the variables
+"""
+
+# build the Gauss-Newton hessian approximation
+Hess = jac.T @ jac
+jit = 1e-6*np.eye(dim_x) # jitter
+L = np.linalg.cholesky(Hess + jit)
+
+if rank == 0:
+  print('')
+  print('Hessian eigenvalues')
+  print(np.linalg.eigvals(Hess))
+  sys.stdout.flush()
+
+# rescale the variables y = L.T @ x
+def to_scaled(x):
+  """maps to new variables"""
+  return L.T @ x
+def from_scaled(y):
+  """maps back to old variables"""
+  return np.linalg.solve(L.T,y)
+
+# map x0 to y0
+y0 = to_scaled(x0)
 
 class MirrorCon:
     """
@@ -193,11 +250,12 @@ mirror_target = 1.35
 #mirror = MirrorCon(tracer.vmec,B_mean,mirror_target)
 mirror = MirrorCon(B_mean,mirror_target)
 
-def compute_values(x):
+def compute_values(y):
   """
   Compute the values
   [ QS sum of squares, mirror constraint residuals, aspect ratio]
   """
+  x = from_scaled(y)
   tracer.surf.x = np.copy(x)
   try:
     qs = qsrr.total() # quasisymmetry
@@ -216,13 +274,13 @@ Compute the gradient of quasisymmetry objective
 if rank == 0:
   print("")
   print('computing gradient of QS with finite difference')
-  print('dim_x',len(x0))
+  print('dim_x',dim_x)
   sys.stdout.flush()
 
 # gradients
-Ep   = x0 + h_fdiff_qs*np.eye(dim_x)
+Ep   = y0 + h_fdiff_qs*np.eye(dim_x)
 Fp = np.array([compute_values(e) for e in Ep])
-F0 = compute_values(x0)
+F0 = compute_values(y0)
 jac = (Fp - F0).T/h_fdiff_qs
 qs0     = F0[0]
 aspect0 = F0[1]
@@ -271,7 +329,7 @@ Compute the gradient of the energy objective
 # print
 if rank == 0:
   print('computing gradient of energy with finite difference')
-  print('dim_x',len(x0))
+  print('dim_x',dim_x)
 
 # fixed sample
 tracer.sync_seeds()
@@ -280,19 +338,27 @@ if s_label == "full":
 else:
   stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
 
+def confinement_times(y):
+  """
+  Shortcut for computing confinement times from scaled space
+  """
+  x = from_scaled(y)
+  c_times = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax) 
+  return c_times
+
 # central difference the confinement times
-h2 = h_fdiff/2
-Ep   = x0 + h2*np.eye(dim_x)
-Em   = x0 - h2*np.eye(dim_x)
-c_times_plus   = np.array([tracer.compute_confinement_times(e,stz_inits,vpar_inits,tmax) for e in Ep])
-c_times_minus   = np.array([tracer.compute_confinement_times(e,stz_inits,vpar_inits,tmax) for e in Em])
-c_times0 = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax) 
+h2 = h_fdiff_y/2
+Ep   = y0 + h2*np.eye(dim_x)
+Em   = y0 - h2*np.eye(dim_x)
+c_times_plus   = np.array([confinement_times(e) for e in Ep])
+c_times_minus   = np.array([confinement_times(e)  for e in Em])
+c_times0 = confinement_times(y0) 
 # compute energy
 energy0 = np.mean(3.5*np.exp(-2*c_times0/tmax))
 energy_plus = np.mean(3.5*np.exp(-2*c_times_plus/tmax),axis=1)
 energy_minus = np.mean(3.5*np.exp(-2*c_times_minus/tmax),axis=1)
 # gradient; central difference
-grad_energy = (energy_plus - energy_minus)/h_fdiff
+grad_energy = (energy_plus - energy_minus)/h_fdiff_y
 
 if rank == 0:
   print('energy',energy0)
@@ -304,11 +370,14 @@ if rank == 0:
 if rank == 0:
   outdata['tmax'] = tmax
   outdata['n_particles'] = n_particles
-  outdata['h_fdiff'] = h_fdiff
+  outdata['h_fdiff_x'] = h_fdiff_x
+  outdata['h_fdiff_y'] = h_fdiff_y
   outdata['s_label'] = s_label
   outdata['x0'] = x0
-  outdata['Xp'] = Ep
-  outdata['Xm'] = Em
+  outdata['y0'] = y0
+  outdata['L'] = L
+  outdata['Yp'] = Ep
+  outdata['Ym'] = Em
   outdata['c_times_plus'] = c_times_plus
   outdata['c_times_minus'] = c_times_minus
   outdata['c_times0'] = c_times0
@@ -325,10 +394,11 @@ if rank == 0:
 """
 Now linesearch along -grad(qs)
 """
-def objectives(x):
+def objectives(y):
   """
   Compute quasisymmetry and mean-energy objective.
   """
+  x = from_scaled(y)
   c_times = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
   try:
     qs = qsrr.total() # quasisymmetry
@@ -339,9 +409,10 @@ def objectives(x):
   return np.array([*c_times,qs,asp,*mc])
 
 # linesearch step sizes
-T_ls = np.array([0.0,1e-5,2e-5,5e-5,1e-4,2e-4,5e-4,1e-3,2e-3,3e-3,5e-3,7e-3,8e-3,9e-3,1e-2,2e-2,4e-2,5e-2])
+#T_ls = np.array([0.0,1e-5,2e-5,5e-5,1e-4,2e-4,5e-4,1e-3,2e-3,3e-3,5e-3,7e-3,8e-3,9e-3,1e-2,2e-2,4e-2,5e-2])
+T_ls = h_fdiff_y*np.array([0.0,0.05,0.1,0.5,1.0,2.0,5.0,10.0,20.0,50.0])
 # perform the linesearch along -grad(qs)
-X_ls = x0 - np.array([ti*grad_qs for ti in T_ls])
+X_ls = y0 - np.array([ti*grad_qs for ti in T_ls])
 F_ls   = np.array([objectives(e) for e in X_ls])
 # split the arrays
 c_times_ls = F_ls[:,:n_particles]
@@ -358,7 +429,7 @@ if rank == 0:
 if rank == 0:
   # save the data
   outdata['T_qsls'] = T_ls
-  outdata['X_qsls'] = X_ls
+  outdata['Y_qsls'] = X_ls
   outdata['qs_qsls'] = qs_ls
   outdata['aspect_qsls'] = asp_ls
   outdata['mirror_qsls'] = mirror_ls
@@ -389,7 +460,7 @@ if n_active_mirror <= 6:
 
     # perform the linesearch along grad(constraint)
     direction = active_mirror_jac[ii]
-    X_ls = x0 + np.array([ti*direction for ti in T_ls])
+    X_ls = y0 + np.array([ti*direction for ti in T_ls])
     F_ls   = np.array([objectives(e) for e in X_ls])
 
     # current constraint index 
@@ -414,7 +485,7 @@ if n_active_mirror <= 6:
       outdata[f'T_mirrorls']  = T_ls
       outdata[f'idx_mirror_con_mirrorls_{ii}'] = idx_mirror_con # constraint index
       outdata[f'mirror_mirrorls_{ii}'] = np.copy(mirror_ls) # constraint value
-      outdata[f'X_mirrorls_{ii}']  = np.copy(X_ls)
+      outdata[f'Y_mirrorls_{ii}']  = np.copy(X_ls)
       outdata[f'qs_mirrorls_{ii}'] = np.copy(qs_ls)
       outdata[f'aspect_mirrorls_{ii}'] = np.copy(asp_ls)
       outdata[f'energy_mirrorls_{ii}'] = np.copy(energy_ls)
