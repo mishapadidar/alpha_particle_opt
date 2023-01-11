@@ -618,10 +618,10 @@ if __name__ == "__main__":
 
   #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
   #vmec_input = "../experiments/min_quasisymmetry/input.nfp2_QA_cold_high_res_phase_one_max_mode_1_quasisymmetry_opt"
-  vmec_input="../experiments/phase_one/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
+  vmec_input="../experiments/phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
   import pickle
   #data_file = "../experiments/min_energy_loss/data/data_opt_nfp4_phase_one_mean_energy_grid_surface_0.25_tmax_0.001_bobyqa_mmode_2_iota_None.pickle"
-  data_file = "../experiments/min_energy_loss/data/data_opt_nfp4_phase_one_mean_energy_grid_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
+  data_file = "../experiments/min_energy_loss/data_phase_one_first_res/data_opt_nfp4_phase_one_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
   data = pickle.load(open(data_file,"rb"))
   x0 = data['xopt']
   max_mode=data['max_mode']
