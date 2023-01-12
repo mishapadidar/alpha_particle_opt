@@ -3,6 +3,7 @@ from mpi4py import MPI
 import sys
 import pickle
 from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
+from simsopt.mhd.vmec_diagnostics import QuasisymmetryRatioResidual
 #from skquant.opt import minimize as skq_minimize
 from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc, minimize as sp_minimize
 from scipy.integrate import simpson
@@ -34,7 +35,7 @@ rank = comm.Get_rank()
 Optimize a configuration to minimize alpha particle losses
 
 ex.
-  mpiexec -n 1 python3 optimize.py grid 0.5 mean_energy bobyqa 1 2 nfp4_phase_one None 0.0001 -1.043 7.0 5 5 5 5
+  mpiexec -n 1 python3 optimize.py SAA 0.25 mean_energy bobyqa 1 2 nfp4_phase_one_aspect_7.0_iota_-1.043 None 0.0001 -1.043 7.0 5 5 5 5
 """
 
 
@@ -48,9 +49,9 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 400
+maxfev = 400 
 #max_step = 1.0 # for max_mode=1
-#max_step = 0.1 # for max_mode=2
+max_step = 0.1 # for max_mode=2
 #max_step = 1e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
@@ -469,6 +470,26 @@ def objective(x):
 
   return res
 
+# quasisymmetry objective
+helicity_m=helicity_n=1
+qsrr = QuasisymmetryRatioResidual(tracer.vmec,
+                                np.arange(0, 1.01, 0.1),  # Radii to target
+                                helicity_m=helicity_m, helicity_n=helicity_n)  # (M, N) you want in |B|
+def qs_residuals(x):
+  """
+  Compute the QS residuals
+  """
+  tracer.surf.x = np.copy(x)
+  try:
+    qs = qsrr.residuals() # quasisymmetry
+  except:
+    qs = np.inf
+  ret = qs
+  if rank == 0:
+    print(ret)
+    sys.stdout.flush()
+  return ret
+
 
 for max_mode in range(smallest_mode,largest_mode+1):
 
@@ -477,17 +498,48 @@ for max_mode in range(smallest_mode,largest_mode+1):
   x0 = tracer.expand_x(max_mode)
   dim_x = len(x0)
 
-  if tmax < 5e-3:
-    # set the optimizer step size 0.1,0.01,0.001
-    max_step = max(0.1*pow(10,1-max_mode),1e-3)
-  else:
-    # set the optimizer step size 1,0.1,0.01,0.001
-    max_step = max(pow(10,1-max_mode),1e-3)
 
-  # TODO: should this be off?
-  ## resample SAA
-  #if sampling_type == "SAA":
-  #  stz_inits,vpar_inits = get_random_points(sampling_level)
+  """
+  Rescale the variables
+  """
+  # jacobian of QS residuals
+  h_fdiff = 1e-5
+  Ep = x0 + h_fdiff*np.eye(dim_x)
+  Fp = np.array([qs_residuals(e) for e in Ep])
+  F0 = qs_residuals(x0)
+  jac = (Fp - F0).T/h_fdiff
+
+  # build the Gauss-Newton hessian approximation
+  Hess = jac.T @ jac
+  jit = 1e-6*np.eye(dim_x) # jitter
+  L_scale = np.linalg.cholesky(Hess + jit)
+  
+  if rank == 0:
+    print('')
+    print('QS Hessian eigenvalues')
+    print(np.linalg.eigvals(Hess))
+    sys.stdout.flush()
+  
+  # rescale the variables y = L.T @ x
+  def to_scaled(x):
+    """maps to new variables"""
+    return L_scale.T @ x
+  def from_scaled(y):
+    """maps back to old variables"""
+    return np.linalg.solve(L_scale.T,y)
+  
+  # map x0 to y0
+  y0 = to_scaled(x0)
+
+
+
+  #if tmax < 5e-3:
+  #  # set the optimizer step size 0.1,0.01
+  #  max_step = max(0.1*pow(10,1-max_mode),0.01)
+  #else:
+  #  # set the optimizer step size 1,0.1,0.01
+  #  max_step = max(pow(10,1-max_mode),0.01)
+
 
   evw = EvalWrapper(objective,dim_x,1)
   
@@ -496,28 +548,15 @@ for max_mode in range(smallest_mode,largest_mode+1):
     print(f"optimizing with tmax = {tmax}")
     print(f"max_mode = {max_mode}")
   
-  
-  # optimize
-  if method == "cobyla":
-    rhobeg = max_step
-    rhoend = min_step
-    aspect_constraint = pdfo_nlc(aspect_ratio,-np.inf,aspect_target)
-    mirror_constraint = pdfo_nlc(B_field,B_lb,B_ub)
-    #mirror_constraint = pdfo_nlc(B_field_volavg_con,B_lb,B_ub)
-    constraints = [aspect_constraint,mirror_constraint]
-    if constrain_iota:
-      iota_constraint = pdfo_nlc(rotational_transform,iota_target,iota_target)
-      constraints.append(iota_constraint)
-  
-    res = pdfo(evw, x0, method='cobyla',constraints=constraints,options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-    xopt = np.copy(res.x)
-  
-  elif method == "bobyqa":
+  if method == "bobyqa":
     rhobeg = max_step
     rhoend = min_step
   
-    def penalty_obj(x):
+    def penalty_obj(y):
       """penalty formulation for bobyqa"""
+      # map back to original space
+      x = from_scaled(y)
+
       B = B_field(x)
       #B = B_field_volavg_con(x)
       obj = evw(x)
@@ -539,50 +578,14 @@ for max_mode in range(smallest_mode,largest_mode+1):
         print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
         #print("")
       return ret
-    res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-    xopt = np.copy(res.x)
+
+    # call bobyqa
+    res = pdfo(penalty_obj, y0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+    yopt = np.copy(res.x)
+    # convert yopt to xopt
+    xopt = from_scaled(yopt)
   
   
-  #elif method == 'snobfit':
-  #  # snobfit
-  #  bounds = np.vstack((x_lb,x_ub)).T
-  #  res, _ = skq_minimize(evw, x0, bounds, maxfev, method='SnobFit')
-  #  xopt = np.copy(res.optpar)
-  #
-  #elif method == "diff_evol":
-  #  # differential evolution
-  #  bounds = np.vstack((x_lb,x_ub)).T
-  #  popsize = 10 # population is popsize*dim_x individuals
-  #  maxiter = int(maxfev/dim_x/popsize)
-  #  res = differential_evolution(evw,bounds=bounds,popsize=popsize,maxiter=maxiter,x0=x0)
-  #  xopt = np.copy(res.x)
-  
-  elif method == "nelder":
-    init_simplex = np.zeros((dim_x+1,dim_x))
-    init_simplex[0] = np.copy(x0)
-    init_simplex[1:] = np.copy(x0 + max_step*np.eye(dim_x))
-    def penalty_obj(x):
-      obj = evw(x)
-      asp = aspect_ratio(x)
-      return obj + 1000*np.max([asp-aspect_target,0.0])**2
-    # nelder-mead
-    xatol = min_step # minimum step size
-    res = sp_minimize(penalty_obj,x0,method='Nelder-Mead',
-                options={'maxfev':maxfev,'xatol':xatol,'initial_simplex':init_simplex})
-    xopt = np.copy(res.x)
-  
-  #elif method == "sidpsm":
-  #  def penalty_obj(x):
-  #    obj = evw(x)
-  #    if objective_type == "mean_energy" and obj >= 3.5:
-  #      return np.inf
-  #    elif objective_type == "mean_time" and obj >=tmax:
-  #      return np.inf
-  #    asp = aspect_ratio(x)
-  #    return obj + 1000*np.max([asp-aspect_target,0.0])**2
-  #  sid = SIDPSM(penalty_obj,x0,max_eval=maxfev,delta=max_step,delta_min=min_step,delta_max=max_step)
-  #  res = sid.solve()
-  #  xopt = np.copy(res['x'])
   
   
   # evaluate the configuration
@@ -612,6 +615,7 @@ for max_mode in range(smallest_mode,largest_mode+1):
     print(res)
     outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{iota_target}.pickle"
     outdata = {}
+    outdata['L_scale'] = L_scale
     outdata['X'] = evw.X
     outdata['FX'] = evw.FX
     outdata['xopt'] = xopt

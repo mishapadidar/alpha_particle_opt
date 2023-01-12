@@ -1,6 +1,7 @@
 
-#TMAX='0.01'
-TMAX='0.001'
+#TMAX='0.1'
+TMAX='0.01'
+#TMAX='0.001'
 #TMAX='0.0001'
 
 #SAMPLINGTYPE='grid' # grid, random, SAA
@@ -8,21 +9,30 @@ SAMPLINGTYPE='SAA' # grid, random, SAA
 
 surf='0.25' # 0.25, 'full'
 #surf='full' # 0.25, 'full'
-NODES=1
+
+## t=0.0001,ns=9
+#NODES=1
 #CORES=4
-CORES=8
+## t=0.001,ns=7
+#NODES=2
+#CORES=12
+# t=0.01,ns=6
+NODES=4
+CORES=12
+## t=001,ns=10
+#NODES=4
 #CORES=12
 
-NS=7
-NTHETA=7
+NS=8
+NTHETA=8
 NPHI=7
 NVPAR=7
 
 OBJECTIVE='mean_energy'  # mean_energy, mean_time
 METHOD="bobyqa" # bobyqa, cobyla
 
-MINMODE=2
-MAXMODE=3
+MINMODE=3
+MAXMODE=4
 
 ## 2 field period
 #aspect=6.0
@@ -33,69 +43,67 @@ MAXMODE=3
 #"nfp2_phase_one_aspect_6.0_iota_0.53"
 #"nfp2_phase_one_aspect_6.0_iota_0.71"
 #)
-##WARM=("None" "None" "None" "None") # None or filename
+#WARM=("None" "None" "None" "None") # None or filename
 #WARM=(
-#"../data_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_1_iota_None.pickle"
-#"../data_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_1_iota_None.pickle"
-#"../data_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_1_iota_None.pickle"
-#"../data_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_1_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_4_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_4_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_4_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp2_phase_one_aspect_6.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_4_iota_None.pickle"
 #      )
 
-## 4 field period
-#aspect=7.0
-#iota='None'
-#VMEC=(
-#"nfp4_phase_one_aspect_7.0_iota_-1.043"
+# 4 field period
+aspect=7.0
+iota='None'
+VMEC=(
+"nfp4_phase_one_aspect_7.0_iota_-1.043"
 #"nfp4_phase_one_aspect_7.0_iota_0.28"
 #"nfp4_phase_one_aspect_7.0_iota_0.42"
 #"nfp4_phase_one_aspect_7.0_iota_0.53"
 #"nfp4_phase_one_aspect_7.0_iota_0.71"
-#"nfp4_phase_one_aspect_7.0_iota_0.89"
+"nfp4_phase_one_aspect_7.0_iota_0.89"
 #"nfp4_phase_one_aspect_7.0_iota_0.97"
-#"nfp4_phase_one_aspect_7.0_iota_1.05"
+"nfp4_phase_one_aspect_7.0_iota_1.05"
 #"nfp4_phase_one_aspect_7.0_iota_1.29"
 #"nfp4_phase_one_aspect_7.0_iota_1.44"
-#)
-##WARM=("None" "None" "None" "None" "None" "None" "None" "None" "None" "None") # None or filename
-#WARM=(
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_-1.043_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.97_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.29_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.44_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_2_iota_None.pickle"
-#      )
-
-# 5 field period
-aspect=5.0
-iota='None'
-VMEC=(
-"nfp5_phase_one_aspect_5.0_iota_0.28"
-"nfp5_phase_one_aspect_5.0_iota_0.42"
-"nfp5_phase_one_aspect_5.0_iota_0.53"
-"nfp5_phase_one_aspect_5.0_iota_0.71"
-"nfp5_phase_one_aspect_5.0_iota_0.89"
-"nfp5_phase_one_aspect_5.0_iota_0.97"
-"nfp5_phase_one_aspect_5.0_iota_1.05"
-"nfp5_phase_one_aspect_5.0_iota_1.29"
-"nfp5_phase_one_aspect_5.0_iota_1.44"
 )
 #WARM=("None" "None" "None" "None" "None" "None" "None" "None" "None" "None") # None or filename
 WARM=(
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.97_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_1.29_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-"../data_phase_one_tmax_0.0001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_1.44_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_-1.043_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.97_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.29_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.44_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
       )
+
+## 5 field period
+#aspect=5.0
+#iota='None'
+#VMEC=(
+#"nfp5_phase_one_aspect_5.0_iota_0.28"
+#"nfp5_phase_one_aspect_5.0_iota_0.42"
+#"nfp5_phase_one_aspect_5.0_iota_0.53"
+#"nfp5_phase_one_aspect_5.0_iota_0.71"
+#"nfp5_phase_one_aspect_5.0_iota_0.89"
+#"nfp5_phase_one_aspect_5.0_iota_0.97"
+#"nfp5_phase_one_aspect_5.0_iota_1.05"
+#"nfp5_phase_one_aspect_5.0_iota_1.29"
+#)
+##WARM=("None" "None" "None" "None" "None" "None" "None" "None" "None" "None") # None or filename
+#WARM=(
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_0.97_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#"../data_phase_one_tmax_0.001_SAA_sweep/data_opt_nfp5_phase_one_aspect_5.0_iota_1.29_mean_energy_SAA_surface_0.25_tmax_0.001_bobyqa_mmode_3_iota_None.pickle"
+#      )
 
 
 
