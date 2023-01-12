@@ -277,17 +277,23 @@ if rank == 0:
   print('dim_x',dim_x)
   sys.stdout.flush()
 
-# gradients
-Ep   = y0 + h_fdiff_qs*np.eye(dim_x)
+# central difference gradients
+h2 = h_fdiff_qs/2
+Ep   = y0 + h2*np.eye(dim_x)
 Fp = np.array([compute_values(e) for e in Ep])
+Em   = y0 - h2*np.eye(dim_x)
+Fm = np.array([compute_values(e) for e in Em])
 F0 = compute_values(y0)
-jac = (Fp - F0).T/h_fdiff_qs
+jac = (Fp - Fm).T/h_fdiff_qs
 qs0     = F0[0]
 aspect0 = F0[1]
 mirror0 = F0[2:]
 qs_plus     = Fp[:,0]
 aspect_plus = Fp[:,1]
 mirror_plus = Fp[:,2:]
+qs_minus     = Fm[:,0]
+aspect_minus = Fm[:,1]
+mirror_minus = Fm[:,2:]
 grad_qs     = jac[0]
 grad_aspect = jac[1]
 grad_mirror = jac[2:]
@@ -304,14 +310,19 @@ if rank == 0:
 # save data
 if rank == 0:
   outdata = {}
+  outdata['Yp_qs_step'] = Ep
+  outdata['Ym_qs_step'] = Em
   outdata['qs0'] = qs0
   outdata['qs_plus'] = qs_plus
+  outdata['qs_minus'] = qs_minus
   outdata['grad_qs'] = grad_qs
   outdata['mirror0'] = mirror0
   outdata['mirror_plus'] = mirror_plus
+  outdata['mirror_minus'] = mirror_minus
   outdata['grad_mirror'] = grad_mirror
   outdata['aspect0'] = aspect0
   outdata['aspect_plus'] = aspect_plus
+  outdata['aspect_minus'] = aspect_minus
   outdata['grad_aspect'] = grad_aspect
   outdata['h_fdiff_qs'] = h_fdiff_qs
   outdata['helicity_m'] = helicity_m
@@ -322,6 +333,7 @@ if rank == 0:
   outdata['mirror_nzeta'] = mirror.nzeta
   indata[f'post_process_s_{s_label}'] = outdata
   pickle.dump(indata,open(data_file,"wb"))
+
 
 """
 Compute the gradient of the energy objective
@@ -376,8 +388,8 @@ if rank == 0:
   outdata['x0'] = x0
   outdata['y0'] = y0
   outdata['L'] = L
-  outdata['Yp'] = Ep
-  outdata['Ym'] = Em
+  outdata['Yp_energy_step'] = Ep
+  outdata['Ym_energy_step'] = Em
   outdata['c_times_plus'] = c_times_plus
   outdata['c_times_minus'] = c_times_minus
   outdata['c_times0'] = c_times0
