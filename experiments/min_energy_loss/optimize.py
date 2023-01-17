@@ -9,16 +9,18 @@ from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc
 from scipy.integrate import simpson
 debug = False
 if debug:
+  #sys.path.append("../../../noise-tolerant-bfgs")
   sys.path.append("../../utils")
   sys.path.append("../../trace")
   sys.path.append("../../sample")
-  #sys.path.append("../../opt")
+  sys.path.append("../../opt")
   #sys.path.append("../../../SIMPLE/build/")
 else:
+  #sys.path.append("../../../../noise-tolerant-bfgs")
   sys.path.append("../../../utils")
   sys.path.append("../../../trace")
   sys.path.append("../../../sample")
-  #sys.path.append("../../../opt")
+  sys.path.append("../../../opt")
   #sys.path.append("../../../../SIMPLE/build/")
 #from trace_simple import TraceSimple
 from trace_boozer import TraceBoozer
@@ -26,6 +28,8 @@ from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
 from gauss_quadrature import gauss_quadrature_nodes_coeffs
+import ntqn
+from noise_tolerant_gradient_descent import NoiseTolerantGradientDescent
 #from sid_psm import SIDPSM
 
 comm = MPI.COMM_WORLD
@@ -49,12 +53,14 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 400 
+maxfev = 100 
 #max_step = 1.0 # for max_mode=1
-max_step = 0.1 # for max_mode=2
+max_step = 0.05 # for max_mode=2
 #max_step = 1e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
+# finite difference step size
+h_fdiff = 1e-5
 # trace boozer params
 tracing_tol = 1e-8
 interpolant_degree = 3
@@ -87,7 +93,7 @@ nvpar = int(sys.argv[15]) # num vpar samples
 assert largest_mode >= smallest_mode
 assert sampling_type in ['random', "grid", "SAA"]
 assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
-assert method in ['cobyla','bobyqa','snobfit','diff_evol','nelder','sidpsm'], "invalid optimiztaion method"
+assert method in ['bobyqa','ebfgs'], "invalid optimiztaion method"
 
 # set the major radius
 major_radius = minor_radius*aspect_target
@@ -486,9 +492,12 @@ def qs_residuals(x):
     qs = np.inf
   ret = qs
   if rank == 0:
-    print(ret)
+    #print(ret)
+    print("QS:",np.sum(ret**2))
     sys.stdout.flush()
   return ret
+
+
 
 
 for max_mode in range(smallest_mode,largest_mode+1):
@@ -503,7 +512,6 @@ for max_mode in range(smallest_mode,largest_mode+1):
   Rescale the variables
   """
   # jacobian of QS residuals
-  h_fdiff = 1e-5
   Ep = x0 + h_fdiff*np.eye(dim_x)
   Fp = np.array([qs_residuals(e) for e in Ep])
   F0 = qs_residuals(x0)
@@ -542,46 +550,130 @@ for max_mode in range(smallest_mode,largest_mode+1):
 
 
   evw = EvalWrapper(objective,dim_x,1)
-  
+
+  def penalty_obj(y):
+    """penalty formulation"""
+    # map back to original space
+    x = from_scaled(y)
+
+    B = B_field(x)
+    #B = B_field_volavg_con(x)
+    obj = evw(x)
+    # B_lb <= modB <= B_ub
+    c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
+    c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
+    # aspect <= aspect_target
+    asp = aspect_ratio(x)
+    c_asp = max([asp-aspect_target,0.0])**2
+    # iota constraint iota = iota_target
+    #iota = rotational_transform(x)
+    iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
+    if constrain_iota:
+      c_iota = (iota-iota_target)**2
+    else:
+      c_iota = 0.0
+    ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
+    if rank == 0:
+      print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
+      #print("")
+    return ret
+
+
+  def qs_penalty_grad(y):
+    """
+    Quasisymmetric penalty formulation gradient. This penalty function is identical
+    to the penalty function with the tracing parameter, except that quasisymmetry
+    is used instead of the tracing objective.
+    
+    gradient of      
+      f(x(y)) = (qs^2) + c_mirr_ub**2 + c_mirr_lb**2 + (asp-A*)^2
+    
+    by the chain rule we get
+      gradf_y = (Dx/Dy).T @ gradf_x
+    where the transformation x = L^{-T}y has jacobian
+      Dx/Dy = L^{-T}
+    Hence the gradient is
+      gradf_y = L^{-1} @ gradf_x
+    """
+    # TODO: this formulation does not include the iota constraint
+
+    # map back to original space
+    x = from_scaled(y)
+
+    def qs_penalty_residuals(x):
+      """
+      Compute the residuals in the QS penalty formulation
+      (qs^2) + c_mirr_ub**2 + c_mirr_lb**2 + (asp-A*)^2
+      """
+      qsr = qs_residuals(x)
+      B = B_field(x)
+      # TODO: we should analytically handle the gradients through the max
+      # B_lb <= modB <= B_ub
+      c_mirr_ub = np.maximum(B - B_ub, 0.0)
+      c_mirr_lb = np.maximum(B_lb - B, 0.0)
+      # aspect <= aspect_target
+      asp = aspect_ratio(x)
+      c_asp = max([asp-aspect_target,0.0])
+      ret = np.hstack((qsr,c_mirr_ub,c_mirr_lb,c_asp))
+      return ret
+    
+    # jacobian of QS penalty residuals
+    Ep = x + h_fdiff*np.eye(dim_x)
+    Fp = np.array([qs_penalty_residuals(e) for e in Ep])
+    F0 = qs_penalty_residuals(x)
+    jac = (Fp - F0).T/h_fdiff
+    # accumulate the gradient
+    gradf_x = 2*np.sum((jac.T*F0),axis=1)
+    
+    # differentiate through rescaling x(y) = L^{-T} @ y --> D_x y = L^{-T}
+    # gradf_y = (Dx/Dy).T @ gradf_x = L^{-1} @ grad_x
+    gradf_y = np.linalg.solve(L_scale,gradf_x)
+    return gradf_y
+      
   
   if rank == 0:
     print(f"optimizing with tmax = {tmax}")
     print(f"max_mode = {max_mode}")
   
+
   if method == "bobyqa":
     rhobeg = max_step
     rhoend = min_step
   
-    def penalty_obj(y):
-      """penalty formulation for bobyqa"""
-      # map back to original space
-      x = from_scaled(y)
-
-      B = B_field(x)
-      #B = B_field_volavg_con(x)
-      obj = evw(x)
-      # B_lb <= modB <= B_ub
-      c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
-      c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
-      # aspect <= aspect_target
-      asp = aspect_ratio(x)
-      c_asp = max([asp-aspect_target,0.0])**2
-      # iota constraint iota = iota_target
-      #iota = rotational_transform(x)
-      iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
-      if constrain_iota:
-        c_iota = (iota-iota_target)**2
-      else:
-        c_iota = 0.0
-      ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
-      if rank == 0:
-        print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
-        #print("")
-      return ret
-
     # call bobyqa
     res = pdfo(penalty_obj, y0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
     yopt = np.copy(res.x)
+    # convert yopt to xopt
+    xopt = from_scaled(yopt)
+
+
+  elif method == "ebfgs":
+    # quickly estimate a 95% confidence interval on the noise
+    tracer.sync_seeds()
+    if sampling_level == "full":
+      # volume sampling
+      stz_temp,vpar_temp = tracer.sample_volume(200)
+    else:
+      # surface sampling
+      s_label = float(sampling_level)
+      stz_temp,vpar_temp = tracer.sample_surface(200,s_label)
+    c_times0 = tracer.compute_confinement_times(x0,stz_temp,vpar_temp,tmax)
+    eps_f = 1.96*np.std(c_times0)/np.sqrt(n_particles)
+
+    # TODO: remove
+    if rank == 0:
+      print("")
+      print("eps_f", eps_f)
+
+    # error in the gradient
+    #eps_g = h_fdiff
+    ## optimization options
+    #options = {}
+    #options['max_feval'] = maxfev
+    #options['alpha_init'] = max_step
+    # optimize
+    #yopt, fopt, iters, f_evals, g_evals, flag, res = ntqn.bfgs_e(penalty_obj, qs_penalty_grad, y0, eps_f=eps_f, eps_g=eps_g,options=options)
+    yopt = NoiseTolerantGradientDescent(penalty_obj,qs_penalty_grad, y0,eps_f=eps_f,alpha0 = max_step,max_iter=maxfev,gtol=1e-3)
     # convert yopt to xopt
     xopt = from_scaled(yopt)
   
