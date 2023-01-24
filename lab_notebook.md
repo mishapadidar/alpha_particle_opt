@@ -1,17 +1,12 @@
 
 # Lab Notebook
 
-
 ## TODO:
+- look at results from: post process s=0.25 sols, E-BFGS sols, and full volume sols
+- plot hessian under transformation
 - set up tracing in vmec coords
-  - finish writing the guiding center eqns
-  - test the guiding center eqns
-  - [x] generalize the stopping criteria
+  - build 3d interpolation from vmec geometry function
+  - improve the evaluation time of the guidingCenterRHS by using simsopt 3D interpolation.
   - test the particle tracing
 
-- look at post processed results
-- re-optimize nfp4 and nfp5 to find tight minimum 
-
-- make objective timing plot
-  - add a second subplot to show the total time per evaluation.
 
