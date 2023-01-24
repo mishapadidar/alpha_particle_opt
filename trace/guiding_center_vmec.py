@@ -4,6 +4,7 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.integrate import solve_ivp
 from simsopt.mhd import Vmec
 from simsopt._core.util import Struct
+import time
 import sys
 sys.path.append("../utils")
 from constants import ALPHA_PARTICLE_MASS,ALPHA_PARTICLE_CHARGE,FUSION_ALPHA_SPEED_SQUARED 
@@ -216,6 +217,9 @@ def vmec_compute_geometry(vs, s, theta, phi, phi_center=0):
     mnmax_nyq = vs.mnmax_nyq
     xm_nyq = vs.xm_nyq
     xn_nyq = vs.xn_nyq
+
+    # field periods
+    nfp = vs.nfp
 
     # Now that we have an s grid, evaluate everything on that grid:
     d_pressure_d_s = vs.d_pressure_d_s(s)
@@ -467,6 +471,7 @@ def vmec_compute_geometry(vs, s, theta, phi, phi_center=0):
                  'd_B_sub_theta_vmec_d_phi', # new
                  'd_B_sub_phi_d_s', # new
                  'd_B_sub_phi_d_theta_vmec', # new
+                 'nfp', # new
                  'R', 'd_R_d_s', 'd_R_d_theta_vmec', 'd_R_d_phi', 'X', 'Y', 'Z', 'd_Z_d_s', 'd_Z_d_theta_vmec', 'd_Z_d_phi',
                  'd_X_d_theta_vmec', 'd_X_d_phi', 'd_X_d_s', 'd_Y_d_theta_vmec', 'd_Y_d_phi', 'd_Y_d_s',
                  'grad_s_X', 'grad_s_Y', 'grad_s_Z', 'grad_theta_vmec_X', 'grad_theta_vmec_Y', 'grad_theta_vmec_Z',
@@ -485,39 +490,57 @@ def vmec_compute_geometry(vs, s, theta, phi, phi_center=0):
     return results
 
 
-def interpolatedVmecField(vmec,s,theta,phi,method='linear'):
+def interpolatedVmecField(vmec,ns,ntheta,nphi,method='cubic'):
     """
     Do 3d interpolation of the fields used for particle tracing in VMEC 
     coords. 
     
     vmec: Vmec object
-    s,theta,phi: 1d arrays to build interpolants from.
+    ns,ntheta,nphi: number of points per s,theta,phi interpolants.
     method: interpolation method 'linear' or 'cubic'
     return: a struct with interpolants.
     """
+    vmec.run()
+
+    # interpolate one field period
+    s = np.linspace(0,1, ns+2)[1:-1] # dont use the end points
+    #s = np.array(vmec.s_half_grid) # dont use the end points
+    theta = np.linspace(0, 2*np.pi, ntheta)
+    phi = np.linspace(0,2*np.pi/vmec.wout.nfp, nphi)
+
     # get vmec data on a 3d mesh
     vmec_data = vmec_compute_geometry(vmec, s, theta, phi)
 
-    # do 3d interpolation
-    sqrt_g_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.sqrt_g_vmec,method=method)
-    modB = RegularGridInterpolator((s,theta,phi), vmec_data.modB,method=method)
-    d_B_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_s,method=method)
-    d_B_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_theta_vmec,method=method)
-    d_B_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_phi,method=method)
-    B_sup_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.B_sup_theta_vmec,method=method)
-    B_sup_phi = RegularGridInterpolator((s,theta,phi), vmec_data.B_sup_phi,method=method)
-    B_sub_s = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_s,method=method)
-    B_sub_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_theta_vmec,method=method)
-    B_sub_phi = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_phi,method=method)
-    d_B_sub_s_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_s_d_theta_vmec,method=method)
-    d_B_sub_s_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_s_d_phi,method=method)
-    d_B_sub_theta_vmec_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_theta_vmec_d_s,method=method)
-    d_B_sub_theta_vmec_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_theta_vmec_d_phi,method=method)
-    d_B_sub_phi_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_phi_d_s,method=method)
-    d_B_sub_phi_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_phi_d_theta_vmec,method=method)
+    # do 3d interpolation; extrapolate by setting {bounds_error=False,fill_value=None}
+    sqrt_g_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.sqrt_g_vmec,method=method,bounds_error=False,fill_value=None)
+    modB = RegularGridInterpolator((s,theta,phi), vmec_data.modB,method=method,bounds_error=False,fill_value=None)
+    d_B_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_s,method=method,bounds_error=False,fill_value=None)
+    d_B_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_theta_vmec,method=method,bounds_error=False,fill_value=None)
+    d_B_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_d_phi,method=method,bounds_error=False,fill_value=None)
+    B_sup_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.B_sup_theta_vmec,method=method,bounds_error=False,fill_value=None)
+    B_sup_phi = RegularGridInterpolator((s,theta,phi), vmec_data.B_sup_phi,method=method,bounds_error=False,fill_value=None)
+    B_sub_s = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_s,method=method,bounds_error=False,fill_value=None)
+    B_sub_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_theta_vmec,method=method,bounds_error=False,fill_value=None)
+    B_sub_phi = RegularGridInterpolator((s,theta,phi), vmec_data.B_sub_phi,method=method,bounds_error=False,fill_value=None)
+    d_B_sub_s_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_s_d_theta_vmec,method=method,bounds_error=False,fill_value=None)
+    d_B_sub_s_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_s_d_phi,method=method,bounds_error=False,fill_value=None)
+    d_B_sub_theta_vmec_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_theta_vmec_d_s,method=method,bounds_error=False,fill_value=None)
+    d_B_sub_theta_vmec_d_phi = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_theta_vmec_d_phi,method=method,bounds_error=False,fill_value=None)
+    d_B_sub_phi_d_s = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_phi_d_s,method=method,bounds_error=False,fill_value=None)
+    d_B_sub_phi_d_theta_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.d_B_sub_phi_d_theta_vmec,method=method,bounds_error=False,fill_value=None)
 
+    ## TODO: simsoptpp interpolation
+    #import simsoptpp as sopp
+    #rule = sopp.UniformInterpolationRule(degree)
+    #interpolant = sopp.RegularGridInterpolant3D(rule, xran, yran, zran, dim, True)
+    #interpolant.interpolate_batch(fun)
+    #sqrt_g_vmec = RegularGridInterpolator((s,theta,phi), vmec_data.sqrt_g_vmec,method=method,bounds_error=False,fill_value=None)
+
+    nfp = vmec_data.nfp
+  
     results = Struct()
     variables = [
+        'nfp',
         'sqrt_g_vmec','modB',
         'd_B_d_s', 'd_B_d_theta_vmec', 'd_B_d_phi', 
         'B_sup_theta_vmec','B_sup_phi',
@@ -537,32 +560,44 @@ class GuidingCenterVmec:
     A guiding center object for tracing a single particle.
     """
    
+    # should pass in a field object
     def __init__(self,interp,y0):
         self.interp = interp
         self.mass =ALPHA_PARTICLE_MASS
         self.charge=ALPHA_PARTICLE_CHARGE
         # compute mu = vperp^2/2B
-        stz   = y0[:3]
+        stp   = y0[:3]
         v_par = y0[3]
-        modB = interp.modB(stz).flatten()
+        modB = interp.modB(stp).item()
         vperp_squared = FUSION_ALPHA_SPEED_SQUARED - v_par**2
         self.mu = vperp_squared/2/modB
 
-    # TODO: write a GuidingCenter Vacumm RHS
 
-    def GuidingCenterVmecRHS(self,ys):
-        #TODO: use field period symmetry and stellarator symmetry
-        # to map particles back to interpolation range.
+    def GuidingCenterVmecRHS(self,t,ys):
         """
         Guiding center right hand side for vmec tracing.
+        t: float, time (placeholder for the integrator)
         ys: (4,) array [s,t,z,vpar]
         """
+        # TODO: figure out if we can use stellarator symmetry
+        # TODO: only model a half field-period
+
         # struct with interpolators
         interp = self.interp
 
         # unpack point
         stp = ys[:3]
         vpar = ys[-1]
+
+        #if stp[0] <= 0.0:
+        #  raise ValueError("s <= 0, Guiding center eqns not implemented on magnetic axis.")
+        #if stp[0] > 1.0:
+        #  raise ValueError("s > 1, Guiding center eqns not implemented outside of nested flux surfaces.")
+
+        # map theta to [0,2*pi]
+        stp[1] = np.mod(stp[1],2*np.pi)
+        # use field period symmetry: phi + 2pi/nfp = phi
+        stp[2] = np.mod(stp[2],2*np.pi/interp.nfp)
 
         # compute the values for the rhs
         mu = self.mu
@@ -628,7 +663,9 @@ class GuidingCenterVmec:
         a7 = -d_B_d_phi*d_B_sub_s_d_theta_vmec
         d_vpar_d_t = a1 + coeff*(a2+a3+a4+a5+a6+a7)
 
-        return np.array([d_s_d_t,d_theta_vmec_d_t,d_phi_d_t,d_vpar_d_t])
+        ret = np.array([d_s_d_t,d_theta_vmec_d_t,d_phi_d_t,d_vpar_d_t])
+ 
+        return ret
         
 
 def trace_particles_vmec(interp,
@@ -636,9 +673,23 @@ def trace_particles_vmec(interp,
           vpar_inits, 
           tmax=1e-4, 
           atol=1e-6,
-          min_step=0.0,
+          first_step=None,
           comm=None,
-          stopping_criteria=None):
+          stopping_criteria=None,
+          save_traj = False):
+    """
+    Trace particles in vmec coordinates.
+
+    interp: interpolatedVmecField object
+    stp_inits: (N,3) array of [s,theta,phi] triples. Starting points for tracing in vmec coords.
+    vpar_inits: (N,) array of initial vpar values for tracining.
+    tmax: float, maximum trace time.
+    atol: absolute error tolerance in tracing
+    first_step: float or None, None means algorithm chooses first step size
+    comm: MPI communicator object
+    stopping_criteria: list, stopping criteria.
+    save_traj: bool, whether to save the particle trajectories or not
+    """
     # TODO: set up the mpi comms
 
     n_particles = len(stp_inits)
@@ -652,11 +703,22 @@ def trace_particles_vmec(interp,
       y0 = np.append(stp,vp)
       # define the guiding center eqns
       gc_rhs = GuidingCenterVmec(interp,y0).GuidingCenterVmecRHS
+
+      t0 = time.time()
       # solve the ode
-      res = solve_ivp(gc_rhs,(0,tmax),y0,events=stopping_criteria,atol=atol,min_step=min_step)
+      res = solve_ivp(gc_rhs,(0.0,tmax),y0,events=stopping_criteria,atol=atol,first_step=first_step,method='LSODA')
+      tf = time.time()
+      print(tf - t0)
+
       # now unpack the results
-      res_traj.append(np.vstack((res.t,res.y)).T) # trajectories [[t,s,theta,phi],...]
+      if save_traj:
+        res_traj.append(np.vstack((res.t,res.y)).T) # trajectories [[t,s,theta,phi],...]
+
+      # [[t_events_1,t_events_2,...],[y_events_1,y_events_2]]
+      # t_events_i are (N_i,) arrays of time times that event i occured.
+      # y_events_i are (N_i,3) arrays of the [s,theta,phi] where event i occured.
       res_events.append([res.t_events,res.y_events]) 
+
 
     return res_traj,res_events
 
@@ -669,7 +731,7 @@ class MaxStoppingCriteria:
   def __init__(self,s_max):
     self.s_max = s_max
 
-  def evaluate(t,y):
+  def evaluate(self,t,y):
     """
     Finds a zero of g(s) = s_max - s
     """
@@ -677,14 +739,14 @@ class MaxStoppingCriteria:
   evaluate.direction = -1.0
   evaluate.terminal = True
 
-def MinStoppingCriteria:
+class MinStoppingCriteria:
   """
   Stop when a particle reaches a minimum value of s.
   """
   def __init__(self,s_min):
     self.s_min = s_min
 
-  def evaluate(t,y):
+  def evaluate(self,t,y):
     """
     Finds a zero of g(s) = s - s_min
     """
@@ -696,54 +758,87 @@ def MinStoppingCriteria:
 if __name__ == "__main__":
   from simsopt.util.mpi import MpiPartition
   from constants import V_MAX
-  vmec_input = '../vmec_input_files/input.nfp2_QA_cold_high_res'
+
+
+  # build a vmec object
+  vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start'
   mpi = MpiPartition()
   vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
   surf = vmec.boundary
 
-  # TODO: need to shut up the elements in vmec_compute_geometry that
-  # complain when we evaluate at s=0
-  # TODO: exploit stellsym and field period symmetry in interpolants
+  # rescale the surface by the major radius; if we havent already.
+  aspect_target = 7.0
+  major_radius = 1.7*aspect_target
+  target_volavgB = 5.0
+  factor = major_radius/surf.get("rc(0,0)")
+  surf.x = surf.x*factor
+  # fix the major radius
+  surf.fix("rc(0,0)") 
+  # rescale the toroidal flux; if we havent already
+  target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
+  vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
+  vmec.need_to_run_code = True
 
   # build 3d interpolants
-  s = np.linspace(0,1, 16)
-  theta = np.linspace(0, 2*np.pi, 32)
-  phi = np.linspace(0,2*np.pi/surf.nfp, 32)
-  vmec_data = vmec_compute_geometry(vmec, s, theta, phi)
-  interp = interpolatedVmecField(vmec,s,theta,phi,'cubic')
+  ns=ntheta=nphi = 12
+  interp = interpolatedVmecField(vmec,ns,ntheta,nphi,'cubic')
 
+  # build a guiding center object
   y0 = np.array([0.5,np.pi/2,np.pi/2,V_MAX/2])
   gc_rhs = GuidingCenterVmec(interp,y0).GuidingCenterVmecRHS
-  print(gc_rhs(y0))
+  print(gc_rhs(0.0,y0))
 
+  t0 = time.time()
+  for ii in range(1000):
+    gc_rhs(0.0,y0)
+  tf = time.time()
+  print((tf - t0)/1000)
   quit()
 
   # use fixed particle locations
-  ns = ntheta=nphi=3
+  ns=ntheta=nphi=3
   nvpar=3
-  surfaces = np.linspace(0,1, ns)
+  surfaces = np.linspace(0,1, ns+2)[1:-1] # dont use the end points
   thetas = np.linspace(0, 2*np.pi, ntheta)
   phis = np.linspace(0,2*np.pi/surf.nfp, nphi)
   vpars = np.linspace(-V_MAX,V_MAX,nvpar)
-  # build a mesh
+  # particles on a mesh
   [surfaces,thetas,phis,vpars] = np.meshgrid(surfaces,thetas,phis,vpars)
   stp_inits = np.zeros((ns*ntheta*nphi*nvpar, 3))
   stp_inits[:, 0] = surfaces.flatten()
   stp_inits[:, 1] = thetas.flatten()
   stp_inits[:, 2] = phis.flatten()
   vpar_inits = vpars.flatten()
-  tmax = 1e-4
   # stopping criteria
-  stopping_criteria = [MinStoppingCriteria(s_min).eval,MaxStoppingCriteria(s_max).eval]
+  s_min = 0.01
+  s_max = 1.0
+  stopping_criteria = [MinStoppingCriteria(s_min).evaluate,MaxStoppingCriteria(s_max).evaluate]
   # trace
+  tmax = 1e-4
   res_traj, res_events = trace_particles_vmec(interp,
           stp_inits, 
           vpar_inits, 
           tmax=tmax, 
-          atol=1e-6,
-          min_step=0.0,
+          atol=1e-3,
+          first_step=1e-5,
           comm=None,
           stopping_criteria=stopping_criteria)
 
-  print(res_events)
-  print(res_events.shape)
+  print(res_traj)
+  # unpack the confinement times
+  n_particles = len(vpar_inits)
+  exit_times = tmax*np.ones(n_particles)
+  for ii,res_particle in enumerate(res_events):
+    # res_particle; [t_events, y_events]
+    # event times; [t_events_1,t_events_2]
+    (t_event_1,t_event_2) = res_particle[0]
+    if len(t_event_1) > 0:
+      # particle hit MinToroidalFluxCriterion
+      #exit_times[ii] = t_event_1[0]
+      exit_times[ii] = tmax # assume they are confined
+    elif len(t_event_2) > 0:
+      # particle hit MaxToroidalFluxCriterion
+      exit_times[ii] = t_event_2[0]
+  print(exit_times)
+  print('loss fraction', np.mean(exit_times < tmax))
+
