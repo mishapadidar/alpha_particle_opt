@@ -212,6 +212,7 @@ y0 = to_scaled(x0)
 
 # save data
 if rank == 0:
+  outdata['qs0'] = F0
   outdata['Hess_qs'] = Hess_qs
   outdata['L_scale'] = L
   # dump data
@@ -236,8 +237,8 @@ def confinement_times(y):
   return c_times
 
 # central difference the confinement times
-Ep   = x0 + h_fdiff_y*np.eye(dim_x)
-Em   = x0 - h_fdiff_y*np.eye(dim_x)
+Ep   = y0 + h_fdiff_y*np.eye(dim_x)
+Em   = y0 - h_fdiff_y*np.eye(dim_x)
 c_times_plus   = np.array([confinement_times(e) for e in Ep])
 c_times_minus   = np.array([confinement_times(e)  for e in Em])
 # compute energy
