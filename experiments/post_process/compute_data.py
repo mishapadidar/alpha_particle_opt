@@ -35,13 +35,13 @@ Run
 
 
 # tracing params
-s_label = 0.25 # 0.25 or full
 n_particles = 10000 
 h_fdiff_x = 5e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
 h_fdiff_y = 1e-2 # finite difference in scaled space
 helicity_m = 1 # quasisymmetry M
 helicity_n = -1 # quasisymmetry N
+#s_label = 0.25 # 0.25 or full
 
 # tracing accuracy params
 tracing_tol=1e-8
@@ -63,6 +63,9 @@ aspect_target = indata['aspect_target']
 major_radius = indata['major_radius']
 target_volavgB = indata['target_volavgB']
 tmax = indata['tmax']
+s_label = indata['sampling_level']
+if s_label != "full":
+  s_label = float(s_label)
 
 tracer = TraceBoozer(vmec_input,
                     n_partitions=1,
