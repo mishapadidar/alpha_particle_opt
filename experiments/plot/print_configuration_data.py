@@ -37,16 +37,13 @@ max_mode = indata['max_mode']
 #bri_ntor = indata['bri_ntor'] 
 
 # tracing parameters
-n_particles = 2000
+n_particles = 10000
 tmax = 0.01
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level = 8
 bri_mpol = 16
 bri_ntor = 16
-
-if rank == 0:
-  print("processing", infile)
 
 """
 Rescale all configurations to the same minor radius and same volavgB.
@@ -62,6 +59,9 @@ surf.fix_all()
 surf.fixed_range(mmin=0, mmax=max_mode,
                  nmin=-max_mode, nmax=max_mode, fixed=False)
 aspect_ratio = surf.aspect_ratio()
+
+## TODO: remove
+#aspect_ratio = 7.0
 
 # ensure devices are scaled the same
 minor_radius = 1.7
@@ -90,6 +90,10 @@ tracer.surf.x = np.copy(x0)
 
 # compute the boozer field
 field,bri = tracer.compute_boozer_field(x0)
+
+if rank == 0:
+  print("processing", infile)
+
 
 # compute mirror ratio
 modB = tracer.compute_modB(field,bri,ns=32,ntheta=32,nphi=32)
@@ -125,20 +129,23 @@ if rank == 0:
   print('mean confinement time',mu)
   print('standard err',std_err)
   print('energy loss',nrg)
-  print('loss fraction',np.mean(c_times < tmax))
+  lf = np.mean(c_times < tmax)
+  print('loss fraction',lf)
+  print('standard err',np.sqrt(lf*(1-lf)/n_particles))
 
 if rank == 0:
   print("")
   print('compute surface losses')
-n_particles = 5000
 stz_inits,vpar_inits = tracer.sample_surface(n_particles,0.25)
 c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
 std_err = np.std(c_times)/np.sqrt(len(c_times))
 mu = np.mean(c_times)
 nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
 if rank == 0:
-  print('volume losses')
+  print('surface losses')
   print('mean confinement time',mu)
   print('standard err',std_err)
   print('energy loss',nrg)
-  print('loss fraction',np.mean(c_times < tmax))
+  lf = np.mean(c_times < tmax)
+  print('loss fraction',lf)
+  print('standard err',np.sqrt(lf*(1-lf)/n_particles))
