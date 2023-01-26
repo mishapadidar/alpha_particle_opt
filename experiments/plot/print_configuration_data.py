@@ -45,9 +45,15 @@ interpolant_level = 8
 bri_mpol = 16
 bri_ntor = 16
 
+if rank == 0:
+  print("processing", infile)
+
 """
-Get the aspect ratio of the config to 
-ensure that all devices are scaled the same
+Rescale all configurations to the same minor radius and same volavgB.
+Scale the device so that the major radius is 
+  R = aspect*target_minor
+where aspect is the current aspect ratio and target_minor is the desired
+minor radius.
 """
 mpi = MpiPartition(n_partitions)
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
@@ -56,7 +62,6 @@ surf.fix_all()
 surf.fixed_range(mmin=0, mmax=max_mode,
                  nmin=-max_mode, nmax=max_mode, fixed=False)
 aspect_ratio = surf.aspect_ratio()
-print(aspect_ratio)
 
 # ensure devices are scaled the same
 minor_radius = 1.7
