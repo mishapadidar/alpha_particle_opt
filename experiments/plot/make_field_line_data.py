@@ -9,6 +9,14 @@ sys.path.append("../../utils")
 sys.path.append("../../sample")
 from trace_boozer import TraceBoozer
 
+"""
+Computes data for a contour plot of the field strength in boozer coordinates.
+
+usage:
+  mpiexec -n 1 python3 configs/data_file.pickle
+where data_file.pickle is replaced by the file of interest.
+"""
+
 infile = sys.argv[1]
 indata = pickle.load(open(infile,"rb"))
 vmec_input = indata['vmec_input']
@@ -24,8 +32,10 @@ target_volavgB = indata['target_volavgB']
 tracing_tol = indata['tracing_tol']
 interpolant_degree = indata['interpolant_degree'] 
 interpolant_level = indata['interpolant_level'] 
-bri_mpol = indata['bri_mpol'] 
-bri_ntor = indata['bri_ntor'] 
+#bri_mpol = indata['bri_mpol'] 
+#bri_ntor = indata['bri_ntor'] 
+bri_mpol = 32
+bri_ntor = 32
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
                       max_mode=max_mode,
