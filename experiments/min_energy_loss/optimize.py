@@ -28,7 +28,7 @@ from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
 from gauss_quadrature import gauss_quadrature_nodes_coeffs
-import ntqn
+#import ntqn
 from noise_tolerant_gradient_descent import NoiseTolerantGradientDescent
 #from sid_psm import SIDPSM
 
@@ -53,14 +53,14 @@ target_volavgB = 5.0
 s_min = 0.0
 s_max = 1.0
 # optimizer params
-maxfev = 100 
+maxfev = 350 
 #max_step = 1.0 # for max_mode=1
 max_step = 0.05 # for max_mode=2
 #max_step = 1e-2 # for max_mode=3
 #max_step = 1e-3 # for max_mode=4
 min_step = 1e-8
 # finite difference step size
-h_fdiff = 1e-5
+h_fdiff = 1e-4
 # trace boozer params
 tracing_tol = 1e-8
 interpolant_degree = 3
@@ -646,6 +646,9 @@ for max_mode in range(smallest_mode,largest_mode+1):
     # convert yopt to xopt
     xopt = from_scaled(yopt)
 
+    if rank == 0:
+      print("")
+      print(res)
 
   elif method == "ebfgs":
     # quickly estimate a 95% confidence interval on the noise
@@ -660,7 +663,6 @@ for max_mode in range(smallest_mode,largest_mode+1):
     c_times0 = tracer.compute_confinement_times(x0,stz_temp,vpar_temp,tmax)
     eps_f = 1.96*np.std(c_times0)/np.sqrt(n_particles)
 
-    # TODO: remove
     if rank == 0:
       print("")
       print("eps_f", eps_f)
@@ -673,7 +675,8 @@ for max_mode in range(smallest_mode,largest_mode+1):
     #options['alpha_init'] = max_step
     # optimize
     #yopt, fopt, iters, f_evals, g_evals, flag, res = ntqn.bfgs_e(penalty_obj, qs_penalty_grad, y0, eps_f=eps_f, eps_g=eps_g,options=options)
-    yopt = NoiseTolerantGradientDescent(penalty_obj,qs_penalty_grad, y0,eps_f=eps_f,alpha0 = max_step,max_iter=maxfev,gtol=1e-3)
+    # noise tolerant gradient descent
+    yopt = NoiseTolerantGradientDescent(penalty_obj,qs_penalty_grad, y0,eps_f=eps_f,alpha0 = max_step,max_iter=maxfev,gtol=1e-3,verbose=True)
     # convert yopt to xopt
     xopt = from_scaled(yopt)
   
@@ -704,7 +707,6 @@ for max_mode in range(smallest_mode,largest_mode+1):
 
   # save results
   if rank == 0:
-    print(res)
     outfile = f"./data_opt_{vmec_label}_{objective_type}_{sampling_type}_surface_{sampling_level}_tmax_{tmax}_{method}_mmode_{max_mode}_iota_{iota_target}.pickle"
     outdata = {}
     outdata['L_scale'] = L_scale

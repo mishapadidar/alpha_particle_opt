@@ -7,8 +7,8 @@ TMAX='0.01'
 #SAMPLINGTYPE='grid' # grid, random, SAA
 SAMPLINGTYPE='SAA' # grid, random, SAA
 
-surf='0.25' # 0.25, 'full'
-#surf='full' # 0.25, 'full'
+#surf='0.25' # 0.25, 'full'
+surf='full' # 0.25, 'full'
 
 ## t=0.0001,ns=9
 #NODES=1
@@ -29,10 +29,11 @@ NPHI=7
 NVPAR=7
 
 OBJECTIVE='mean_energy'  # mean_energy, mean_time
-METHOD="bobyqa" # bobyqa, cobyla
+METHOD="bobyqa" # bobyqa, ebfgs
+#METHOD="ebfgs" # bobyqa, ebfgs
 
 MINMODE=3
-MAXMODE=4
+MAXMODE=3
 
 ## 2 field period
 #aspect=6.0
@@ -56,28 +57,20 @@ aspect=7.0
 iota='None'
 VMEC=(
 "nfp4_phase_one_aspect_7.0_iota_-1.043"
-#"nfp4_phase_one_aspect_7.0_iota_0.28"
-#"nfp4_phase_one_aspect_7.0_iota_0.42"
-#"nfp4_phase_one_aspect_7.0_iota_0.53"
-#"nfp4_phase_one_aspect_7.0_iota_0.71"
+"nfp4_phase_one_aspect_7.0_iota_0.53"
+"nfp4_phase_one_aspect_7.0_iota_0.71"
 "nfp4_phase_one_aspect_7.0_iota_0.89"
-#"nfp4_phase_one_aspect_7.0_iota_0.97"
+"nfp4_phase_one_aspect_7.0_iota_0.97"
 "nfp4_phase_one_aspect_7.0_iota_1.05"
-#"nfp4_phase_one_aspect_7.0_iota_1.29"
-#"nfp4_phase_one_aspect_7.0_iota_1.44"
 )
 #WARM=("None" "None" "None" "None" "None" "None" "None" "None" "None" "None") # None or filename
 WARM=(
-"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_-1.043_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.28_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.42_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_0.97_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.29_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
-#"../data_phase_one_tmax_0.01_SAA_sweep/data_opt_nfp4_phase_one_aspect_7.0_iota_1.44_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep_resolved/data_opt_nfp4_phase_one_aspect_7.0_iota_-1.043_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep_resolved/data_opt_nfp4_phase_one_aspect_7.0_iota_0.53_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep_resolved/data_opt_nfp4_phase_one_aspect_7.0_iota_0.71_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep_resolved/data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep_resolved/data_opt_nfp4_phase_one_aspect_7.0_iota_0.97_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+"../data_phase_one_tmax_0.01_SAA_sweep_resolved/data_opt_nfp4_phase_one_aspect_7.0_iota_1.05_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
       )
 
 ## 5 field period
