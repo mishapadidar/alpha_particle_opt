@@ -1,6 +1,20 @@
 import numpy as np
 
-def finite_difference(f,x0,h=1e-6):
+def forward_difference(f,x0,h=1e-6,return_evals=False):
+  """
+  Compute the jacobian of f with 
+  forward difference
+  """
+  F0 = f(x0)
+  Ep = x0 + h*np.eye(len(x0))
+  Fp = np.array([f(e) for e in Ep])
+  jac = (Fp - F0)/h
+  if return_evals:
+    return jac.T, F0, Ep, Fp
+  else:
+    return jac.T
+
+def central_difference(f,x0,h=1e-6):
   """Compute the jacobian of f with 
   central difference
   """
