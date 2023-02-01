@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import matplotlib
 from scipy.optimize import minimize as sp_minimize
 from scipy.optimize import Bounds as sp_bounds
+from mpi4py import MPI
 
 
-def cross_entropy(f,p,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None): 
+def cross_entropy(f,p,comm,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None): 
     """
     Cross entropy method for fitting a gaussian mixture model for 
     importance sampling.
@@ -54,9 +55,14 @@ def cross_entropy(f,p,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None):
     # sampling interval
     # 
 
+    rank = comm.Get_rank()
+
     # variational parameters
     if mu is None:
-        mu = np.random.randn(n_terms)
+        mu = np.zeros(n_terms)
+        if rank == 0:
+          mu = np.random.randn(n_terms)
+        comm.Bcast(mu,root=0)
     if sigma is None:
         sigma = np.ones(n_terms)
     weights = np.ones(n_terms)/n_terms
@@ -64,10 +70,18 @@ def cross_entropy(f,p,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None):
     for kk in range(maxiter):
         # define a gaussian mixture model
         gmix  = gaussian_mixture(mu,sigma,weights)
-        # take some samples within the region
-        x_samples = gmix._sample(n_samples)
-        # evaluate the probability of samples
-        gmix_val = gmix._pdf(x_samples)
+
+        # take some samples
+        x_samples = np.zeros(n_samples)
+        gmix_val = np.zeros(n_samples)
+        if rank == 0:
+          # take some samples within the region
+          x_samples = gmix._sample(n_samples)
+          # evaluate the probability of samples
+          gmix_val = gmix._pdf(x_samples)
+        comm.Bcast(x_samples,root=0)
+        comm.Bcast(gmix_val,root=0)
+
         fp_val = np.array([f(x)*p(x) for x in x_samples])
         # likelihood ratio
         lr = fp_val/gmix_val
@@ -110,6 +124,11 @@ def cross_entropy(f,p,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None):
         sigma = np.copy(v[n_terms:2*n_terms])
         weights = np.copy(v[2*n_terms:])
         weights = np.append(weights,1-np.sum(weights))
+
+        # make sure everyone is synced
+        comm.Bcast(mu,root=0)
+        comm.Bcast(sigma,root=0)
+        comm.Bcast(weights,root=0)
 
         # make sure weights are indeed non-negative
         weights = np.maximum(weights,0.0)
@@ -201,12 +220,9 @@ class gaussian_mixture:
 
 
 if __name__ == "__main__":
-    # test the gaussian mixture model
-    n_terms = 1
-    mu = np.array([2.0])
-    sigma = np.array([0.2])
-    pdf = gaussian_mixture(mu,sigma,symmetric=False)
-    pdf.plot()
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
 
      
     # fit to a gaussian
@@ -214,9 +230,8 @@ if __name__ == "__main__":
     mu = 3.0
     sigma = 2.0
     p = lambda x: np.exp(-((x-mu)/sigma)**2 / 2)/np.sqrt(2*np.pi*sigma*sigma)
-    gmix = cross_entropy(f,p,n_terms=1,maxiter=20,n_samples=500)
+    gmix = cross_entropy(f,p,comm=comm,n_terms=1,maxiter=20,n_samples=500)
     print(gmix.mu,gmix.sigma,gmix.w)
-    gmix.plot()
 
 
     # fit to a gaussian mixture with two components
@@ -224,9 +239,8 @@ if __name__ == "__main__":
     mu = 3.0
     sigma = 1.0
     p = lambda x: np.exp(-((x-mu)/sigma)**2 / 2)/np.sqrt(2*np.pi*sigma*sigma) + np.exp(-(2*(x+mu)/sigma)**2 / 2)/np.sqrt(2*np.pi*sigma*sigma/4)
-    gmix = cross_entropy(f,p,n_terms=2,maxiter=20,n_samples=500)
+    gmix = cross_entropy(f,p,comm=comm,n_terms=2,maxiter=20,n_samples=500)
     print(gmix.mu,gmix.sigma,gmix.w)
-    gmix.plot()
 
 
     # do importance sampling on int_a^b f(x)*p(x)dx
@@ -237,22 +251,21 @@ if __name__ == "__main__":
     sigma = 0.3
     p = lambda x: np.exp(-((x-mu)/sigma)**2 / 2)/np.sqrt(2*np.pi*sigma*sigma) 
     # fit g with cross entropy 
-    gmix = cross_entropy(f,p,n_terms=1,maxiter=30,n_samples=500)
+    gmix = cross_entropy(f,p,comm=comm,n_terms=1,maxiter=30,n_samples=500)
     # plot the curves
     xs = np.linspace(lb_x,ub_x,500)
     fps = f(xs)*p(xs)
     from scipy.integrate import simpson
     tot = simpson(fps,xs)
-    plt.plot(xs,fps/tot,label='true')
-    plt.legend()
-    gmix.plot()
     # sample from p
-    samples = mu + sigma*np.random.randn(1000)
-    fs = f(samples)
-    print('mean under generic MC',np.mean(fs))
-    print('std under generic MC',np.std(fs))
-    samples = gmix._sample(1000)
-    fs = f(samples)*p(samples)/gmix._pdf(samples)
-    print('mean under generic MC',np.mean(fs))
-    print('std under importance',np.std(fs))
+    if rank == 0:
+      samples = mu + sigma*np.random.randn(1000)
+      fs = f(samples)
+      print('mean under generic MC',np.mean(fs))
+      print('std under generic MC',np.std(fs))
+      samples = gmix._sample(1000)
+      fs_is = f(samples)*p(samples)/gmix._pdf(samples)
+      print('mean under generic MC',np.mean(fs_is))
+      print('std under importance',np.std(fs_is))
+      print('sample improvement',(np.std(fs)/np.std(fs_is))**2)
 
