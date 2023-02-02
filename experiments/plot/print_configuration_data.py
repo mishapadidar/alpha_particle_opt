@@ -20,13 +20,21 @@ usage:
 where data_file.pickle is replaced by the file of interest.
 """
 
-infile = sys.argv[1]
-indata = pickle.load(open(infile,"rb"))
-vmec_input = indata['vmec_input']
-vmec_input = vmec_input[3:] # remove the first ../
-n_partitions=1
-x0 = indata['xopt'] 
-max_mode = indata['max_mode']
+if "input" in infile:
+  using_vmec_input = True
+  infile = sys.argv[1]
+  vmec_input = sys.argv[1]
+  n_partitions = 1
+  max_mode = 3
+else:
+  infile = sys.argv[1]
+  indata = pickle.load(open(infile,"rb"))
+  vmec_input = indata['vmec_input']
+  vmec_input = vmec_input[3:] # remove the first ../
+  n_partitions=1
+  x0 = indata['xopt'] 
+  max_mode = indata['max_mode']
+
 #aspect_target = indata['aspect_target']
 #major_radius = indata['major_radius']
 #target_volavgB = indata['target_volavgB']
@@ -85,7 +93,10 @@ tracer = TraceBoozer(vmec_input,
                       bri_mpol=bri_mpol,
                       bri_ntor=bri_ntor)
 tracer.sync_seeds()
-tracer.surf.x = np.copy(x0)
+if using_vmec_input:
+  x0 = tracer.x0
+else:
+  tracer.surf.x = np.copy(x0)
 
 
 # compute the boozer field
