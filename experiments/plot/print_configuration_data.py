@@ -20,18 +20,15 @@ usage:
 where data_file.pickle is replaced by the file of interest.
 """
 
+infile = sys.argv[1]
+n_partitions = 1
 if "input" in infile:
   using_vmec_input = True
-  infile = sys.argv[1]
   vmec_input = sys.argv[1]
-  n_partitions = 1
-  max_mode = 3
 else:
-  infile = sys.argv[1]
   indata = pickle.load(open(infile,"rb"))
   vmec_input = indata['vmec_input']
   vmec_input = vmec_input[3:] # remove the first ../
-  n_partitions=1
   x0 = indata['xopt'] 
   max_mode = indata['max_mode']
 
@@ -62,10 +59,17 @@ minor radius.
 """
 mpi = MpiPartition(n_partitions)
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
+if using_vmec_input:
+  mpol = vmec.indata.mpol
+  ntor = vmec.indata.ntor
+  assert mpol == ntor, "uh oh, mpol is not ntor"
+  max_mode = mpol
+else:
+  mpol = ntor = max_mode
 surf = vmec.boundary
 surf.fix_all()
-surf.fixed_range(mmin=0, mmax=max_mode,
-                 nmin=-max_mode, nmax=max_mode, fixed=False)
+surf.fixed_range(mmin=0, mmax=mpol,
+                 nmin=-ntor, nmax=ntor, fixed=False)
 aspect_ratio = surf.aspect_ratio()
 
 ## TODO: remove
