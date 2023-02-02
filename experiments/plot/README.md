@@ -13,3 +13,5 @@ Solutions may need post processing before plotting. See instructions below.
 
 `print_configuration_data.py` can be used to print out data about the configurations. This can be run on SLURM using `./run.sh`, and by specying the file in `submit.sub`
 
+`make_paraview_data.py` generates data for making 3d plots of the configurations in paraview.
+
