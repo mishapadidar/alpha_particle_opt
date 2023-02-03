@@ -4,9 +4,10 @@ import matplotlib
 from scipy.optimize import minimize as sp_minimize
 from scipy.optimize import Bounds as sp_bounds
 from mpi4py import MPI
+from scipy.stats import norm as sp_gaussian
 
 
-def cross_entropy(f,p,comm,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None): 
+def cross_entropy(f,p,comm,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=None,lb_x=-np.inf,ub_x=np.inf): 
     """
     Cross entropy method for fitting a gaussian mixture model for 
     importance sampling.
@@ -50,10 +51,6 @@ def cross_entropy(f,p,comm,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=Non
 
     return gmix, a gaussian mixture model which is fit with cross entropy
     """
-    # TODO: incorporate bounds on the variables for definite-integrals
-    # i.e. we should be able to input a lower and upper bound [a,b] on the
-    # sampling interval
-    # 
 
     rank = comm.Get_rank()
 
@@ -69,7 +66,7 @@ def cross_entropy(f,p,comm,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=Non
 
     for kk in range(maxiter):
         # define a gaussian mixture model
-        gmix  = gaussian_mixture(mu,sigma,weights)
+        gmix  = gaussian_mixture(mu,sigma,weights,lb_x=lb_x,ub_x=ub_x)
 
         # take some samples
         x_samples = np.zeros(n_samples)
@@ -95,44 +92,60 @@ def cross_entropy(f,p,comm,n_terms=2,maxiter=100,n_samples=100,mu=None,sigma=Non
             mu = np.copy(v[:n_terms])
             sigma = np.copy(v[n_terms:2*n_terms])
             weights = np.copy(v[2*n_terms:])
-            weights = np.append(weights,1-np.sum(weights))
+            # normallize the weights to one
+            weights = weights/np.sum(weights) 
             # TODO: dont build a new mixture model for each eval
             # that is way too slow, just hard code the evaluation here.
 
             # make a new mixture object
-            q = gaussian_mixture(mu,sigma,weights)
+            q = gaussian_mixture(mu,sigma,weights,lb_x=lb_x,ub_x=ub_x)
             # evaluate the loss
             loss = np.mean(lr*np.log(q._pdf(x_samples)))
             return -loss
 
         # initial variational parameters
-        v0 = np.copy(np.hstack((gmix.mu,gmix.sigma,gmix.w[:n_terms-1])))
+        v0 = np.copy(np.hstack((gmix.mu,gmix.sigma,gmix.w)))
 
-        # TODO: log-transform out the bound constraints on sigma
-        # b/c the constraint is really a true inequality.
+        # TODO: use sigma_squared instead of sigma
+        # ...
 
         # optimize with scipy
-        lb = -np.inf*np.ones(3*n_terms-1)
+        lb = -np.inf*np.ones(3*n_terms)
+        lb[:n_terms] = lb_x # mean within the interval
         lb[n_terms:2*n_terms] = 1e-10 # non-negative std 
         lb[2*n_terms:] = 1e-10 # non-negative weights
-        bounds = sp_bounds(lb)
-        res = sp_minimize(obj,v0,method='L-BFGS-B',bounds=bounds,options = {'gtol':1e-5})
+        ub = np.inf*np.ones(3*n_terms)
+        ub[:n_terms] = ub_x # mean within the interval
+        ub[n_terms:2*n_terms] = 4*(ub_x-lb_x) # std small enough
+        bounds = sp_bounds(lb,ub)
+
+        #init_simp = np.zeros((len(v0)+1,len(v0)))
+        #init_simp[0,:] = v0
+        #init_simp[1:,:] = v0 + 1e5*np.eye(len(v0))
+        #res = sp_minimize(obj,v0,method='Nelder-Mead',bounds=bounds,options = {'xatol':1e-5,'maxfev':2000})
+        res = sp_minimize(obj,v0,method='L-BFGS-B',bounds=bounds,options = {'gtol':1e-5,'finite_diff_rel_step':1e-4})
         v = np.copy(res.x)
+
+        if rank == 0:
+          print(res)
 
         # unpack the new variational parameters
         mu = np.copy(v[:n_terms])
         sigma = np.copy(v[n_terms:2*n_terms])
         weights = np.copy(v[2*n_terms:])
-        weights = np.append(weights,1-np.sum(weights))
+
+        # make sure weights are indeed non-negative
+        weights = np.maximum(weights,0.0)
+        # make sure weights sum to one
+        weights = weights/np.sum(weights)
 
         # make sure everyone is synced
         comm.Bcast(mu,root=0)
         comm.Bcast(sigma,root=0)
         comm.Bcast(weights,root=0)
-
-        # make sure weights are indeed non-negative
-        weights = np.maximum(weights,0.0)
         
+    # return a sampler
+    gmix  = gaussian_mixture(mu,sigma,weights,lb_x=lb_x,ub_x=ub_x)
     return gmix
 
 class gaussian_mixture:
@@ -140,9 +153,11 @@ class gaussian_mixture:
     Form a mixture of 1D-gaussians,
         pi(x) = sum_{i=1}^n_terms w_i*f(x)
     where w_i are weights and f are gaussian pdfs.
+
+    We also support truncated gaussian mixtures
     """
 
-    def __init__(self,mu,sigma,w=None,symmetric=False):
+    def __init__(self,mu,sigma,w=None,symmetric=False,lb_x=-np.inf,ub_x=np.inf):
         """
         n_terms: int, number of terms
         mu: float or 1d array of length n_terms, mean of the mixture components.
@@ -150,15 +165,23 @@ class gaussian_mixture:
         w: 1d arrayof length n_terms, weights of the mixture, must add to 1.
         symmetric: bool, symmetrizes the model by adding n_terms more components
             where identical std, negative mean, and identical weights.
+        ub_x: float, upper bound on the variables
+        lb_x: float, upper bound on the variables
         """
         self.n_terms = len(mu)
         self.mu = np.array(mu)
         self.sigma = np.array(sigma)
         if w is None:
-            self.w = np.ones(self.n_terms)/n_terms
+            self.w = np.ones(self.n_terms)/self.n_terms
         else:
-            assert np.sum(w) == 1, "w must add to 1"
-            self.w = w
+            #assert np.sum(w) == 1, f"weights must sum to 1, {w}"
+            assert np.all(w >= 0), f"weights must be positive, {w}"
+            self.w = w/np.sum(w)
+
+        # save the bounds
+        self.ub_x = ub_x
+        self.lb_x = lb_x
+        assert ub_x > lb_x, "ub_x must be greater than lb_x"
 
         # possibly symmetrize
         self.symmetric = symmetric
@@ -184,10 +207,19 @@ class gaussian_mixture:
         """
         # define indexes for the mixture components
         c = np.linspace(0,self.n_terms-1,self.n_terms,dtype=int)
-        # sample a mixture component according to the weights
-        c_idx = np.random.choice(c,size=n_samples,p=self.w) 
-        # now sample the gaussians
-        X = self.mu[c_idx] + self.sigma[c_idx]*np.random.randn(n_samples)
+        n_accept = 0
+        X = np.zeros(n_samples)
+        while n_accept < n_samples:
+          # sample a mixture component according to the weights
+          c_idx = np.random.choice(c,size=n_samples,p=self.w) 
+          # now sample the gaussians
+          Y = self.mu[c_idx] + self.sigma[c_idx]*np.random.randn(n_samples)
+          # accept samples in the bounds
+          idx_accept = (Y >= self.lb_x) & (Y <= self.ub_x)
+          # but only keep ones we have space for
+          n_keep = min(np.sum(idx_accept),n_samples-n_accept)
+          X[n_accept:n_accept + n_keep] = Y[idx_accept][:n_keep]
+          n_accept += n_keep
         return X
 
     def _pdf(self,X):
@@ -197,10 +229,14 @@ class gaussian_mixture:
         X: 1d array of points
         """
         ret = np.zeros(len(X))
+        # rescale by truncation
+        Phi_ub = sp_gaussian.cdf((self.ub_x - self.mu)/self.sigma)
+        Phi_lb = sp_gaussian.cdf((self.lb_x - self.mu)/self.sigma)
         for ii,x in enumerate(X):
             # evaluate the Gaussian pdfs
             gaussians = np.exp(-((x-self.mu)**2)/2/self.sigma/self.sigma)/np.sqrt(2*np.pi)/self.sigma
-            ret[ii] = np.sum(gaussians*self.w)
+            ret[ii] = np.sum(gaussians*self.w/(Phi_ub - Phi_lb))
+        
         return ret
 
     def plot(self):
