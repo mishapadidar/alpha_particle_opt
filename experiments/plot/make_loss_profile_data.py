@@ -26,7 +26,8 @@ minor radius.
 """
 # scaling params
 target_minor_radius = 1.7
-target_volavgB = 5.0
+target_B00_on_axis = 5.7
+#target_volavgB = 5.0
 
 # tracing parameters
 n_particles = 5000
@@ -34,8 +35,8 @@ tmax = 0.01
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level = 8
-bri_mpol = 32
-bri_ntor = 32
+bri_mpol = 16
+bri_ntor = 16
 n_partitions = 1
 
 filelist = [\
@@ -79,7 +80,8 @@ outfile = "./loss_profile_data.pickle"
 outdata = {}
 outdata['filelist'] = filelist
 outdata['target_minor_radius'] =target_minor_radius
-outdata['target_volavgB'] = target_volavgB
+#outdata['target_volavgB'] = target_volavgB
+outdata['target_B00_on_axis'] = target_B00_on_axis
 outdata['n_particles'] = n_particles
 outdata['tmax'] = tmax
 outdata['tracing_tol'] = tracing_tol
@@ -108,7 +110,7 @@ for ii,(infile,config_name) in enumerate(filelist):
                         max_mode=-1,
                         aspect_target=aspect_ratio,
                         major_radius=major_radius,
-                        target_volavgB=target_volavgB,
+                        target_volavgB=1.0, # dummy value
                         tracing_tol=tracing_tol,
                         interpolant_degree=interpolant_degree,
                         interpolant_level=interpolant_level,
@@ -117,14 +119,34 @@ for ii,(infile,config_name) in enumerate(filelist):
   tracer.sync_seeds()
   x0 = tracer.x0
 
-  
   # compute the boozer field
   field,bri = tracer.compute_boozer_field(x0)
+  
+  # now scale the toroidal flux by B(0,0)[s=0]
+  bmnc0 = bri.booz.bx.bmnc_b[0]
+  B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+  tracer.vmec.indata.phiedge *= target_B00_on_axis/B00
+
+  # re-compute the boozer field
+  tracer.vmec.need_to_run_code = True
+  tracer.vmec.run()
+  tracer.field = None # so the boozXform recomputes
+  field,bri = tracer.compute_boozer_field(x0)
+
+  # check the field strength is correct
+  bmnc0 = bri.booz.bx.bmnc_b[0]
+  B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+  major_rad = tracer.surf.get("rc(0,0)")
+  aspect = tracer.surf.aspect_ratio()
+  minor_rad = major_rad/aspect
   
   if rank == 0:
     print("")
     print("processing", infile)
-    print('computing volume losses')
+    print('minor radius',minor_rad)
+    print("axis B00",B00)
+    print('volavgB',tracer.vmec.wout.volavgB)
+    print('toroidal flux',tracer.vmec.indata.phiedge)
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   if rank == 0:
@@ -132,18 +154,17 @@ for ii,(infile,config_name) in enumerate(filelist):
     print('volume loss fraction:',lf)
 
   # store the data
-  c_times_surface[ii] = np.copy(c_times)
+  c_times_vol[ii] = np.copy(c_times)
   
-  if rank == 0:
-    print('computing surface losses')
   stz_inits,vpar_inits = tracer.sample_surface(n_particles,0.25)
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   if rank == 0:
     lf = np.mean(c_times < tmax)
     print('surface loss fraction:',lf)
+    print("")
 
   # store the data
-  c_times_vol[ii] = np.copy(c_times)
+  c_times_surface[ii] = np.copy(c_times)
 
   # save the data
   outdata['c_times_surface'] = c_times_surface
