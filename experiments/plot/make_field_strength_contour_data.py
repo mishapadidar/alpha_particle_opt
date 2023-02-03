@@ -2,63 +2,49 @@ import numpy as np
 from mpi4py import MPI
 from simsopt.util.mpi import MpiPartition
 from simsopt.mhd import Vmec
+from simsopt.field.boozermagneticfield import BoozerRadialInterpolant, InterpolatedBoozerField
 import pickle
 import sys
-sys.path.append("../../trace")
-sys.path.append("../../utils")
-sys.path.append("../../sample")
-from trace_boozer import TraceBoozer
 
 """
 Computes data for a contour plot of the field strength in boozer coordinates.
 
 usage:
-  mpiexec -n 1 python3 configs/data_file.pickle
-where data_file.pickle is replaced by the file of interest.
+  mpiexec -n 1 python3 configs/vmec_input_file
 """
 
+# load a vmec input file
 infile = sys.argv[1]
-indata = pickle.load(open(infile,"rb"))
-vmec_input = indata['vmec_input']
-vmec_input = vmec_input[3:] # remove the first ../
+vmec_input = infile
 
-# build a tracer object
-n_partitions=1
-xopt = indata['xopt'] 
-max_mode = indata['max_mode']
-major_radius = indata['major_radius']
-aspect_target = indata['aspect_target']
-target_volavgB = indata['target_volavgB']
-tracing_tol = indata['tracing_tol']
-interpolant_degree = indata['interpolant_degree'] 
-interpolant_level = indata['interpolant_level'] 
-#bri_mpol = indata['bri_mpol'] 
-#bri_ntor = indata['bri_ntor'] 
+# interpolation params
+interpolant_degree = 3
+interpolant_level = 8
 bri_mpol = 32
 bri_ntor = 32
-tracer = TraceBoozer(vmec_input,
-                      n_partitions=n_partitions,
-                      max_mode=max_mode,
-                      aspect_target=aspect_target,
-                      major_radius=major_radius,
-                      target_volavgB=target_volavgB,
-                      tracing_tol=tracing_tol,
-                      interpolant_degree=interpolant_degree,
-                      interpolant_level=interpolant_level,
-                      bri_mpol=bri_mpol,
-                      bri_ntor=bri_ntor)
-tracer.sync_seeds()
-tracer.surf.x = np.copy(xopt)
 
-# compute the boozer field
-field,bri = tracer.compute_boozer_field(xopt)
+# make vmec
+mpi = MpiPartition()
+vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
+
+# Construct radial interpolant of magnetic field
+bri = BoozerRadialInterpolant(vmec, order=interpolant_degree,
+                  mpol=bri_mpol,ntor=bri_ntor, enforce_vacuum=True)
+
+# Construct 3D interpolation
+nfp = vmec.wout.nfp
+srange = (0, 1, interpolant_level)
+thetarange = (0, np.pi, interpolant_level)
+zetarange = (0, 2*np.pi/nfp,interpolant_level)
+field = InterpolatedBoozerField(bri, degree=interpolant_degree, srange=srange, thetarange=thetarange,
+                   zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
 
 s_list = [0.05,0.25,0.5,1.0]
 # theta is [0,pi] with stellsym
 ntheta = 128
 nzeta = 128
 thetas = np.linspace(0, 2*np.pi, ntheta)
-zetas = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
+zetas = np.linspace(0,2*np.pi/nfp, nzeta)
 [thetas,zetas] = np.meshgrid(thetas, zetas)
 # storage
 modB_list = np.zeros((len(s_list),ntheta*nzeta))
@@ -85,6 +71,8 @@ outdata['nzeta'] = nzeta
 outdata['theta_mesh'] = thetas
 outdata['zeta_mesh'] = zetas
 outdata['modB_list'] = modB_list
-indata['field_line_data'] = outdata
-pickle.dump(indata,open(infile,"wb"))
+filename = infile.split("/")[-1] # remove any directories
+filename = filename[6:] # remove the "input."
+filename = filename + "_field_strength.pickle"
+pickle.dump(outdata,open(filename,"wb"))
 
