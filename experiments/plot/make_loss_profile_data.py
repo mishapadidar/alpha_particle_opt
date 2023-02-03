@@ -16,132 +16,127 @@ rank = comm.Get_rank()
 Make data for the loss profile plots.
 
 usage:
-  mpiexec -n 1 python3 configs/data_file.pickle
-where data_file.pickle is replaced by the file of interest.
-"""
+  mpiexec -n 1 python3 make_loss_profile_data.py
 
-infile = sys.argv[1]
-indata = pickle.load(open(infile,"rb"))
-vmec_input = indata['vmec_input']
-vmec_input = vmec_input[3:] # remove the first ../
-n_partitions=1
-x0 = indata['xopt'] 
-max_mode = indata['max_mode']
-#aspect_target = indata['aspect_target']
-#major_radius = indata['major_radius']
-#target_volavgB = indata['target_volavgB']
-#tracing_tol = indata['tracing_tol']
-#interpolant_degree = indata['interpolant_degree'] 
-#interpolant_level = indata['interpolant_level'] 
-#bri_mpol = indata['bri_mpol'] 
-#bri_ntor = indata['bri_ntor'] 
-
-# tracing parameters
-n_particles = 10000
-tmax = 0.01
-tracing_tol = 1e-8
-interpolant_degree = 3
-interpolant_level = 8
-bri_mpol = 16
-bri_ntor = 16
-
-directories = [\
-               ('20210721-02-180_new_QA_aScaling_t2e-1_s0.25_newB00', 'New QA'),
-               ('20210721-02-181_new_QA_magwell_aScaling_t2e-1_s0.25_newB00', 'New QA+well'),
-               ('20210721-02-182_new_QH_aScaling_t2e-1_s0.25_newB00', 'New QH'),
-               ('20210721-02-183_new_QH_magwell_aScaling_t2e-1_s0.25_newB00', 'New QH+well'),
-               ('20210721-02-184_li383_aScaling_t2e-1_s0.25_newB00', 'NCSX'),
-               ('20210721-02-185_ARIES-CS_aScaling_t2e-1_s0.25_newB00', 'ARIES-CS'),
-               ('20210721-02-186_GarabedianQAS_aScaling_t2e-1_s0.25_newB00', 'NYU'),
-               ('20210721-02-187_cfqs_aScaling_t2e-1_s0.25_newB00', 'CFQS'),
-               ('20210721-02-188_Henneberg_aScaling_t2e-1_s0.25_newB00', 'IPP QA'),
-               ('20210721-02-189_Nuhrenberg_aScaling_t2e-1_s0.25_newB00', 'IPP QH'),
-               ('20210721-02-190_HSX_aScaling_t2e-1_s0.25_newB00', 'HSX'),
-               ('20210721-02-191_aten_aScaling_t2e-1_s0.25_newB00', 'Wistell-A'),
-               ('20210721-02-192_w7x-d23p4_tm_aScaling_t2e-1_s0.25_newB00', 'W7-X')]
-#               ('20210721-02-148_w7x_aScaling_t2e-1_s0.3_newB00', 'W7-X')]
-#               ('20210721-02-140_ncsx_aScaling_t2e-1_s0.3_newB00', 'NCSX'),
-
-"""
-Rescale all configurations to the same minor radius and same volavgB.
+We rescale all configurations to the same minor radius and same volavgB.
 Scale the device so that the major radius is 
   R = aspect*target_minor
 where aspect is the current aspect ratio and target_minor is the desired
 minor radius.
 """
-mpi = MpiPartition(n_partitions)
-vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
-surf = vmec.boundary
-surf.fix_all()
-surf.fixed_range(mmin=0, mmax=max_mode,
-                 nmin=-max_mode, nmax=max_mode, fixed=False)
-aspect_ratio = surf.aspect_ratio()
-
-## TODO: remove
-#aspect_ratio = 7.0
-
-# ensure devices are scaled the same
-minor_radius = 1.7
-major_radius = minor_radius*aspect_ratio
+# scaling params
+target_minor_radius = 1.7
 target_volavgB = 5.0
 
-"""
-Get the device properties
-"""
+# tracing parameters
+n_particles = 5
+tmax = 0.0001
+tracing_tol = 1e-8
+interpolant_degree = 3
+interpolant_level = 8
+bri_mpol = 16
+bri_ntor = 16
+n_partitions = 1
 
-# build a tracer object
-tracer = TraceBoozer(vmec_input,
-                      n_partitions=n_partitions,
-                      max_mode=max_mode,
-                      aspect_target=aspect_ratio,
-                      major_radius=major_radius,
-                      target_volavgB=target_volavgB,
-                      tracing_tol=tracing_tol,
-                      interpolant_degree=interpolant_degree,
-                      interpolant_level=interpolant_level,
-                      bri_mpol=bri_mpol,
-                      bri_ntor=bri_ntor)
-tracer.sync_seeds()
-tracer.surf.x = np.copy(x0)
+filelist = [\
+            ('nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.89', "A"),
+            ('nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.043', "B"),
+            #('20210721-02-180_new_QA_aScaling_t2e-1_s0.25_newB00', 'LP QA'),
+            ('new_QA', 'LP QA'),
+            #('20210721-02-181_new_QA_magwell_aScaling_t2e-1_s0.25_newB00', 'LP QA+well'),
+            #('20210721-02-182_new_QH_aScaling_t2e-1_s0.25_newB00', 'LP QH'),
+            ('new_QH', 'LP QH'),
+            #('20210721-02-183_new_QH_magwell_aScaling_t2e-1_s0.25_newB00', 'LP QH+well'),
+            #('20210721-02-184_li383_aScaling_t2e-1_s0.25_newB00', 'NCSX'),
+            ('li383_1.4m', 'NCSX'),
+            #('ARIES-CS_aScaling_t2e-1_s0.25_newB00', 'ARIES-CS'),
+            ('n3are_R7.75B5.7', 'ARIES-CS'),
+            #('20210721-02-186_GarabedianQAS_aScaling_t2e-1_s0.25_newB00', 'NYU'),
+            ('GarabedianQAS2', 'NYU'),
+            #('20210721-02-187_cfqs_aScaling_t2e-1_s0.25_newB00', 'CFQS'),
+            ('cfqs_2b40', 'CFQS'),
+            #('20210721-02-188_Henneberg_aScaling_t2e-1_s0.25_newB00', 'IPP QA'),
+            ('st_a34_i32v22_beta_35_scaledAUG', 'IPP QA'),
+            #('20210721-02-189_Nuhrenberg_aScaling_t2e-1_s0.25_newB00', 'IPP QH'),
+            ('NuhrenbergZille_1988_QHS', 'IPP QH'),
+            #('20210721-02-190_HSX_aScaling_t2e-1_s0.25_newB00', 'HSX'),
+            ('HSX_QHS_vacuum_ns201', 'HSX'),
+            #('20210721-02-191_aten_aScaling_t2e-1_s0.25_newB00', 'Wistell-A'),
+            ('aten', 'Wistell-A'),
+            #('20210721-02-192_w7x-d23p4_tm_aScaling_t2e-1_s0.25_newB00', 'W7-X')]
+            ('d23p4_tm', 'W7-X')]
+#           ('20210721-02-148_w7x_aScaling_t2e-1_s0.3_newB00', 'W7-X')]
+#           ('20210721-02-140_ncsx_aScaling_t2e-1_s0.3_newB00', 'NCSX'),
 
+n_configs = len(filelist)
 
-# compute the boozer field
-field,bri = tracer.compute_boozer_field(x0)
+# storage arrays
+c_times_surface = np.zeros((n_configs,n_particles))
+c_times_vol = np.zeros((n_configs,n_particles))
 
-if rank == 0:
-  print("processing", infile)
+# for saving data
+outfile = "./loss_profile_data.pickle"
+outdata = {}
 
+for ii,(infile,config_name) in enumerate(filelist):
 
-if rank == 0:
-  print("")
-  print('compute volume losses')
-stz_inits,vpar_inits = tracer.sample_volume(n_particles)
-c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-std_err = np.std(c_times)/np.sqrt(len(c_times))
-mu = np.mean(c_times)
-nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
-if rank == 0:
-  print('volume losses')
-  print('mean confinement time',mu)
-  print('standard err',std_err)
-  print('energy loss',nrg)
-  lf = np.mean(c_times < tmax)
-  print('loss fraction',lf)
-  print('standard err',np.sqrt(lf*(1-lf)/n_particles))
+  # load the vmec input
+  vmec_input = "./configs/input." + infile
 
-if rank == 0:
-  print("")
-  print('compute surface losses')
-stz_inits,vpar_inits = tracer.sample_surface(n_particles,0.25)
-c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-std_err = np.std(c_times)/np.sqrt(len(c_times))
-mu = np.mean(c_times)
-nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
-if rank == 0:
-  print('surface losses')
-  print('mean confinement time',mu)
-  print('standard err',std_err)
-  print('energy loss',nrg)
-  lf = np.mean(c_times < tmax)
-  print('loss fraction',lf)
-  print('standard err',np.sqrt(lf*(1-lf)/n_particles))
+  mpi = MpiPartition(n_partitions)
+  vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
+  surf = vmec.boundary
+  
+  # get the aspect ratio for rescaling the device
+  aspect_ratio = surf.aspect_ratio()
+  major_radius = target_minor_radius*aspect_ratio
+  
+  
+  # build a tracer object
+  tracer = TraceBoozer(vmec_input,
+                        n_partitions=n_partitions,
+                        max_mode=-1,
+                        aspect_target=aspect_ratio,
+                        major_radius=major_radius,
+                        target_volavgB=target_volavgB,
+                        tracing_tol=tracing_tol,
+                        interpolant_degree=interpolant_degree,
+                        interpolant_level=interpolant_level,
+                        bri_mpol=bri_mpol,
+                        bri_ntor=bri_ntor)
+  tracer.sync_seeds()
+  x0 = tracer.x0
+
+  
+  # compute the boozer field
+  field,bri = tracer.compute_boozer_field(x0)
+  
+  if rank == 0:
+    print("")
+    print("processing", infile)
+    print('computing volume losses')
+  stz_inits,vpar_inits = tracer.sample_volume(n_particles)
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  if rank == 0:
+    lf = np.mean(c_times < tmax)
+    print('volume loss fraction:',lf)
+
+  # store the data
+  c_times_surface[ii] = np.copy(c_times)
+  
+  if rank == 0:
+    print('computing surface losses')
+  stz_inits,vpar_inits = tracer.sample_surface(n_particles,0.25)
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  if rank == 0:
+    lf = np.mean(c_times < tmax)
+    print('surface loss fraction:',lf)
+
+  # store the data
+  c_times_vol[ii] = np.copy(c_times)
+
+  # save the data
+  outdata['c_times_surface'] = c_times_surface
+  outdata['c_times_vol'] = c_times_vol
+  outdata['filelist'] = filelist
+  pickle.dump(outdata,open(outfile,"wb"))
