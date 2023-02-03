@@ -59,17 +59,7 @@ minor radius.
 """
 mpi = MpiPartition(n_partitions)
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
-if using_vmec_input:
-  mpol = vmec.indata.mpol
-  ntor = vmec.indata.ntor
-  assert mpol == ntor, "uh oh, mpol is not ntor"
-  max_mode = mpol
-else:
-  mpol = ntor = max_mode
 surf = vmec.boundary
-surf.fix_all()
-surf.fixed_range(mmin=0, mmax=mpol,
-                 nmin=-ntor, nmax=ntor, fixed=False)
 aspect_ratio = surf.aspect_ratio()
 
 ## TODO: remove
@@ -87,7 +77,7 @@ Get the device properties
 # build a tracer object
 tracer = TraceBoozer(vmec_input,
                       n_partitions=n_partitions,
-                      max_mode=max_mode,
+                      max_mode=-1,
                       aspect_target=aspect_ratio,
                       major_radius=major_radius,
                       target_volavgB=target_volavgB,
