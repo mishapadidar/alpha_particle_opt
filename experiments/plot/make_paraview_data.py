@@ -15,38 +15,16 @@ import sys
 Make the data for paraview plotting
 
 usage:
-  mpiexec -n 1 python3 configs/data_file.pickle
-where data_file.pickle is replaced by the file of interest.
+  mpiexec -n 1 python3 configs/vmec_input_file
 """
 
 infile = sys.argv[1]
-indata = pickle.load(open(infile,"rb"))
-vmec_input = indata['vmec_input']
-vmec_input = vmec_input[3:] # remove the first ../
-xopt = indata['xopt'] 
-max_mode = indata['max_mode']
-major_radius = indata['major_radius']
-aspect_target = indata['aspect_target']
-target_volavgB = indata['target_volavgB']
+vmec_input = infile
 
 # For RZFourier rep
 n_partitions=1
 mpi = MpiPartition(n_partitions)
 vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
-# get the boundary rep
-surf = vmec.boundary
-# set the desired resolution
-surf.fix_all()
-surf.fixed_range(mmin=0, mmax=max_mode,
-                 nmin=-max_mode, nmax=max_mode, fixed=False)
-# rescale the surface by the major radius; if we havent already.
-factor = major_radius/surf.get("rc(0,0)")
-surf.x = surf.x*factor
-# fix the major radius
-surf.fix("rc(0,0)") 
-# rescale the toroidal flux;
-target_avg_minor_rad = major_radius/aspect_target # target avg minor radius
-vmec.indata.phiedge = np.pi*(target_avg_minor_rad**2)*target_volavgB
 
 # generate the .wout data
 vmec.run()
@@ -117,7 +95,7 @@ B_rescaled = (B - B.min()) / (B.max() - B.min())
 
 # now make a vts file
 filename = infile.split("/")[-1] # remove any directories
-filename = filename[:-7] # remove the .pickle
+filename = filename[6:] # remove the "input."
 
 from pyevtk.hl import gridToVTK
 x=X.reshape((1, ntheta, nphi))
