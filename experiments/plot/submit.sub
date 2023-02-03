@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J conf_data                            # Job name
+#SBATCH -J config_info                            # Job name
 #SBATCH -o ./slurm_output/job_%j.out    # Name of stdout output file(%j expands to jobId)
 #SBATCH -e ./slurm_output/job_%j.err    # Name of stderr output file(%j expands to jobId)
 #SBATCH -N 2                                 # Total number of nodes requested
@@ -11,5 +11,5 @@
 ##SBATCH --partition=bindel               # Which partition/queue it should run on
 #SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99]
 
-mpiexec -n 12 python3 print_configuration_data.py 
+mpiexec -n 12 python3 print_configuration_info.py 
 #mpiexec -n 24 python3 make_loss_profile_data.py
