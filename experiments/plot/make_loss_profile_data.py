@@ -77,6 +77,16 @@ c_times_vol = np.zeros((n_configs,n_particles))
 # for saving data
 outfile = "./loss_profile_data.pickle"
 outdata = {}
+outdata['filelist'] = filelist
+outdata['target_minor_radius'] =target_minor_radius
+outdata['target_volavgB'] = target_volavgB
+outdata['n_particles'] = n_particles
+outdata['tmax'] = tmax
+outdata['tracing_tol'] = tracing_tol
+outdata['interpolant_degree'] = interpolant_degree
+outdata['interpolant_level'] =  interpolant_level
+outdata['bri_mpol'] = bri_mpol
+outdata['bri_ntor'] = bri_ntor
 
 for ii,(infile,config_name) in enumerate(filelist):
 
@@ -138,5 +148,4 @@ for ii,(infile,config_name) in enumerate(filelist):
   # save the data
   outdata['c_times_surface'] = c_times_surface
   outdata['c_times_vol'] = c_times_vol
-  outdata['filelist'] = filelist
   pickle.dump(outdata,open(outfile,"wb"))
