@@ -8,6 +8,7 @@ from mpi4py import MPI
 import sys
 sys.path.append("../utils")
 sys.path.append("../sample")
+from cross_entropy import cross_entropy, gaussian_mixture
 from grids import symlog_grid
 from radial_density import RadialDensity
 from constants import *
@@ -21,7 +22,7 @@ class TraceBoozer:
 
   def __init__(self,vmec_input,
     n_partitions=1,
-    max_mode=1,
+    max_mode=-1,
     major_radius=13.6,
     aspect_target=8.0, 
     target_volavgB=5.0,
@@ -59,6 +60,13 @@ class TraceBoozer:
     # get the boundary rep
     self.surf = self.vmec.boundary
 
+    if max_mode < 0:
+      mpol = self.surf.mpol
+      ntor = self.surf.ntor
+    else:
+      mpol = max_mode
+      ntor = max_mode
+
     #if len(x0) > 0:
     #  """
     #  Load a point with. We assume that x0_max_mode <= max_mode, that 
@@ -89,8 +97,8 @@ class TraceBoozer:
     
     # set the desired resolution
     self.surf.fix_all()
-    self.surf.fixed_range(mmin=0, mmax=max_mode,
-                     nmin=-max_mode, nmax=max_mode, fixed=False)
+    self.surf.fixed_range(mmin=0, mmax=mpol,
+                     nmin=-ntor, nmax=ntor, fixed=False)
     
     # rescale the surface by the major radius; if we havent already.
     factor = major_radius/self.surf.get("rc(0,0)")
@@ -420,6 +428,61 @@ class TraceBoozer:
 
     return exit_times
 
+  def train_importance_sampler(self,x0,tmax,max_iter=30,n_samples=20,n_particles_per_sample=48,s_label="full",
+    n_terms=1):
+    """
+    Train an importance sampler to solve the integral
+      int_vpar f(vpar)p(vpar)dvpar
+    where f(vpar) is the integral
+      f(vpar) = int_s int_theta int_zeta energy(s,theta,zeta,vpar)p(s,theta,zeta) dzeta dtheta ds
+      energy = 3.5*np.exp(-2T/tmax) where T(s,theta,zeta,vpar) is the confinement time.
+    and p(.) are probability densities.
+
+    tmax: max trace time
+    max_iter: maximum iterations of cross entropy
+    n_samples: number of samples per iteration.
+    s_label: float or "full", denoting the surface label
+    """
+    # TODO: currently this function does not work
+    return NotImplementedError
+
+    def from_unit_cube(vpar):
+      return 2*V_MAX*vpar - V_MAX
+
+    def integrand(vpar):
+      """
+      expect vpar on unit cube
+      """
+      # map to [-V_MAX,V_MAX]
+      vpar = from_unit_cube(vpar)
+      if s_label == "full":
+        stz_inits,_ = self.sample_volume(n_particles_per_sample)
+      else:
+        stz_inits,_ = self.sample_surface(n_particles_per_sample,float(s_label))
+      # use the same vpar for all points
+      vpar_inits = vpar*np.ones(n_particles_per_sample)
+      # confinement times
+      c_times = self.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+      # energy
+      return np.mean(3.5*np.exp(-2*c_times/tmax))
+      
+    # initialization
+    if n_terms == 1:
+      mu = np.array([0.5])
+      sigma = np.array([0.1])
+    if n_terms > 1:
+      mu = np.linspace(0,1,n_terms)
+      sigma = 0.01*np.ones(n_terms)
+
+    # uniform vpar density
+    #p = lambda vpar: 1/2/V_MAX 
+    # use uniform density over 
+    p = lambda vpar: 1
+    # use the cross entropy method
+    gmix = cross_entropy(integrand,p,comm=self.mpi.comm_groups,n_terms=n_terms,
+                maxiter=max_iter,n_samples=n_samples,mu=mu,sigma=sigma,lb_x = 0.0,ub_x=1.0)
+
+    return gmix
 
   #def jacobian_bulk(self,x,stz_inits,vpar_inits,tmax,h=1e-4,method='forward',ns=32,ntheta=32,nzeta=32):
   #  """
@@ -616,18 +679,24 @@ class TraceBoozer:
 
 if __name__ == "__main__":
 
-  #vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
   #vmec_input = "../experiments/min_quasisymmetry/input.nfp2_QA_cold_high_res_phase_one_max_mode_1_quasisymmetry_opt"
-  vmec_input="../experiments/phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
-  import pickle
+  #vmec_input="../experiments/phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
+  #import pickle
   #data_file = "../experiments/min_energy_loss/data/data_opt_nfp4_phase_one_mean_energy_grid_surface_0.25_tmax_0.001_bobyqa_mmode_2_iota_None.pickle"
-  data_file = "../experiments/min_energy_loss/data_phase_one_first_res/data_opt_nfp4_phase_one_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-  data = pickle.load(open(data_file,"rb"))
-  x0 = data['xopt']
-  max_mode=data['max_mode']
-  aspect_target = data['aspect_target']
-  major_radius = data['major_radius']
-  target_volavgB = data['target_volavgB']
+  #data_file = "../experiments/min_energy_loss/data_phase_one_first_res/data_opt_nfp4_phase_one_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
+  #data = pickle.load(open(data_file,"rb"))
+  #x0 = data['xopt']
+  #max_mode=data['max_mode']
+  #aspect_target = data['aspect_target']
+  #major_radius = data['major_radius']
+  #target_volavgB = data['target_volavgB']
+
+  vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
+  #vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res'
+  max_mode = 1
+  aspect_target = 7.0
+  major_radius = 1.7*aspect_target
+  target_volavgB = 1.0
 
   tracer = TraceBoozer(vmec_input,
                       n_partitions=1,
@@ -638,32 +707,79 @@ if __name__ == "__main__":
                       tracing_tol=1e-8,
                       interpolant_degree=3,
                       interpolant_level=8,
-                      bri_mpol=16,
-                      bri_ntor=16)
-  tracer.x0 = np.copy(x0)
+                      bri_mpol=8,
+                      bri_ntor=8)
+  #tracer.x0 = np.copy(x0)
+  x0 = tracer.x0
 
-  print(tracer.vmec.mean_iota())
-  print(tracer.surf.get('rc(0,0)'))
-  print(tracer.vmec.indata.phiedge)
+  """
+  Build an importance sampler.
+  """
+  tracer.sync_seeds()
+  tmax = 1e-3
+  s_label = 0.25
 
-  #"""
-  #Now compute statistics with monte carlo
-  #"""
-  tracer.sync_seeds(0)
-  tmax = 1e-2
+  comm = MPI.COMM_WORLD
+  rank = comm.Get_rank()
+
+  # for plotting the curve
+  #s_label = 0.25
+  #n_particles_per_sample = 500
+  #stz_inits,_ = tracer.sample_surface(n_particles_per_sample,float(s_label))
+  #def integrand(vpar):
+  #  # use the same vpar for all points
+  #  vpar_inits = vpar*np.ones(n_particles_per_sample)
+  #  # confinement times
+  #  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  #  # energy
+  #  return np.mean(3.5*np.exp(-2*c_times/tmax))
+  #vpar_list = np.linspace(-V_MAX,V_MAX,20)
+  #for vpar in vpar_list:
+  #  fv = integrand(vpar)
+  #  if rank == 0:
+  #    print(fv)
+
+  
+  # train an importance sampler over vpar
+  gmix = tracer.train_importance_sampler(x0,tmax,max_iter=30,n_samples=20,n_particles_per_sample=70,s_label=s_label,
+    n_terms=2)
+  if rank == 0:
+    print("")
+    print("gmix params")
+    print('mu',gmix.mu)
+    print('sigma',gmix.sigma)
+    print('weights',gmix.w)
+
+  # sample from the tracer
+  n_particles = 500
+  stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
+  if rank == 0:
+    vpar_inits_uc = gmix._sample(n_particles)
+    # map back to [-V_MAX,V_MAX]
+    vpar_inits = 2*V_MAX*vpar_inits_uc - V_MAX
+  comm.Bcast(vpar_inits,root=0)
+  # trace the particles
+  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
+  feat = 3.5*np.exp(-2*c_times/tmax)
+  #p = 1.0/2/V_MAX
+  p = 1.0
+  if rank == 0:
+    fs_is = feat*p/gmix._pdf(vpar_inits_uc)
+    print("")
+    print('IS trace')
+    print('energy',np.mean(fs_is))
+    print('std',np.std(fs_is))
 
   # tracing points
-  n_particles = 1000
-  s_label = 0.25
   stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
-  print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  std_err = np.std(c_times)/np.sqrt(len(c_times))
-  mu = np.mean(c_times)
-  nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
-  print('mean',mu,std_err)
-  print('energy',nrg)
-  print('loss fraction',np.mean(c_times < tmax))
+  feat = 3.5*np.exp(-2*c_times/tmax)
+  if rank == 0:
+    print("")
+    print('regular trace')
+    print('energy',np.mean(feat))
+    print('std',np.std(feat))
+  quit()
 
   # tracing points
   n_particles = 1000

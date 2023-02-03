@@ -29,13 +29,13 @@ target_minor_radius = 1.7
 target_volavgB = 5.0
 
 # tracing parameters
-n_particles = 5
-tmax = 0.0001
+n_particles = 5000
+tmax = 0.01
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level = 8
-bri_mpol = 16
-bri_ntor = 16
+bri_mpol = 32
+bri_ntor = 32
 n_partitions = 1
 
 filelist = [\

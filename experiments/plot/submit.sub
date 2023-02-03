@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -J prnt_conf                            # Job name
+#SBATCH -J loss_prof                            # Job name
 #SBATCH -o ./slurm_output/job_%j.out    # Name of stdout output file(%j expands to jobId)
 #SBATCH -e ./slurm_output/job_%j.err    # Name of stderr output file(%j expands to jobId)
-#SBATCH -N 4                                 # Total number of nodes requested
-#SBATCH -n 48                            # ntasks; Total number of cores requested
+#SBATCH -N 2                                 # Total number of nodes requested
+#SBATCH -n 24                            # ntasks; Total number of cores requested
 #SBATCH --ntasks-per-node 12   # set equal to number of cores
 #SBATCH --get-user-env                              # Tells sbatch to retrieve the users login environment
 #SBATCH -t 96:00:00                                 # Time limit (hh:mm:ss)
@@ -11,5 +11,8 @@
 ##SBATCH --partition=bindel               # Which partition/queue it should run on
 #SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99]
 
-mpiexec -n 48 python3 print_configuration_data.py ./configs/data_opt_nfp4_phase_one_aspect_7.0_iota_-1.043_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle
+#mpiexec -n 12 python3 print_configuration_data.py ./configs/data_opt_nfp4_phase_one_aspect_7.0_iota_-1.043_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle
+#mpiexec -n 12 python3 print_configuration_data.py ./configs/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.043
 ##mpiexec -n 48 python3 print_configuration_data.py ./configs/data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_full_tmax_0.01_bobyqa_mmode_3_iota_None.pickle
+
+mpiexec -n 24 python3 make_loss_profile_data.py
