@@ -123,8 +123,17 @@ for ii,(infile,config_name) in enumerate(filelist):
   field,bri = tracer.compute_boozer_field(x0)
   
   # now scale the toroidal flux by B(0,0)[s=0]
-  bmnc0 = bri.booz.bx.bmnc_b[0]
-  B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+  if rank == 0:
+    # b/c only rank 0 does the boozXform
+    bmnc0 = bri.booz.bx.bmnc_b[0]
+    B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+    B00 = np.array([B00])
+  else:
+    B00 = np.array([0.0])
+  comm.Barrier()
+  comm.Bcast(B00,root=0)
+  B00 = B00[0] # unpack the array
+  # scale the toroidal flux
   tracer.vmec.indata.phiedge *= target_B00_on_axis/B00
 
   # re-compute the boozer field
@@ -133,12 +142,23 @@ for ii,(infile,config_name) in enumerate(filelist):
   tracer.field = None # so the boozXform recomputes
   field,bri = tracer.compute_boozer_field(x0)
 
-  # check the field strength is correct
-  bmnc0 = bri.booz.bx.bmnc_b[0]
-  B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+  # now get B00 just to make sure it was set right
+  if rank == 0:
+    # b/c only rank 0 does the boozXform
+    bmnc0 = bri.booz.bx.bmnc_b[0]
+    B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+    B00 = np.array([B00])
+  else:
+    B00 = np.array([0.0])
+  comm.Barrier()
+  comm.Bcast(B00,root=0)
+  B00 = B00[0] # unpack the array
+
+  # also get the minor radius
   major_rad = tracer.surf.get("rc(0,0)")
   aspect = tracer.surf.aspect_ratio()
   minor_rad = major_rad/aspect
+
   
   if rank == 0:
     print("")
