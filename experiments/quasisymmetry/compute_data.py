@@ -14,12 +14,19 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 """
+Compute the value of d @ H @ d where H is the hessian of the energy objective
+and d is the gradient of the quasisymmetry objective.
+
+This can be computed with second order central difference on the energy objective
+along the direction d.
+
 Run with
   mpiexec -n 1 python3 compute_data.py
 """
 
 # load a configuration
 config = "A" # A or B
+#config = "B" # A or B
 
 if config == "A":
   infile = "./data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_full_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
@@ -38,7 +45,7 @@ if rank == 0:
   print(vmec_input)
 
 # list of mn params
-mn_list = [(0,1),(1,4),(1,2),(1,1),(2,1),(4,1)]
+mn_list = [(0,1),(1,4),(1,-4),(1,1)]
 n_obj = len(mn_list)
 
 # configuration params
@@ -53,15 +60,19 @@ n_obj = len(mn_list)
 s_label = 0.25 # 0.25 or full
 tmax = 0.01 
 n_particles = 10000 
-h_fdiff_x = 5e-3 # finite difference
+h_fdiff_x = 2e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
+
+# step sizes for use in finite differences
+step_sizes = h_fdiff_x*np.array([1.0,0.5,-0.5,-1.0])
+n_steps = len(step_sizes)
 
 # tracing accuracy params
 tracing_tol=1e-8
 interpolant_degree=3
-interpolant_level=4
-bri_mpol=16
-bri_ntor=16 
+interpolant_level=8
+bri_mpol=32
+bri_ntor=32
 
 # set up a tracer
 tracer = TraceBoozer(vmec_input,
@@ -90,6 +101,7 @@ if rank == 0:
   outfilename = f"./quasisymmetry_data_config_{config}_mmode_{max_mode}_tmax_{tmax}.pickle"
   outdata = {}
   outdata['mn_list'] = mn_list
+  outdata['step_sizes'] = step_sizes
   outdata['tmax'] = tmax
   outdata['n_particles'] = n_particles
   outdata['s_label'] = s_label
@@ -127,23 +139,18 @@ def confinement_times(x):
   return c_times
 
 
-# c_times jacobian
-c_times_jac_x0, c_times_x0, x_plus_h, c_times_plus_x0=forward_difference(confinement_times,x0,h=h_fdiff_x,return_evals=True)
-# energy gradient
+# compute energy at x0
+c_times_x0 = confinement_times(x0)
 energy_x0 = EnergyLoss(c_times_x0)
-energy_plus_x0 = EnergyLoss(c_times_plus_x0,axis=1)
-energy_grad_x0 = (energy_plus_x0 - energy_x0)/h_fdiff_x
 
 # save the gradient
 if rank == 0:
   outdata['c_times_x0'] = c_times_x0
-  outdata['c_times_plus_x0'] = c_times_plus_x0
-  outdata['energy_grad_x0'] = energy_grad_x0
+  outdata['energy_x0'] = energy_x0
 
 # storage
-c_times_all_y = np.zeros((n_obj,n_particles))
-c_times_plus_all_y = np.zeros((n_obj,dim_x,n_particles))
-energy_grad_all_y = np.zeros((n_obj,dim_x))
+c_times_plus_all_d = np.zeros((n_obj,n_steps,n_particles))
+energy_plus_all_d = np.zeros((n_obj,n_steps))
 qs_grads = np.zeros((n_obj,dim_x))
 
 
@@ -177,31 +184,25 @@ for ii,(helicity_m,helicity_n) in enumerate(mn_list):
   
   # QS jacobian
   qs_jac,qs0,_,_ = forward_difference(qs_residuals,x0,h_fdiff_qs,return_evals=True)
+  # QS gradient
   qs_grad = 2*qs_jac.T @ qs0
 
-  # take second directional derivative: H @ d
-  d= qs_grad/np.linalg.norm(qs_grad)
-  y0 = x0 + h_fdiff_x*d
-  # compute grad_energy(x+hd)
-  c_times_jac_y0, c_times_y0, y0_plus_h, c_times_plus_y0=forward_difference(confinement_times,y0,h=h_fdiff_x,return_evals=True)
-  energy_y0 = EnergyLoss(c_times_y0)
-  energy_plus_y0 = EnergyLoss(c_times_plus_y0,axis=1)
-  energy_grad_y0 = (energy_plus_x0 - energy_y0)/h_fdiff_x
-  # now compute the directional derivative
-  directional_deriv = (energy_grad_y0 - energy_grad_x0)/h_fdiff_x
+  # take c_times for central difference (we take some extra for redundancy)
+  c_times_plus = np.array([confinement_times(x0 + t*qs_grad) for t in step_sizes])
+
+  # compute energy
+  energy_plus = EnergyLoss(c_times_plus,axis=1)
 
   # save the data
   qs_grads[ii] = np.copy(qs_grad)
-  c_times_all_y[ii] = np.copy(c_times_y0)
-  c_times_plus_all_y[ii] = np.copy(c_times_plus_y0)
-  energy_grad_all_y[ii] = np.copy(energy_grad_y0)
+  c_times_plus_all_d[ii] = np.copy(c_times_plus)
+  energy_plus_all_d[ii] = np.copy(energy_plus)
 
   # save data
   if rank == 0:
     outdata['qs_grads'] = qs_grads
-    outdata['c_times_all_y'] = c_times_all_y
-    outdata['c_times_plus_all_y'] = c_times_plus_all_y
-    outdata['energy_grad_all_y'] = energy_grad_all_y
+    outdata['c_times_plus_all_d'] = c_times_plus_all_d
+    outdata['energy_plus_all_d'] = energy_plus_all_d
     # dump data
     pickle.dump(outdata,open(outfilename,"wb"))
 
