@@ -152,6 +152,8 @@ if rank == 0:
 c_times_plus_all_d = np.zeros((n_obj,n_steps,n_particles))
 energy_plus_all_d = np.zeros((n_obj,n_steps))
 qs_grads = np.zeros((n_obj,dim_x))
+qs_plus_all_d = np.zeros((n_obj,n_steps))
+qs0_all_d = np.zeros(n_obj)
 
 
 for ii,(helicity_m,helicity_n) in enumerate(mn_list):
@@ -188,19 +190,28 @@ for ii,(helicity_m,helicity_n) in enumerate(mn_list):
   qs_grad = 2*qs_jac.T @ qs0
 
   # take c_times for central difference (we take some extra for redundancy)
-  c_times_plus = np.array([confinement_times(x0 + t*qs_grad) for t in step_sizes])
+  c_times_plus = np.zeros((n_steps,n_particles))
+  qs_plus = np.zeros(n_steps)
+  for jj,tt in enumerate(step_sizes):
+    c_times_plus[jj] = confinement_times(x0 + tt*qs_grad)
+    # save QS values as well
+    qs_plus[jj] = np.sum(qs_residuals(x0 + tt*qs_grad)**2)
 
   # compute energy
   energy_plus = EnergyLoss(c_times_plus,axis=1)
 
   # save the data
   qs_grads[ii] = np.copy(qs_grad)
+  qs_plus_all_d[ii] = np.copy(qs_plus)
+  qs0_all_d[ii] = np.sum(qs0**2)
   c_times_plus_all_d[ii] = np.copy(c_times_plus)
   energy_plus_all_d[ii] = np.copy(energy_plus)
 
   # save data
   if rank == 0:
     outdata['qs_grads'] = qs_grads
+    outdata['qs_plus_all_d'] = qs_plus_all_d
+    outdata['qs0_all_d'] = qs0_all_d
     outdata['c_times_plus_all_d'] = c_times_plus_all_d
     outdata['energy_plus_all_d'] = energy_plus_all_d
     # dump data
