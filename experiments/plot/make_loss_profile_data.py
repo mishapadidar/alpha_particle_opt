@@ -35,8 +35,8 @@ tmax = 0.01
 tracing_tol = 1e-8
 interpolant_degree = 3
 interpolant_level = 8
-bri_mpol = 16
-bri_ntor = 16
+bri_mpol = 32
+bri_ntor = 32
 n_partitions = 1
 
 filelist = [\
@@ -49,7 +49,8 @@ filelist = [\
             ('new_QH', 'LP QH'),
             #('20210721-02-183_new_QH_magwell_aScaling_t2e-1_s0.25_newB00', 'LP QH+well'),
             #('20210721-02-184_li383_aScaling_t2e-1_s0.25_newB00', 'NCSX'),
-            ('li383_1.4m', 'NCSX'),
+            #('li383_1.4m', 'NCSX'),
+            ('li383_1.4m_aScaling', 'NCSX'),
             #('ARIES-CS_aScaling_t2e-1_s0.25_newB00', 'ARIES-CS'),
             ('n3are_R7.75B5.7', 'ARIES-CS'),
             #('20210721-02-186_GarabedianQAS_aScaling_t2e-1_s0.25_newB00', 'NYU'),
@@ -72,8 +73,8 @@ filelist = [\
 n_configs = len(filelist)
 
 # storage arrays
-c_times_surface = np.zeros((n_configs,n_particles))
-c_times_vol = np.zeros((n_configs,n_particles))
+c_times_surface = -np.inf*np.ones((n_configs,n_particles))
+c_times_vol = -np.inf*np.ones((n_configs,n_particles))
 
 # for saving data
 outfile = "./loss_profile_data.pickle"
@@ -98,6 +99,20 @@ for ii,(infile,config_name) in enumerate(filelist):
   mpi = MpiPartition(n_partitions)
   vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
   surf = vmec.boundary
+
+  ## set vmec tolerances
+  #ns_array = np.zeros(100,dtype=int)
+  #ns_array[0] = 16
+  #ns_array[1] = 50
+  #vmec.indata.ns_array = ns_array
+  #niter_array = np.zeros(100,dtype=int)
+  #niter_array[0] = 16
+  #niter_array[1] = 50
+  #vmec.indata.niter_array = niter_array
+  #ftol_array = np.zeros(100,dtype=int)
+  #ftol_array[0] = 600
+  #ftol_array[1] = 5000
+  #vmec.indata.ftol_array = ftol_array
   
   # get the aspect ratio for rescaling the device
   aspect_ratio = surf.aspect_ratio()
@@ -121,6 +136,12 @@ for ii,(infile,config_name) in enumerate(filelist):
 
   # compute the boozer field
   field,bri = tracer.compute_boozer_field(x0)
+
+  if field is None:
+    # boozXform failed
+    if rank == 0:
+      print("boozXform failed for ",config_name)
+    continue
   
   # now scale the toroidal flux by B(0,0)[s=0]
   if rank == 0:
