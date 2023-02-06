@@ -1,4 +1,3 @@
 
-To generate plot data, simply run ```angle_density.py``` with mpiexec.
-
-To plot the angle density and radial density use the jupyter notebook.
+`radial_density.py` contains the radial pdf p(s).
+`angle_density.py` contains the pdf over theta and zeta
