@@ -67,17 +67,17 @@ colors = cm.jet(np.linspace(0, 1, n_configs))
 for ii in range(n_configs):
     if ii in skip:
         continue
-    ax1.plot(times,lp_vol[:,ii],linewidth=2,linestyle=linestyles[ii],color=colors[ii],label=config_names[ii])
-    ax2.plot(times,lp_surf[:,ii],linewidth=2,linestyle=linestyles[ii],color=colors[ii])
+    ax1.plot(times,lp_vol[:,ii],linewidth=3,linestyle=linestyles[ii],color=colors[ii],label=config_names[ii])
+    ax2.plot(times,lp_surf[:,ii],linewidth=3,linestyle=linestyles[ii],color=colors[ii])
     print(config_names[ii],'volume losses',lp_vol[-1,ii],'surface losses',lp_surf[-1,ii])
 
 # legend
 #ax1.legend(ncols=3,fontsize=16,frameon=False)
 #ax2.legend(ncols=3,fontsize=16,frameon=False)
 handles, labels = ax1.get_legend_handles_labels()
-fig.legend(handles, labels,bbox_to_anchor=(0.094, 0.93,0.90,0.93),loc=3,
-          fancybox=True, shadow=False, ncol=7,fontsize=16,labelspacing=0.5,
-           columnspacing=1.8)
+fig.legend(handles, labels,bbox_to_anchor=(0.092, 0.93,0.90,0.93),loc=3,
+          fancybox=True, shadow=False, ncol=7,fontsize=17,labelspacing=0.5,
+           columnspacing=1.3)
 
 for ax in ax_both:
     # darken the border
@@ -87,7 +87,7 @@ for ax in ax_both:
     ax.set_yscale('log')
     ax.set_xscale('log')
     # limits
-    ax.set_ylim([1e-3,1])
+    ax.set_ylim([1e-3,0.3])
     ax.set_xlim([1e-5,1e-2])
     # ticks
     ax.set_xticks([1e-5,1e-4,1e-3,1e-2])
