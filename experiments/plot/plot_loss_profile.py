@@ -9,8 +9,8 @@ import glob
 plt.rc('font', family='serif')
 plt.rc('text.latex', preamble=r'\usepackage{amsmath,bm}')
 matplotlib.rcParams.update({'font.size': 22})
-import matplotlib.style as style
-style.use('tableau-colorblind10')
+#import matplotlib.style as style
+#style.use('tableau-colorblind10')
 
 # colorblind colors
 colors = ['#377eb8', '#ff7f00', '#4daf4a',
