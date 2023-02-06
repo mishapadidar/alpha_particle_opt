@@ -99,33 +99,18 @@ for ii,(infile,config_name) in enumerate(filelist):
   mpi = MpiPartition(n_partitions)
   vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
   surf = vmec.boundary
-
-  ## set vmec tolerances
-  #ns_array = np.zeros(100,dtype=int)
-  #ns_array[0] = 16
-  #ns_array[1] = 50
-  #vmec.indata.ns_array = ns_array
-  #niter_array = np.zeros(100,dtype=int)
-  #niter_array[0] = 16
-  #niter_array[1] = 50
-  #vmec.indata.niter_array = niter_array
-  #ftol_array = np.zeros(100,dtype=int)
-  #ftol_array[0] = 600
-  #ftol_array[1] = 5000
-  #vmec.indata.ftol_array = ftol_array
-  
+ 
   # get the aspect ratio for rescaling the device
   aspect_ratio = surf.aspect_ratio()
   major_radius = target_minor_radius*aspect_ratio
-  
-  
+
   # build a tracer object
   tracer = TraceBoozer(vmec_input,
                         n_partitions=n_partitions,
                         max_mode=-1,
                         aspect_target=aspect_ratio,
                         major_radius=major_radius,
-                        target_volavgB=1.0, # dummy value
+                        target_volavgB=5.0, # dummy value
                         tracing_tol=tracing_tol,
                         interpolant_degree=interpolant_degree,
                         interpolant_level=interpolant_level,
@@ -140,7 +125,7 @@ for ii,(infile,config_name) in enumerate(filelist):
   if field is None:
     # boozXform failed
     if rank == 0:
-      print("boozXform failed for ",config_name)
+      print("vmec failed for ",config_name)
     continue
   
   # now scale the toroidal flux by B(0,0)[s=0]
