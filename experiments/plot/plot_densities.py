@@ -1,10 +1,12 @@
 
-from radial_density import RadialDensity
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import pickle
 from scipy.integrate import simpson
+import sys
+sys.path.append("../../sample")
+from radial_density import RadialDensity
 plt.rc('font', family='serif')
 plt.rc('text.latex', preamble=r'\\usepackage{amsmath,bm}')
 matplotlib.rcParams.update({'font.size': 22})
