@@ -60,8 +60,11 @@ fig, ax_both = plt.subplots(figsize=(14,6),ncols=2)
 ax1,ax2 = ax_both
 
 # choose colors
-from matplotlib.pyplot import cm
-colors = cm.jet(np.linspace(0, 1, n_configs))
+#from matplotlib.pyplot import cm
+#colors = cm.jet(np.linspace(0, 1, n_configs))
+from matplotlib.colors import ListedColormap
+cmap = ListedColormap(sns.color_palette("colorblind",256))
+colors = cmap(np.linspace(0,1,n_configs))
 
 # plot the data
 for ii in range(n_configs):
