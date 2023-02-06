@@ -17,21 +17,22 @@ colors = ['#377eb8', '#ff7f00', '#4daf4a',
           '#f781bf', '#a65628', '#984ea3',
           '#999999', '#e41a1c', '#dede00']
 markers = ['s','o','^','x']
-linestyles=['solid',
-            'dotted',
-            'dashed',
-            'dashdot',
-            'loosely dotted',    
-            'densely dotted',      
-            'long dash with offset'
-            'loosely dashed',      
-            'densely dashed',      
-            'loosely dashdotted',  
-            'dashdotted',          
-            'densely dashdotted',  
-            'dashdotdotted',       
-            'loosely dashdotdotted',
-            'densely dashdotdotted']
+linestyles=['solid'
+            ,'solid'
+            ,'dotted'
+            ,'dotted'
+            ,'dotted'
+            ,'dotted'
+            ,'dotted'
+            ,'dashed'
+            ,'dashed'
+            ,'dashed'
+            ,'dashed'
+            ,'dashed'
+            ,'dashdot'
+            ,'dashdot'
+            ,'dashdot'
+            ]
 
 # load the data
 infile = "./loss_profile_data.pickle"
@@ -39,16 +40,12 @@ indata = pickle.load(open(infile,"rb"))
 # load the relevant keys
 for key in list(indata.keys()):
     s  = f"{key} = indata['{key}']"
-    print(key)
     exec(s)
 n_configs = len(filelist)
 
-# TODO: remove block after pulling new data
-n_configs = 3
-c_times_vol=c_times_vol[:n_configs]
-c_times_surface=c_times_surface[:n_configs]
-filelist = filelist[:n_configs]
-tmax = 0.01 
+# skip LP-QH and IPP-QA
+skip = [3,8]
+
 
 # compute the loss profiles
 times = np.logspace(-5,np.log10(tmax),1000)
@@ -59,17 +56,28 @@ lp_surf = np.array([np.mean(c_times_surface< t,axis=1) for t in times])
 config_names = [ff[1] for ff in filelist]
 
 # make a figure
-fig, ax_both = plt.subplots(figsize=(12,6),ncols=2)
+fig, ax_both = plt.subplots(figsize=(14,6),ncols=2)
 ax1,ax2 = ax_both
+
+# choose colors
+from matplotlib.pyplot import cm
+colors = cm.jet(np.linspace(0, 1, n_configs))
 
 # plot the data
 for ii in range(n_configs):
-    ax1.plot(times,lp_vol[:,ii],linewidth=2,linestyle=linestyles[ii],label=config_names[ii])
-    ax2.plot(times,lp_surf[:,ii],linewidth=2,linestyle=linestyles[ii],label=config_names[ii])
+    if ii in skip:
+        continue
+    ax1.plot(times,lp_vol[:,ii],linewidth=2,linestyle=linestyles[ii],color=colors[ii],label=config_names[ii])
+    ax2.plot(times,lp_surf[:,ii],linewidth=2,linestyle=linestyles[ii],color=colors[ii])
+    print(config_names[ii],'volume losses',lp_vol[-1,ii],'surface losses',lp_surf[-1,ii])
 
 # legend
-ax1.legend(ncols=3,fontsize=16,frameon=False)
-ax2.legend(ncols=3,fontsize=16,frameon=False)
+#ax1.legend(ncols=3,fontsize=16,frameon=False)
+#ax2.legend(ncols=3,fontsize=16,frameon=False)
+handles, labels = ax1.get_legend_handles_labels()
+fig.legend(handles, labels,bbox_to_anchor=(0.094, 0.93,0.90,0.93),loc=3,
+          fancybox=True, shadow=False, ncol=7,fontsize=16,labelspacing=0.5,
+           columnspacing=1.8)
 
 for ax in ax_both:
     # darken the border
@@ -83,6 +91,7 @@ for ax in ax_both:
     ax.set_xlim([1e-5,1e-2])
     # ticks
     ax.set_xticks([1e-5,1e-4,1e-3,1e-2])
+    ax.set_yticks([1e-3,1e-2,1e-1])
     # labels
     ax.set_xlabel('Time [sec]')
 ax1.set_ylabel("Fraction of alpha particles lost",fontsize=18)
