@@ -45,7 +45,7 @@ if rank == 0:
   print(vmec_input)
 
 # list of mn params
-mn_list = [(0,1),(1,4),(1,-4),(1,1)]
+mn_list = [(0,1),(1,4),(1,-4)]
 n_obj = len(mn_list)
 
 # configuration params
@@ -60,11 +60,11 @@ n_obj = len(mn_list)
 s_label = 0.25 # 0.25 or full
 tmax = 0.01 
 n_particles = 10000 
-h_fdiff_x = 2e-3 # finite difference
+h_fdiff_x = 1e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
 
 # step sizes for use in finite differences
-step_sizes = h_fdiff_x*np.array([1.0,0.5,-0.5,-1.0])
+step_sizes = h_fdiff_x*np.array([1.0,0.5,0.25,0.1,0.05,-0.05,-0.1,-0.25,-0.5,-1.0])
 n_steps = len(step_sizes)
 
 # tracing accuracy params

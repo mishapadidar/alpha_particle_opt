@@ -17,8 +17,17 @@ Run with
   mpiexec -n 1 python3 compute_data.py
 """
 
+# load a configuration
+infile = "data_opt_nfp4_phase_one_aspect_7.0_iota_0.89_mean_energy_SAA_surface_0.25_tmax_0.01_bobyqa_mmode_3_iota_None.pickle"
+indata = pickle.load(open(infile,"rb"))
+vmec_input = indata['vmec_input']
+vmec_input = vmec_input[3:] # remove the ../
+x0 = indata['xopt']
+if rank == 0:
+  print(vmec_input)
+
 # configuration params
-vmec_input = "../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
+#vmec_input = "../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
 aspect_target = 7.0
 major_radius = 1.7*aspect_target
 target_volavgB = 5.0
@@ -31,7 +40,7 @@ tmax = 0.01
 n_particles = 10000 
 h_fdiff_x = 5e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
-h_fdiff_y = 1e-2 # finite difference in scaled space
+h_fdiff_y = 3e-2 # finite difference in scaled space
 helicity_m = 1 # quasisymmetry M
 helicity_n = -1 # quasisymmetry N
 
@@ -54,7 +63,7 @@ tracer = TraceBoozer(vmec_input,
                     interpolant_level=interpolant_level,
                     bri_mpol=bri_mpol,
                     bri_ntor=bri_ntor)
-x0 = np.copy(tracer.x0)
+#x0 = np.copy(tracer.x0)
 dim_x = len(x0)
 
 # sample particles via SAA
