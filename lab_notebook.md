@@ -2,9 +2,14 @@
 # Lab Notebook
 
 ## TODO:
-- table second directional derivative in QS directions at config A.
-- make the loss profile plot using the zenodo solutions.
-- (optional) resolve the heck out of our two solutions using importance sampling.
+- make the quasi-symmetry plot
+- regenerate and plot the timing data
+- accuracy plot
+  - make a QMC curve
+  - regenerate plot
+- 3d figs
+  - align plots
+  - try to plot with plotly.
 
 - set up tracing in vmec coords
   - build 3d interpolation from vmec geometry function
