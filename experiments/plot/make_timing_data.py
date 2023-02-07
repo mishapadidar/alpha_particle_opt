@@ -87,6 +87,9 @@ c_times_list = np.zeros((len(tmax_list),n_particles))
 trace_timings = np.zeros(len(tmax_list))
 
 for ii,tmax in enumerate(tmax_list):
+  if rank == 0:
+    print('tmax = ',tmax)
+
   # trace particles
   t0 = time.time()
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
@@ -97,19 +100,20 @@ for ii,tmax in enumerate(tmax_list):
   trace_timings[ii] = tf
 
   # save the data
-  outfile = "./timing_data.pickle"
-  outdata = {}
-  outdata['tmax_list'] = tmax_list
-  outdata['c_times_list'] = c_times_list
-  outdata['trace_timings'] = trace_timings
-  outdata['startup_time'] = startup_time
-  outdata['vmec_input'] = vmec_input
-  outdata['target_minor_radius'] =target_minor_radius
-  outdata['target_volavgB'] = target_volavgB
-  outdata['n_particles'] = n_particles
-  outdata['tracing_tol'] = tracing_tol
-  outdata['interpolant_degree'] = interpolant_degree
-  outdata['interpolant_level'] =  interpolant_level
-  outdata['bri_mpol'] = bri_mpol
-  outdata['bri_ntor'] = bri_ntor
-  pickle.dump(outdata,open(outfile,"wb"))
+  if rank == 0:
+    outfile = "./timing_data.pickle"
+    outdata = {}
+    outdata['tmax_list'] = tmax_list
+    outdata['c_times_list'] = c_times_list
+    outdata['trace_timings'] = trace_timings
+    outdata['startup_time'] = startup_time
+    outdata['vmec_input'] = vmec_input
+    outdata['target_minor_radius'] =target_minor_radius
+    outdata['target_volavgB'] = target_volavgB
+    outdata['n_particles'] = n_particles
+    outdata['tracing_tol'] = tracing_tol
+    outdata['interpolant_degree'] = interpolant_degree
+    outdata['interpolant_level'] =  interpolant_level
+    outdata['bri_mpol'] = bri_mpol
+    outdata['bri_ntor'] = bri_ntor
+    pickle.dump(outdata,open(outfile,"wb"))
