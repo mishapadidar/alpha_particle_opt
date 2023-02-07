@@ -3,13 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import pickle
-from scipy.integrate import simpson
-import sys
-sys.path.append("../../sample")
-from radial_density import RadialDensity
+
 plt.rc('font', family='serif')
 plt.rc('text.latex', preamble=r'\\usepackage{amsmath,bm}')
-matplotlib.rcParams.update({'font.size': 22})
+matplotlib.rcParams.update({'font.size': 18})
 #from matplotlib.colors import ListedColormap
 #cmap = ListedColormap(sns.color_palette("colorblind",256))
 #colors = cmap(np.linspace(0,1,n_configs))
@@ -23,31 +20,43 @@ for key in list(indata.keys()):
     print(key)
     exec(s)
 
+print("")
+print('startup time', startup_time)
+print('mean confinement time', np.mean(c_times_list[-1]))
+print('loss fraction', np.mean(c_times_list[-1] < tmax_list[-1]))
+
+# average the timings over the number of particles
+trace_timings = trace_timings/n_particles
+
+# convert tmax to milliseconds
+tmax_list = 1000*np.array(tmax_list)
 
 
-fig,ax_both = plt.figure(figsize=(10,6))
+fig,ax= plt.subplots(figsize=(10,8))
 
 # plot
-plt.bar(tmax_list,trace_timings,width=tmax_list)
+ax.bar(tmax_list,trace_timings,width=tmax_list)
 
 # grid
-plt.grid(axis='both',zorder=10)
+ax.grid(axis='both',zorder=10)
 
 # axis labels
-plt.xlabel('$t_{\max}$')
+plt.xlabel('$t_{\max}$ [ms]')
 plt.ylabel('Wall-clock-time per particle [sec]')
+
+# xticks
+#ax.set_xticks([1e-4,1e-3,1e-2,1e-1]
 
 # scales
 plt.yscale('log')
 plt.xscale('log')
 
-
-# darken the border
-fig.patch.set_edgecolor('black')  
-fig.patch.set_linewidth('2')  
+## darken the border
+ax.patch.set_edgecolor('black')  
+ax.patch.set_linewidth('2')  
 
 plt.tight_layout()
 
 filename = "timing_plot.pdf"
-#plt.savefig(filename, format="pdf", bbox_inches="tight")
-plt.show()
+plt.savefig(filename, format="pdf", bbox_inches="tight")
+#plt.show()
