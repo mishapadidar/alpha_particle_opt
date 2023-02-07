@@ -6,7 +6,7 @@ import pickle
 
 plt.rc('font', family='serif')
 plt.rc('text.latex', preamble=r'\\usepackage{amsmath,bm}')
-matplotlib.rcParams.update({'font.size': 18})
+matplotlib.rcParams.update({'font.size': 23})
 #from matplotlib.colors import ListedColormap
 #cmap = ListedColormap(sns.color_palette("colorblind",256))
 #colors = cmap(np.linspace(0,1,n_configs))
