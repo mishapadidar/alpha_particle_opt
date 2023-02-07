@@ -55,16 +55,18 @@ n_obj = len(mn_list)
 #target_volavgB = 5.0
 #max_mode = 3 
 
+# step type; gradient descent or gauss newton
+step_type = "GD" # GD or GN
 
 # tracing params
 s_label = 0.25 # 0.25 or full
 tmax = 0.01 
 n_particles = 10000 
 h_fdiff_x = 1e-3 # finite difference
-h_fdiff_qs = 1e-4 # finite difference quasisymmetry
+h_fdiff_qs = 1e-5 # finite difference quasisymmetry
 
 # step sizes for use in finite differences
-step_sizes = h_fdiff_x*np.array([4.0,2.0,1.0,0.5,0.25,0.225,0.2,0.017,0.15,0.1,0.085,0.07,0.05,-0.05,-0.1,-0.25,-0.5,-1.0])
+step_sizes = h_fdiff_x*np.array([16.0,8.0,7.0,6.0,5.0,4.0,3.0,2.0,1.0,0.5,0.25,0.17,0.15,0.1,0.07,0.01,-0.01,-0.07,-0.1,-0.25,-0.5,-1.0])
 n_steps = len(step_sizes)
 
 # tracing accuracy params
@@ -98,8 +100,9 @@ else:
 
 # save the parameters
 if rank == 0:
-  outfilename = f"./quasisymmetry_data_config_{config}_mmode_{max_mode}_tmax_{tmax}.pickle"
+  outfilename = f"./quasisymmetry_data_config_{config}_mmode_{max_mode}_tmax_{tmax}_step_{step_type}.pickle"
   outdata = {}
+  outdata['step_type'] = step_type
   outdata['mn_list'] = mn_list
   outdata['step_sizes'] = step_sizes
   outdata['tmax'] = tmax
@@ -186,8 +189,13 @@ for ii,(helicity_m,helicity_n) in enumerate(mn_list):
   
   # QS jacobian
   qs_jac,qs0,_,_ = forward_difference(qs_residuals,x0,h_fdiff_qs,return_evals=True)
-  # QS gradient
-  qs_grad = 2*qs_jac.T @ qs0
+  if step_type == "GD":
+    # gradient step
+    qs_grad = 2*qs_jac.T @ qs0
+  elif step_type == "GN":
+    # gauss newton step
+    Q,R = np.linalg.qr(qs_jac)
+    qs_grad = 2*np.linalg.solve(R.T @ R, qs_jac.T @ qs0)
 
   # take c_times for central difference (we take some extra for redundancy)
   c_times_plus = np.zeros((n_steps,n_particles))
