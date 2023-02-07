@@ -64,7 +64,7 @@ h_fdiff_x = 1e-3 # finite difference
 h_fdiff_qs = 1e-4 # finite difference quasisymmetry
 
 # step sizes for use in finite differences
-step_sizes = h_fdiff_x*np.array([1.0,0.5,0.25,0.1,0.05,-0.05,-0.1,-0.25,-0.5,-1.0])
+step_sizes = h_fdiff_x*np.array([4.0,2.0,1.0,0.5,0.25,0.225,0.2,0.017,0.15,0.1,0.085,0.07,0.05,-0.05,-0.1,-0.25,-0.5,-1.0])
 n_steps = len(step_sizes)
 
 # tracing accuracy params
