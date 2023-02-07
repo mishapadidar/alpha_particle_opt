@@ -6,9 +6,6 @@
   - regenerate data with more step sizes
   - determine if QA direction is changing or not.
   - replot.
-- timing plot
-  - regenerate data with new config
-  - regenerate plot
 - accuracy plot
   - make a QMC curve
   - regenerate plot
