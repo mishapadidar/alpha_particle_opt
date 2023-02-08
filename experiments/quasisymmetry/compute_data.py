@@ -21,7 +21,8 @@ This can be computed with second order central difference on the energy objectiv
 along the direction d.
 
 Run with
-  mpiexec -n 1 python3 compute_data.py
+  mpiexec -n 1 python3 compute_data.py 1 0 GD
+where 1,0 denote quasiaxisymmetry
 """
 
 # load a configuration
@@ -44,29 +45,27 @@ x0 = indata['xopt']
 if rank == 0:
   print(vmec_input)
 
-# list of mn params
-mn_list = [(0,1),(1,4),(1,-4)]
-n_obj = len(mn_list)
 
-# configuration params
-#vmec_input = "../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
-#aspect_target = 7.0
-#major_radius = 1.7*aspect_target
-#target_volavgB = 5.0
-#max_mode = 3 
+# load params
+mn_list = [(int(sys.argv[1]),int(sys.argv[2]))]
+step_type = sys.argv[3]
 
 # step type; gradient descent or gauss newton
-step_type = "GD" # GD or GN
+#step_type = "GD" # GD or GN
+# list of mn params
+#mn_list = [(1,0),(1,1),(1,-1)]
+n_obj = len(mn_list)
+
 
 # tracing params
 s_label = 0.25 # 0.25 or full
 tmax = 0.01 
 n_particles = 10000 
 h_fdiff_x = 1e-3 # finite difference
-h_fdiff_qs = 1e-5 # finite difference quasisymmetry
+h_fdiff_qs = 1e-7 # finite difference quasisymmetry
 
 # step sizes for use in finite differences
-step_sizes = h_fdiff_x*np.array([16.0,8.0,7.0,6.0,5.0,4.0,3.0,2.0,1.0,0.5,0.25,0.17,0.15,0.1,0.07,0.01,-0.01,-0.07,-0.1,-0.25,-0.5,-1.0])
+step_sizes = h_fdiff_x*np.array([10.0,5.0,1.0,0.05,0.2,0.1,0.07,0.03,0.01,0.005,-0.01,-0.1,-1.0])
 n_steps = len(step_sizes)
 
 # tracing accuracy params
@@ -100,7 +99,7 @@ else:
 
 # save the parameters
 if rank == 0:
-  outfilename = f"./quasisymmetry_data_config_{config}_mmode_{max_mode}_tmax_{tmax}_step_{step_type}.pickle"
+  outfilename = f"./quasisymmetry_data_config_{config}_mmode_{max_mode}_tmax_{tmax}_mn_{str(mn_list)}_step_{step_type}.pickle"
   outdata = {}
   outdata['step_type'] = step_type
   outdata['mn_list'] = mn_list
