@@ -11,4 +11,6 @@
 #SBATCH --partition=bindel               # Which partition/queue it should run on
 #SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99]
 
-mpiexec -n 48 python3 compute_data.py
+#mpiexec -n 48 python3 compute_data.py 0 1 GD
+#mpiexec -n 48 python3 compute_data.py 1 4 GD
+mpiexec -n 48 python3 compute_data.py 1 -4 GD
