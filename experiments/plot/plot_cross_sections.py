@@ -81,5 +81,7 @@ ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)  
     
 plt.tight_layout()
-plt.show()
+filename = "cross_sections.pdf"
+plt.savefig(filename, format="pdf", bbox_inches="tight")
+#plt.show()
     
