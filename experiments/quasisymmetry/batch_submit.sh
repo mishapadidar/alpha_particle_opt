@@ -30,7 +30,7 @@ do
     rm "${SUB}"
   fi
   printf '%s\n' "#!/bin/bash" >> ${SUB}
-  printf '%s\n' "#SBATCH -J ${METHOD}_${surf} # Job name" >> ${SUB}
+  printf '%s\n' "#SBATCH -J QS${N}_${step} # Job name" >> ${SUB}
   printf '%s\n' "#SBATCH -o ./job_%j.out    # Name of stdout output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -e ./job_%j.err    # Name of stderr output file(%j expands to jobId)" >> ${SUB}
   printf '%s\n' "#SBATCH -N ${NODES}       # Total number of nodes requested" >> ${SUB}
