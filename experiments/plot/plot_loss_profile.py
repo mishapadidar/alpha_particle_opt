@@ -44,7 +44,7 @@ for key in list(indata.keys()):
 n_configs = len(filelist)
 
 # skip LP-QH and IPP-QA
-skip = [3,8]
+skip = [8]
 
 
 # compute the loss profiles
@@ -80,7 +80,7 @@ for ii in range(n_configs):
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels,bbox_to_anchor=(0.092, 0.93,0.90,0.93),loc=3,
           fancybox=True, shadow=False, ncol=7,fontsize=17,labelspacing=0.5,
-           columnspacing=1.3)
+           columnspacing=1.15)
 
 for ax in ax_both:
     # darken the border
