@@ -50,7 +50,8 @@ for ifile,infile in enumerate(filelist):
                 Z[ifile,itheta,iphi] = Z[ifile,itheta,iphi] + zmns[iradius,imode]*np.sin(angle) + zmnc[iradius,imode]*np.cos(angle)
     
     
-labels=[r'$\phi=0$',r'1/4 period: $\phi=\pi/8$',r'1/2 period: $\phi=\pi/4$',r'3/4 period: $\phi=3\pi/8$']
+#labels=[r'$\phi=0$',r'1/4 period: $\phi=\pi/8$',r'1/2 period: $\phi=\pi/4$',r'3/4 period: $\phi=3\pi/8$']
+labels=[r'$\phi=0$',r'$\phi=\pi/8$',r'$\phi=\pi/4$',r'$\phi=3\pi/8$']
 
 # colorblind colors
 colors = ['#377eb8', '#ff7f00', '#4daf4a',
@@ -66,8 +67,8 @@ fig,ax = plt.subplots(figsize=(8,8))
 for ii in range(nphi):
     # plot config 0
     ax.plot(R[0,:,ii], Z[0,:,ii], linewidth=2,linestyle='-',color=colors[ii],label=labels[ii])
-    # plot config 1
-    ax.plot(R[1,:,ii], Z[1,:,ii], linewidth=2,linestyle='--',color=colors[ii])
+    # plot config 1; rotate it by half a field-period
+    ax.plot(R[1,:,ii-2], Z[1,:,ii-2], linewidth=2,linestyle='--',color=colors[ii])
 
 # legend
 plt.legend(loc='upper left',fontsize=14)
