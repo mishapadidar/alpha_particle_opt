@@ -14,7 +14,7 @@ def forward_difference(f,x0,h=1e-6,return_evals=False):
   else:
     return jac.T
 
-def central_difference(f,x0,h=1e-6):
+def central_difference(f,x0,h=1e-6,return_evals=False):
   """Compute the jacobian of f with 
   central difference
   """
@@ -25,7 +25,10 @@ def central_difference(f,x0,h=1e-6):
   Em   = x0 - h2*np.eye(dim)
   Fm   = np.array([f(e) for e in Em])
   jac = (Fp - Fm)/(h)
-  return jac.T
+  if return_evals:
+    return jac.T, F0, Em, Fm, Ep, Fp
+  else:
+    return jac.T
 
 def finite_difference_hessian(f,x0,h=1e-6):
   """
