@@ -55,13 +55,13 @@ helicity_m = 1 # always 1
 # tracing params
 s_label = 0.25 # 0.25 or full
 tmax = 0.01 
-n_particles = 10000 
+n_particles = 40000 
 h_fdiff_x = 1e-3 # finite difference
-#h_fdiff_qs = 1e-7 # finite difference quasisymmetry
 h_fdiff_qs = 1e-5 # finite difference quasisymmetry
 
 # step sizes for use in finite differences
-step_sizes = h_fdiff_x*np.array([10.0,5.0,1.0,0.05,0.2,0.1,0.07,0.03,0.01,0.005,-0.01,-0.1,-1.0])
+#step_sizes = h_fdiff_x*np.array([10.0,5.0,1.0,0.5,0.2,0.1,0.07,0.03,0.01,0.005,-0.01,-0.1,-1.0])
+step_sizes = h_fdiff_x*np.array([1.0,0.5,0.2,0.17,0.14,0.1,0.07,0.05,0.03,0.01,0.005,-0.01,-0.1,-0.5,-1.0])
 n_steps = len(step_sizes)
 
 # tracing accuracy params
@@ -86,8 +86,10 @@ tracer = TraceBoozer(vmec_input,
 x0 = np.copy(tracer.x0)
 dim_x = len(x0)
 
+# always generate the same set of particles
+tracer.sync_seeds(0)
+
 # sample particles via SAA
-tracer.sync_seeds()
 if s_label == "full":
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
 else:
