@@ -26,7 +26,7 @@ def central_difference(f,x0,h=1e-6,return_evals=False):
   Fm   = np.array([f(e) for e in Em])
   jac = (Fp - Fm)/(h)
   if return_evals:
-    return jac.T, F0, Em, Fm, Ep, Fp
+    return jac.T, Em, Fm, Ep, Fp
   else:
     return jac.T
 
