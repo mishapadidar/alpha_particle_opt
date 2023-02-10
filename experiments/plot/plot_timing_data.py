@@ -53,7 +53,7 @@ plt.xscale('log')
 
 ## darken the border
 ax.patch.set_edgecolor('black')  
-ax.patch.set_linewidth('2')  
+ax.patch.set_linewidth(2)  
 
 plt.tight_layout()
 
