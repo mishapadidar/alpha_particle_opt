@@ -1,19 +1,16 @@
 
-SAMPLINGTYPES=('SAA' 'simpson' 'gauss' 'random')
-TMAX=0.0001
+SAMPLINGTYPES=('SAA' 'simpson' 'random' 'QMC')
+TMAX=0.001
 surf=0.25
-NS=9
-NODES=1
-CORES=4
+pow2=15 # must be multiple of 3 if surf is float, or 4 if surf=full
+NODES=4
+CORES=12
 for idx in ${!SAMPLINGTYPES[@]}
 do
   SAMPLINGTYPE=${SAMPLINGTYPES[idx]}
-  NTHETA=$NS
-  NPHI=$NS
-  NVPAR=$NS
 
   # make a dir
-  dir="_batch_${SAMPLINGTYPE}_tmax_${TMAX}_surf_${surf}_ns_${NS}"
+  dir="_batch_${SAMPLINGTYPE}_tmax_${TMAX}_surf_${surf}_pow2_${pow2}"
   mkdir $dir
 
   # copy the compute data
@@ -44,7 +41,7 @@ do
   #printf '%s\n' "#SBATCH --partition=default_partition  # Which partition/queue it should run on" >> ${SUB}
   #printf '%s\n' "#SBATCH --partition=bindel  # Which partition/queue it should run on" >> ${SUB}
   printf '%s\n' "#SBATCH --exclude=g2-cpu-[01-11],g2-cpu-[97-99],g2-compute-[94-97]" >> ${SUB}
-  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${SAMPLINGTYPE} ${surf} ${TMAX} ${NS} ${NTHETA} ${NPHI} ${NVPAR}" >> ${SUB}
+  printf '%s\n' "mpiexec -n $[$NODES*$CORES] python3 compute_data.py ${SAMPLINGTYPE} ${surf} ${TMAX} ${pow2}" >> ${SUB}
   
   ## submit
   cd "./${dir}"
