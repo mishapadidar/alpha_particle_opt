@@ -9,12 +9,9 @@ plt.rc('text.latex', preamble=r'\\usepackage{amsmath,bm}')
 matplotlib.rcParams.update({'font.size': 18})
 
 
-#infile = "quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_0_step_GD.pickle"
-#infile = "quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_1_step_GD.pickle"
-#infile = "quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_-1_step_GD.pickle"
 filelist = ["quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_0_step_GD.pickle"
             ,"quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_1_step_GD.pickle"
-            ,"quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_-1_step_GD.pickle"
+            #,"quasisymmetry_data_config_A_mmode_3_tmax_0.01_n_-1_step_GD.pickle"
             ]
 
 n_files = len(filelist)
@@ -26,6 +23,7 @@ std_errs_list = []
 mn_list = []
 qs0_list = []
 energy0_list = []
+loss_frac_list = []
 for infile in filelist:
     
     indata = pickle.load(open(infile,"rb"))
@@ -63,6 +61,9 @@ for infile in filelist:
     stds = np.std(feat,axis=-1)
     std_errs = 1.96*stds/np.sqrt(n_particles)
 
+    # compute loss fractions
+    loss_frac = np.mean(c_times_step < tmax,axis=1)
+
     # now move the data into an array
     step_sizes_list.append(step_sizes)
     c_times_step_list.append(c_times_step)
@@ -72,6 +73,35 @@ for infile in filelist:
     mn_list.append((helicity_m,helicity_n))
     qs0_list.append(qs0)
     energy0_list.append(energy_x0)
+    loss_frac_list.append(loss_frac)
+
+"""
+#############################
+Plot the particle losses
+#############################
+"""
+
+# plot the energy 
+fig = plt.figure(figsize=(8,6))
+for ii in range(n_files):
+    step_sizes = step_sizes_list[ii]
+    energy_step = energy_step_list[ii]
+    std_errs = std_errs_list[ii]
+    helicity_m = mn_list[ii][0]
+    helicity_n = mn_list[ii][1]
+    energy0 = energy0_list[ii]
+    qs0 = qs0_list[ii]
+    qs_step = qs_step_list[ii]
+    loss_step = loss_frac_list[ii]
+    plt.plot(step_sizes,loss_step,label="$Q_{%d,%d}$"%(helicity_m,helicity_n),marker='s',markersize=10,linewidth=3)
+    #plt.fill_between(step_sizes,energy_step + std_errs, energy_step - std_errs,alpha=0.5)
+    #plt.scatter([0.0],[loss0],s=50,color='k')
+plt.ylabel("Fraction of alpha particles lost")
+plt.xlabel("$\\alpha$")
+plt.legend(loc='upper left')
+plt.grid()
+plt.xscale('symlog',linthresh=1e-5)
+plt.show()
 
 
 """
@@ -161,7 +191,7 @@ for ii in range(n_files):
     #plt.fill_between(qs_step,energy_step + std_errs, energy_step - std_errs,alpha=0.5)
 
 plt.ylabel("$\mathcal{J}_{1/4}$")
-plt.xlabel("$Q_{m,n}$")
+plt.xlabel("$Q_{m,n}/Q_{m,n}(\mathrm{w}_{A})$")
 plt.legend(loc='upper left')
 plt.grid()
 #plt.xscale('symlog',linthresh=1e-5)
