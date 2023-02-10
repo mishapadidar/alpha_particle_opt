@@ -32,6 +32,10 @@ for infile in filelist:
     for key in list(indata.keys()):
         s  = f"{key} = indata['{key}']"
         exec(s)
+
+    # multiply helicity_n by nfp
+    nfp = 4
+    helicity_n = helicity_n*nfp
     
     # convert qs0 from residual to value
     qs0 = np.sum(qs0**2)
@@ -134,7 +138,8 @@ for ii in range(n_files):
 ax1.set_ylabel("$\mathcal{J}_{1/4}$")
 ax1.set_xlabel("$\\alpha$")
 ax2.set_xlabel("$\\alpha$")
-ax2.set_ylabel("$Q_{m,n}(w(\\alpha))/Q_{m,n}(w_A)$")
+#ax2.set_ylabel("$Q_{m,n}(w(\\alpha))/Q_{m,n}(w_A)$")
+ax2.set_ylabel("Normalized $Q_{m,n}$ violation")
 
 # axis scale
 ax1.set_xscale('symlog',linthresh=1e-5)
@@ -199,8 +204,21 @@ for ii in range(n_files):
     # plot our starting point
     plt.scatter([1.0],energy0,marker='s',s=120,color='k',zorder=100)
 
+# label the point
+plt.text(1.0008,0.477,"$\mathrm{w}_{A}$")
+
+## add an arrow and text
+plt.text(0.981,0.4768,"improved QS",fontsize=12)
+plt.arrow(0.994,0.4766,-0.015,0.0,width=7e-5,color='k',head_length=0.001)
+
+# axis limits
+plt.xlim([0.951,1.005])
+
+# axis labels
 plt.ylabel("$\mathcal{J}_{1/4}$")
-plt.xlabel("$Q_{m,n}(w)/Q_{m,n}(\mathrm{w}_{A})$")
+#plt.xlabel("$Q_{m,n}(w)/Q_{m,n}(\mathrm{w}_{A})$")
+plt.xlabel("Normalized $Q_{m,n}$ violation")
+
 plt.legend(loc='lower left')
 plt.grid()
 plt.tight_layout()
@@ -243,8 +261,24 @@ for ii in range(n_files):
     plt.plot(qs_step,loss_step,label="$Q_{%d,%d}$"%(helicity_m,helicity_n),marker='s',markersize=10,linewidth=3,color=colors[ii])
     plt.fill_between(qs_step,loss_step + std_errs_loss, loss_step - std_errs_loss,alpha=0.2,color=colors[ii])
 
+    # plot the starting point
+    plt.scatter([1.0],loss_step[0],marker='s',s=120,color='k',zorder=100)
+
+# label the point
+plt.text(1.0008,0.0075,"$\mathrm{w}_{A}$")
+
+# add an arrow and text
+plt.text(0.981,0.0064,"improved QS",fontsize=12)
+plt.arrow(0.994,0.0062,-0.015,0.0,width=7e-5,color='k',head_length=0.001)
+
+# axis limits
+plt.xlim([0.951,1.005])
+
+# axis labels
 plt.ylabel("Fraction of alpha particles lost")
-plt.xlabel("$Q_{m,n}(w)/Q_{m,n}(\mathrm{w}_{A})$")
+#plt.xlabel("$Q_{m,n}(w)/Q_{m,n}(\mathrm{w}_{A})$")
+plt.xlabel("Normalized $Q_{m,n}$ violation")
+
 plt.legend(loc='lower left')
 plt.grid()
 plt.tight_layout()
