@@ -32,6 +32,10 @@ for infile in filelist:
     for key in list(indata.keys()):
         s  = f"{key} = indata['{key}']"
         exec(s)
+
+    # multiply helicity_n by nfp
+    nfp = 4
+    helicity_n = helicity_n*nfp
     
     # convert qs0 from residual to value
     qs0 = np.sum(qs0**2)
