@@ -24,12 +24,11 @@ rank = comm.Get_rank()
 Compute data for 1d plots
 
 ex.
-  mpiexec -n 1 python3 compute_data.py SAA 0.5 0.001 1 10 10 10
+  mpiexec -n 1 python3 compute_data.py SAA 0.5 0.001 6
 """
 
 
 # tracing parameters
-#tmax = 1e-4
 tracing_tol=1e-8
 interpolant_degree=3
 interpolant_level=8
@@ -37,34 +36,39 @@ bri_mpol=16
 bri_ntor=16
 s_min = 0.0
 s_max = 1.0
+
 # configuration parmaeters
 vmec_input="../../vmec_input_files/input.nfp4_QH_warm_start_high_res"
 n_partitions = 1
 max_mode = 1
-minor_radius = 1.7
+minor_radius=1.7
 aspect_target=7.0
 major_radius=minor_radius*aspect_target
 target_volavgB=5.0
 
 # read inputs
-#objective_type = sys.argv[1] # mean_energy, mean_time
 sampling_type = sys.argv[1] # SAA, random, gauss, simpson
 sampling_level = sys.argv[2] # "full" or a float surface label
 tmax = float(sys.argv[3])
-ns = int(sys.argv[4])  # number of surface samples
-ntheta = int(sys.argv[5]) # num theta samples
-nzeta = int(sys.argv[6]) # num phi samples
-nvpar = int(sys.argv[7]) # num vpar samples
-assert sampling_type in ['random','SAA','gauss','simpson']
+pow_2 = int(sys.argv[4]) # power of 2 for n_particles
+assert sampling_type in ['random','SAA','gauss','simpson','QMC']
+
+
+# number of particles
+n_particles = pow(2,pow_2)
+
+# get number of particles per direction
+if sampling_level == "full":
+  assert pow_2%4 == 0.0, "pow_2 must be a multiple of 4"
+  ns = ntheta = nzeta = nvpar = int(n_particles**(1/4))
+else:
+  assert pow_2%3 == 0.0, "pow_2 must be a multiple of 3"
+  ns = 1
+  ntheta=nzeta=nvpar = int(np.cbrt(n_particles))
+
 
 if not debug:
   vmec_input="../" + vmec_input
-
-# number of tracers
-if sampling_level == "full":
-  n_particles = ns*ntheta*nzeta*nvpar
-else:
-  n_particles = ntheta*nzeta*nvpar
 
 # build a tracer object
 tracer = TraceBoozer(vmec_input,
@@ -100,6 +104,67 @@ def get_random_points(sampling_level):
     s_label = float(sampling_level)
     stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   return stz_inits,vpar_inits
+
+from scipy.stats import qmc
+def get_sobol_points(sampling_level):
+  """
+  Generate points with a sobol sequence
+  """
+  tracer.sync_seeds()
+  m = int(np.log2(n_particles))
+  bounds = np.array([[-V_MAX,0.0,0.0],[V_MAX,2*np.pi,2*np.pi/tracer.surf.nfp]])
+
+  if sampling_level == "full":
+    # sample s
+    stz_inits,vpar_inits = tracer.sample_volume(n_particles)
+    # sample (vpar,theta,zeta)
+    if rank == 0:
+      sampler = qmc.Sobol(d=3)
+      vtz_inits = sampler.random_base2(m=m)
+      # rescale to bounds [lb,ub]
+      vtz_inits = vtz_inits*(bounds[1] - bounds[0]) + bounds[0]
+      # extract the variables
+      vpar_inits = np.copy(vtz_inits[:,0])
+      theta_inits = np.copy(vtz_inits[:,1])
+      zeta_inits = np.copy(vtz_inits[:,2])
+    # broadcast
+    comm.Bcast(theta_inits,root=0)
+    comm.Bcast(zeta_inits,root=0)
+    comm.Bcast(vpar_inits,root=0)
+
+    # stack the samples
+    stz_inits[:,1] = np.copy(theta_inits)
+    stz_inits[:,2] = np.copy(zeta_inits)
+
+  else:
+    # surface sampling
+    s_label = float(sampling_level)
+
+    # sample (vpar,theta,zeta)
+    if rank == 0:
+      sampler = qmc.Sobol(d=3)
+      vtz_inits = sampler.random_base2(m=m)
+      # rescale to bounds [lb,ub]
+      vtz_inits = vtz_inits*(bounds[1] - bounds[0]) + bounds[0]
+      # extract the variables
+      vpar_inits = np.copy(vtz_inits[:,0])
+      theta_inits = np.copy(vtz_inits[:,1])
+      zeta_inits = np.copy(vtz_inits[:,2])
+    else:
+      # initialize space for MPI
+      theta_inits = np.ones(n_particles)
+      zeta_inits = np.ones(n_particles)
+      vpar_inits = np.ones(n_particles)
+    # broadcast
+    comm.Bcast(theta_inits,root=0)
+    comm.Bcast(zeta_inits,root=0)
+    comm.Bcast(vpar_inits,root=0)
+    # stack the samples
+    s_inits = s_label*np.ones(n_particles)
+    stz_inits = np.vstack((s_inits,theta_inits,zeta_inits)).T
+
+  return stz_inits,vpar_inits
+
 
 # make a sampler for computing probabilities
 radial_sampler = RadialDensity(1000)
@@ -204,7 +269,7 @@ elif sampling_type == "SAA":
 
 
 # safety check
-if sampling_type != "random":
+if sampling_type not in  ["random","QMC"]:
   assert n_particles == len(vpar_inits)
 
 """
@@ -225,6 +290,8 @@ def objective(x):
   """
   if sampling_type == "random":
     stzs,vpars = get_random_points(sampling_level)
+  elif sampling_type == "QMC":
+    stzs,vpars = get_sobol_points(sampling_level)
   else:
     stzs = np.copy(stz_inits)
     vpars = np.copy(vpar_inits)
@@ -238,87 +305,11 @@ def objective(x):
 
   return c_times
 
-#if objective_type == "mean_energy": 
-#  # minimize energy retained by particle
-#  feat = 3.5*np.exp(-2*c_times/tmax)
-#elif objective_type == "mean_time": 
-#  # expected confinement time
-#  feat = tmax-c_times
-
-
-## now perform the averaging/quadrature
-#if sampling_type in ["SAA", "random"]:
-#  # sample average
-#  res = np.mean(feat)
-#  loss_frac = np.mean(c_times<tmax)
-#elif sampling_type == "gauss" and sampling_level == "full":
-#  # gauss quadrature
-#  int0 = feat*likelihood
-#  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-#  int0 = int0*quad_weights
-#  res = np.sum(int0)
-
-#  # loss frac for printing
-#  loss_frac = c_times<tmax
-#  int0 = loss_frac*likelihood
-#  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-#  int0 = int0*quad_weights
-#  loss_frac = np.sum(int0)
-
-#elif sampling_type == "gauss":
-#  # gauss quadrature
-#  int0 = feat*likelihood
-#  int0 = int0.reshape((ntheta,nzeta,nvpar))
-#  int0 = int0*quad_weights
-#  res = np.sum(int0)
-
-#  # loss fraction for printing
-#  loss_frac = c_times<tmax
-#  int0 = loss_frac*likelihood
-#  int0 = int0.reshape((ntheta,nzeta,nvpar))
-#  int0 = int0*quad_weights
-#  loss_frac = np.sum(int0)
-
-#elif sampling_type == "simpson" and sampling_level == "full":
-#  # loss frac for printing
-#  loss_frac = c_times<tmax
-#  int0 = loss_frac*likelihood
-#  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-#  int0 = int0*quad_weights
-#  loss_frac = np.sum(int0)
-
-#  # simpson
-#  int0 = feat*likelihood
-#  int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-#  int1 = simpson(int0,vpar_lin,axis=-1)
-#  int2 = simpson(int1,zeta_lin,axis=-1)
-#  int3 = simpson(int2,theta_lin,axis=-1)
-#  res = simpson(int3,s_lin,axis=-1)
-#elif sampling_type == "simpson":
-#  # loss fraction for printing
-#  loss_frac = c_times<tmax
-#  int0 = loss_frac*likelihood
-#  int0 = int0.reshape((ntheta,nzeta,nvpar))
-#  int0 = int0*quad_weights
-#  loss_frac = np.sum(int0)
-
-#  # simpson
-#  int0 = feat*likelihood
-#  int0 = int0.reshape((ntheta,nzeta,nvpar))
-#  int1 = simpson(int0,vpar_lin,axis=-1)
-#  int2 = simpson(int1,zeta_lin,axis=-1)
-#  res = simpson(int2,theta_lin,axis=-1)
-
-#if rank == 0:
-#  print('obj:',res,'P(loss):',loss_frac)
-#sys.stdout.flush()
-
-#return res
-
 
 
 # discretization parameters
-n_directions = dim_x
+#n_directions = dim_x
+n_directions = 1
 n_points_per = 200 # total points per direction
 
 # make the discretization
@@ -336,11 +327,17 @@ T = np.sort(np.unique(np.hstack((T1,T2))))
 n_points_per = len(T)
 
 # use an orthogonal frame
-#Q = np.eye(dim_x)
-np.random.seed(0) # make sure we get the same directions
-Q = np.random.randn(dim_x,dim_x)
-Q,_ = np.linalg.qr(Q)
-Q = Q.T
+tracer.sync_seeds(0)
+Q = np.eye(dim_x)
+Q = Q.flatten()
+if rank == 0:
+  Q = np.random.randn(dim_x,dim_x)
+  Q,_ = np.linalg.qr(Q)
+  Q = Q.T
+  Q = Q.flatten()
+comm.Bcast(Q,root=0)
+Q = np.reshape(Q,(dim_x,dim_x))
+
 
 # storage
 X = np.zeros((n_directions,n_points_per,dim_x))
@@ -375,12 +372,6 @@ for ii in range(n_directions):
       outdata['stz_inits'] = stz_inits
       outdata['vpar_inits'] = vpar_inits
     
-#     if sampling_type == 'simpson':
-#       if sampling_level == "full":
-#         outdata['s_lin'] = s_lin
-#       outdata['theta_lin'] = theta_lin
-#       outdata['zeta_lin'] = zeta_lin
-#       outdata['vpar_lin'] = vpar_lin
     if sampling_type in ['simpson', 'gauss']:
       if sampling_level == "full":
         outdata['s_lin'] = s_lin
