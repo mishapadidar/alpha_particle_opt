@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 144bfo
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=10
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=185000
+#SBATCH --time=00:30:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PLACES=cores
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.multiopt_scan_QH_nfp4_20210924-01-031_target_grad_grad_B_5027_aScaling.nr600_nphi400_nz401.aux_fields  \
+    -vmec_nyquist wout_multiopt_scan_QH_nfp4_20210924-01-031_target_grad_grad_B_5027_aScaling.nc \
+    -bfo -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -g boundary.multiopt_scan_QH_nfp4_20210924-01-031_target_grad_grad_B_5027_aScaling.nr600_nphi400_nz401.mesh 

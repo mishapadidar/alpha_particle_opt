@@ -1,0 +1,1 @@
+../vmec/wout_20220124_qfm_well1_length24_aScaling.nc

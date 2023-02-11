@@ -1,0 +1,1 @@
+../vmec/wout_new_QA_magwell_aScaling.nc

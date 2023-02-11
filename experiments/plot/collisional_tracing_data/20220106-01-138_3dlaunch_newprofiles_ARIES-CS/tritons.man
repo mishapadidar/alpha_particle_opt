@@ -1,0 +1,5 @@
+vmec_nyquist wout_n3are_R7.75B5.7.nc
+name tritons.bgnd
+mass tritons
+density [x-0, {2.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]

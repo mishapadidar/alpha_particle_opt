@@ -1,0 +1,5 @@
+vmec_nyquist wout_bila_a3b25_aScaling.nc
+name deuterons.bgnd
+mass deuterons
+density [x-0, {2.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]

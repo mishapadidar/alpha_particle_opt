@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 139bfo
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=185000
+#SBATCH --time=00:30:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PLACES=cores
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.20220124-01-GiulianiSurfaceOptVmecAnalysis_len24_aScaling.nr600_nphi400_nz401.aux_fields  \
+    -vmec_nyquist wout_20220124-01-GiulianiSurfaceOptVmecAnalysis_len24_aScaling.nc \
+    -bfo -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -g boundary.20220124-01-GiulianiSurfaceOptVmecAnalysis_len24_aScaling.nr600_nphi400_nz401.mesh 

@@ -1,0 +1,4 @@
+#!/bin/bash
+/u/mad/bin/LAUNCH 40000 3.5e6 boundary.Spong_20160107_ITER_hybridAxisymmFixedBoundary_aScaling.nr600_nphi400_nz401.aux_fields \
+  -alphas -vmec_nyquist wout_Spong_20160107_ITER_hybridAxisymmFixedBoundary_aScaling.nc \
+  -profile "[x-0, {3.880046164884982, -9.674506953025826, 5.3888337703802245, -57.86685751379026, 516.9394199369357, -1960.2478509389753, 4133.587104086189, -5214.176118452241, 3929.270101348013, -1640.6122215208784, 293.5127768871563 }]" > launch_3d

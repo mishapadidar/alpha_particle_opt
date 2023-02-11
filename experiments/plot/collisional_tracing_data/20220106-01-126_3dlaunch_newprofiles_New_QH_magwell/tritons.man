@@ -1,0 +1,5 @@
+vmec_nyquist wout_20210728-01-026_QH_nfp4_A8_magwell_aScaling.nc
+name tritons.bgnd
+mass tritons
+density [x-0, {2.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]

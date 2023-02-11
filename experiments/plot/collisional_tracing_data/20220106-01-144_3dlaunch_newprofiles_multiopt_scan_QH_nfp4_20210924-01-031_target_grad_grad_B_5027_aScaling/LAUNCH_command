@@ -1,0 +1,4 @@
+#!/bin/bash
+/u/mad/bin/LAUNCH 40000 3.5e6 boundary.multiopt_scan_QH_nfp4_20210924-01-031_target_grad_grad_B_5027_aScaling.nr600_nphi400_nz401.aux_fields \
+  -alphas -vmec_nyquist wout_multiopt_scan_QH_nfp4_20210924-01-031_target_grad_grad_B_5027_aScaling.nc \
+  -profile "[x-0, {3.498054282204385, -7.588204212231048, 3.937377311585841, -6.863918879654146, 19.52423626337402, 13.778607660155533, -196.423064541548, 491.95387431325565, -577.5898681927085, 328.7964984344116, -73.02323552068272 }]" > launch_3d

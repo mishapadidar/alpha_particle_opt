@@ -1,0 +1,4 @@
+#!/bin/bash
+/u/mad/bin/LAUNCH 40000 3.5e6 boundary.20220124-01-GiulianiSurfaceOptVmecAnalysis_len24_aScaling.nr600_nphi400_nz401.aux_fields \
+  -alphas -vmec_nyquist wout_20220124-01-GiulianiSurfaceOptVmecAnalysis_len24_aScaling.nc \
+  -profile "[x-0, {3.5456267685868297, -7.796999020069131, 2.3023123454994474, 10.667893820462712, -65.1782229528765, 266.8538178232369, -681.8359366836426, 1089.23667023394, -1034.5137837918212, 527.0621144605688, -110.34327880920584 }]" > launch_3d

@@ -1,0 +1,14 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 135main
+#SBATCH --nodes=16
+#SBATCH --ntasks-per-node=15
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=185000
+#SBATCH --time=07:00:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PLACES=cores
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.HSX_QHS_vacuum_ns201_aScaling.nr600_nphi400_nz401.aux_fields  -l launch_3d -mp 20000 \
+    -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -eV_therm 10.0 -t 0.2 -s 3d -ref 3.0

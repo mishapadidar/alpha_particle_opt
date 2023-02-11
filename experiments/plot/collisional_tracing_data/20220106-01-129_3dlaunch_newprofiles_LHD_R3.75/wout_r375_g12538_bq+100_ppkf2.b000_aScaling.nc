@@ -1,0 +1,1 @@
+../vmec/wout_r375_g12538_bq+100_ppkf2.b000_aScaling.nc

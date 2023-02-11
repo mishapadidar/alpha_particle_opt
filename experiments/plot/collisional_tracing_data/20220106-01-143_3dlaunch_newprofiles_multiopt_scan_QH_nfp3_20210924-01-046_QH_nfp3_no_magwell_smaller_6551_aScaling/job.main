@@ -1,0 +1,14 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 143main
+#SBATCH --nodes=16
+#SBATCH --ntasks-per-node=10
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=185000
+#SBATCH --time=12:00:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PLACES=cores
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.multiopt_scan_QH_nfp3_20210924-01-046_QH_nfp3_no_magwell_smaller_6551_aScaling.nr600_nphi400_nz401.aux_fields  -l launch_3d -mp 20000 \
+    -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -eV_therm 10.0 -t 0.2 -s 3d -ref 3.0
