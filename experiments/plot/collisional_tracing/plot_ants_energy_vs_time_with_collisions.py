@@ -75,7 +75,9 @@ Plot the tracing data
 # scatter plot the data
 for j,_ in enumerate(ts):
     #plt.semilogy(ts[j], energies[j], ".", label=filenames[j], ms=1)
-    plt.semilogy(ts[j], energies[j], ".",ms=1)
+    #plt.semilogy(ts[j], energies[j], ".",ms=1)
+    # rasterize to reduce file size
+    plt.semilogy(ts[j], energies[j], ".",ms=1,rasterized=True)
 
 # plot a regression curve
 t_data = []
