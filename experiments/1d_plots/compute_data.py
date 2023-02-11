@@ -368,7 +368,7 @@ for ii in range(n_directions):
     outdata['Q'] = Q
     outdata['T'] = T
 
-    if sampling_type != "random":
+    if sampling_type not in ["random","QMC"]:
       outdata['stz_inits'] = stz_inits
       outdata['vpar_inits'] = vpar_inits
     
