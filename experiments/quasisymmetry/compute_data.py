@@ -2,6 +2,8 @@ import numpy as np
 from mpi4py import MPI
 from simsopt.mhd.vmec_diagnostics import QuasisymmetryRatioResidual
 from simsopt._core import Optimizable
+from simsopt.util.mpi import MpiPartition
+from simsopt.mhd import Vmec
 import sys
 import pickle
 debug = False
@@ -28,9 +30,8 @@ where 0 denote quasiaxisymmetry
 # load a configuration
 config = "A" # A or B
 #config = "B" # A or B
-aspect_target = 7.0
-major_radius = aspect_target*1.7
-target_volavgB = 5.0
+target_minor_radius=1.7
+target_B00_on_axis=5.7
 max_mode = 3
 
 if config == "A":
@@ -71,13 +72,21 @@ interpolant_level=8
 bri_mpol=32
 bri_ntor=32
 
+# get the aspect ratio for rescaling the device
+mpi = MpiPartition(1)
+vmec = Vmec(vmec_input, mpi=mpi,keep_all_files=False,verbose=False)
+surf = vmec.boundary
+aspect_target = surf.aspect_ratio()
+major_radius = target_minor_radius*aspect_target
+
+
 # set up a tracer
 tracer = TraceBoozer(vmec_input,
                     n_partitions=1,
                     max_mode=max_mode,
                     major_radius=major_radius,
                     aspect_target=aspect_target,
-                    target_volavgB=target_volavgB,
+                    target_volavgB=target_B00_on_axis,
                     tracing_tol=tracing_tol,
                     interpolant_degree=interpolant_degree,
                     interpolant_level=interpolant_level,
@@ -85,6 +94,54 @@ tracer = TraceBoozer(vmec_input,
                     bri_ntor=bri_ntor)
 x0 = np.copy(tracer.x0)
 dim_x = len(x0)
+
+# compute the boozer field
+field,bri = tracer.compute_boozer_field(x0)
+
+# now scale the toroidal flux by B(0,0)[s=0]
+if rank == 0:
+  # b/c only rank 0 does the boozXform
+  bmnc0 = bri.booz.bx.bmnc_b[0]
+  B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+  B00 = np.array([B00])
+else:
+  B00 = np.array([0.0])
+comm.Barrier()
+comm.Bcast(B00,root=0)
+B00 = B00[0] # unpack the array
+# scale the toroidal flux
+tracer.vmec.indata.phiedge *= target_B00_on_axis/B00
+
+# re-compute the boozer field
+tracer.vmec.need_to_run_code = True
+tracer.vmec.run()
+tracer.field = None # so the boozXform recomputes
+field,bri = tracer.compute_boozer_field(x0)
+
+# now get B00 just to make sure it was set right
+if rank == 0:
+  # b/c only rank 0 does the boozXform
+  bmnc0 = bri.booz.bx.bmnc_b[0]
+  B00 = 1.5*bmnc0[1] - 0.5*bmnc0[2]
+  B00 = np.array([B00])
+else:
+  B00 = np.array([0.0])
+comm.Barrier()
+comm.Bcast(B00,root=0)
+B00 = B00[0] # unpack the array
+
+# also get the minor radius
+major_rad = tracer.surf.get("rc(0,0)")
+aspect = tracer.surf.aspect_ratio()
+minor_rad = major_rad/aspect
+
+
+if rank == 0:
+  print("")
+  print('minor radius',minor_rad)
+  print("axis B00",B00)
+  print('volavgB',tracer.vmec.wout.volavgB)
+  print('toroidal flux',tracer.vmec.indata.phiedge)
 
 # always generate the same set of particles
 tracer.sync_seeds(0)
@@ -111,7 +168,7 @@ if rank == 0:
   outdata['vmec_input'] = vmec_input
   outdata['aspect_target'] = aspect_target
   outdata['major_radius'] = major_radius
-  outdata['target_volavgB'] = target_volavgB
+  #outdata['target_volavgB'] = target_volavgB
   outdata['max_mode'] = max_mode
   outdata['s_label'] = s_label
   outdata['tracing_tol'] = tracing_tol
