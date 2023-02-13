@@ -1,0 +1,5 @@
+vmec_nyquist wout_multiopt_scan_QH_nfp4_20210924-01-031_target_grad_grad_B_5027_aScaling.nc
+name tritons.bgnd
+mass tritons
+density [x-0, {2.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]

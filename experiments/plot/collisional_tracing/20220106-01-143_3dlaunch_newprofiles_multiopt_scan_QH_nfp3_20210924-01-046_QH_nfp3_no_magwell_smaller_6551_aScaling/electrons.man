@@ -1,0 +1,5 @@
+vmec_nyquist wout_multiopt_scan_QH_nfp3_20210924-01-046_QH_nfp3_no_magwell_smaller_6551_aScaling.nc
+name electrons.bgnd
+mass electrons
+density [x-0, {4.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -4.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]

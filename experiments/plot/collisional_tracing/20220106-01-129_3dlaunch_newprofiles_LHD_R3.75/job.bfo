@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 129bfo
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=10
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=185000
+#SBATCH --time=00:30:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PLACES=cores
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.r375_g12538_bq+100_ppkf2.b000_aScaling.nr600_nphi400_nz401.aux_fields  \
+    -vmec_nyquist wout_r375_g12538_bq+100_ppkf2.b000_aScaling.nc \
+    -bfo -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -g boundary.r375_g12538_bq+100_ppkf2.b000_aScaling.nr600_nphi400_nz401.mesh 

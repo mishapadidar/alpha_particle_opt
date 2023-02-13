@@ -1,0 +1,5 @@
+vmec_nyquist wout_1020_1080_0930_0843_+0000_+0000_01_166_fixedb_aScaling.nc
+name electrons.bgnd
+mass electrons
+density [x-0, {4.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -4.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]

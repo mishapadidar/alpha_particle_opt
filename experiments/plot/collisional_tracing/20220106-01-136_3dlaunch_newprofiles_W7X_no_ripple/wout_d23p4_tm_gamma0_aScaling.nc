@@ -1,0 +1,1 @@
+../vmec/wout_d23p4_tm_gamma0_aScaling.nc

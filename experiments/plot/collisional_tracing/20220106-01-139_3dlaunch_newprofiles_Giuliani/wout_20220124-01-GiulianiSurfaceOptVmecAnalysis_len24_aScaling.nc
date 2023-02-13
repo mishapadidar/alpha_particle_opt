@@ -1,0 +1,1 @@
+../vmec/wout_20220124-01-GiulianiSurfaceOptVmecAnalysis_len24_aScaling.nc

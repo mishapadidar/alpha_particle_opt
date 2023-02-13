@@ -1,0 +1,12 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 121bfo
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=40
+#SBATCH --mem=185000
+#SBATCH --time=00:30:00
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.new_QA_aScaling.nr600_nphi400_nz401.aux_fields  \
+    -vmec_nyquist wout_new_QA_aScaling.nc \
+    -bfo -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -g boundary.new_QA_aScaling.nr600_nphi400_nz401.mesh 

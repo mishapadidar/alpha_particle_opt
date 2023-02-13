@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#SBATCH -D ./ 
+#SBATCH -J 146bfo
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=5
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=185000
+#SBATCH --time=00:60:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PLACES=cores
+srun /u/mad/bin/ANTS_9P \
+    -af boundary.Spong_20160107_ITER_hybridAxisymmFixedBoundary_aScaling.nr600_nphi400_nz401.aux_fields  \
+    -vmec_nyquist wout_Spong_20160107_ITER_hybridAxisymmFixedBoundary_aScaling.nc \
+    -bfo -bgm deuterons.man -bgm electrons.man  -bgm tritons.man \
+    -g boundary.Spong_20160107_ITER_hybridAxisymmFixedBoundary_aScaling.nr600_nphi400_nz401.mesh 

@@ -1,0 +1,5 @@
+vmec_nyquist wout_20220102-01-055_QH_A6.5_beta0_aScaling.nc
+name electrons.bgnd
+mass electrons
+density [x-0, {4.0e20, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -4.0e20}]
+temperature [x-0, {1.39254e8, 0.0, -1.39254e8}]
