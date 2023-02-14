@@ -106,7 +106,8 @@ plt.plot(t_analytic, 3.5e6 * np.exp(-2 * t_analytic / t_s_analytic), color="r", 
 
 # axis labels
 plt.xlabel('Time [sec]')
-plt.title('Alpha particle energy at time of loss')
+plt.ylabel('Energy [eV]')
+#plt.title('Alpha particle energy at time of loss')
 
 # legend
 plt.legend(loc='upper right', fontsize=14)
