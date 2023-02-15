@@ -71,7 +71,7 @@ for ii in range(nphi):
     ax.plot(R[1,:,ii-2], Z[1,:,ii-2], linewidth=2,linestyle='--',color=colors[ii])
 
 # legend
-plt.legend(loc='upper left',fontsize=14)
+plt.legend(loc='upper left',fontsize=17)
 
 # axis labels
 plt.xlabel('R [meters]')
