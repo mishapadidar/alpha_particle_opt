@@ -87,6 +87,16 @@ for j, tj in enumerate(ts):
     energy_data = np.append(energy_data,energies[j])
 coeffs = np.polyfit(t_data,np.log(energy_data),deg=1)
 model  = np.poly1d(coeffs)
+
+## compute residuals
+#resid = (energy_data - np.exp(model(t_data)))/1e6
+#print('mse', np.mean(resid**2))
+#print('mae', np.mean(np.abs(resid)))
+#total_resid = (energy_data - np.mean(energy_data))/1e6
+#total_ss = np.mean(total_resid**2)
+#r_squared = 1 - np.mean(resid**2)/total_ss
+#print('r squared',r_squared)
+
 times = np.linspace(0,0.1,50)
 plt.plot(times,np.exp(model(times)),lw=3,color='k',label='mean')
 
@@ -106,7 +116,8 @@ plt.plot(t_analytic, 3.5e6 * np.exp(-2 * t_analytic / t_s_analytic), color="r", 
 
 # axis labels
 plt.xlabel('Time [sec]')
-plt.title('Alpha particle energy at time of loss')
+plt.ylabel('Energy [eV]')
+#plt.title('Alpha particle energy at time of loss')
 
 # legend
 plt.legend(loc='upper right', fontsize=14)
