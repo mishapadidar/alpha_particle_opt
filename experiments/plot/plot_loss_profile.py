@@ -44,7 +44,8 @@ for key in list(indata.keys()):
 n_configs = len(filelist)
 
 # skip LP-QH and IPP-QA
-skip = [8]
+#skip = [8]
+skip = []
 
 
 # compute the loss profiles
