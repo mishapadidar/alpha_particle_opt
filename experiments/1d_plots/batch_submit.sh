@@ -2,7 +2,7 @@
 SAMPLINGTYPES=('SAA' 'simpson' 'random' 'QMC')
 TMAX=0.001
 surf=0.25
-pow2=15 # must be multiple of 3 if surf is float, or 4 if surf=full
+pow2=13 
 NODES=4
 CORES=12
 for idx in ${!SAMPLINGTYPES[@]}
