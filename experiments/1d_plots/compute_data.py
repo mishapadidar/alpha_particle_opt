@@ -59,13 +59,21 @@ n_particles = pow(2,pow_2)
 
 # get number of particles per direction
 if sampling_level == "full":
-  assert pow_2%4 == 0.0, "pow_2 must be a multiple of 4"
+  #assert pow_2%4 == 0.0, "pow_2 must be a multiple of 4"
+  # WARNING: n_particles may not match ns*ntheta*nzeta*nvpar
   ns = ntheta = nzeta = nvpar = int(n_particles**(1/4))
+  if sampling_type in ['simpson','gauss']:
+    n_particles = int(ns*ntheta*nzeta*nvpar)
 else:
-  assert pow_2%3 == 0.0, "pow_2 must be a multiple of 3"
+  #assert pow_2%3 == 0.0, "pow_2 must be a multiple of 3"
   ns = 1
+  # WARNING: n_particles may not match ntheta*nzeta*nvpar
   ntheta=nzeta=nvpar = int(np.cbrt(n_particles))
+  if sampling_type in ['simpson','gauss']:
+    n_particles = int(ntheta*nzeta*nvpar)
 
+if rank == 0:
+  print('n_particles',n_particles)
 
 if not debug:
   vmec_input="../" + vmec_input
