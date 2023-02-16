@@ -44,7 +44,8 @@ for key in list(indata.keys()):
 n_configs = len(filelist)
 
 # skip LP-QH and IPP-QA
-skip = [8]
+#skip = [8]
+skip = []
 
 
 # compute the loss profiles
@@ -70,9 +71,11 @@ colors = cmap(np.linspace(0,1,n_configs))
 for ii in range(n_configs):
     if ii in skip:
         continue
-    ax1.plot(times,lp_vol[:,ii],linewidth=3,linestyle=linestyles[ii],color=colors[ii],label=config_names[ii])
+    label = config_names[ii]
+    label = label.replace(" ", "-")
+    ax1.plot(times,lp_vol[:,ii],linewidth=3,linestyle=linestyles[ii],color=colors[ii],label=label)
     ax2.plot(times,lp_surf[:,ii],linewidth=3,linestyle=linestyles[ii],color=colors[ii])
-    print(config_names[ii],'volume losses',lp_vol[-1,ii],'surface losses',lp_surf[-1,ii])
+    print(label,'volume losses',lp_vol[-1,ii],'surface losses',lp_surf[-1,ii])
 
 # legend
 #ax1.legend(ncols=3,fontsize=16,frameon=False)
