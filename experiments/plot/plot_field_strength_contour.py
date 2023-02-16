@@ -73,7 +73,7 @@ for ax in (ax1,ax2,ax3,ax4):
 # darken the border
 for ax in (ax1,ax2,ax3,ax4):
   ax.patch.set_edgecolor('black')  
-  ax.patch.set_linewidth('2')  
+  ax.patch.set_linewidth(2)  
 
 plt.tight_layout()
 filename = infile[:-7] # remove the .pickle
