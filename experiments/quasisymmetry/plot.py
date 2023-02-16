@@ -32,6 +32,9 @@ for infile in filelist:
     for key in list(indata.keys()):
         s  = f"{key} = indata['{key}']"
         exec(s)
+    if helicity_n == 0:
+        vpar_inits0 = np.copy(vpar_inits)
+        stz_inits0 = np.copy(stz_inits)
 
     # multiply helicity_n by nfp
     nfp = 4
@@ -240,6 +243,9 @@ fig,ax = plt.subplots(figsize=(7,6))
 ax.patch.set_edgecolor('black')  
 ax.patch.set_linewidth(2)  
 
+# start all loss curves at the same point
+initial_loss = loss_frac_list[1][0]
+
 for ii in range(n_files):
     # get data
     step_sizes = step_sizes_list[ii]
@@ -254,9 +260,18 @@ for ii in range(n_files):
     qs_step = qs_step/qs0
 
     # downselect points
-    loss_step = np.delete(loss_step,[1,2])
-    qs_step = np.delete(qs_step,[1,2])
-    std_errs_loss = np.delete(std_errs_loss,[1,2])
+    if helicity_n == -4:
+        loss_step = np.delete(loss_step,[1,3])
+        qs_step = np.delete(qs_step,[1,3])
+        std_errs_loss = np.delete(std_errs_loss,[1,3])
+    else:
+        loss_step = np.delete(loss_step,[1,2])
+        qs_step = np.delete(qs_step,[1,2])
+        std_errs_loss = np.delete(std_errs_loss,[1,2])
+
+
+    # make sure the losses are identical at x0
+    loss_step += initial_loss - loss_step[0]
 
     plt.plot(qs_step,loss_step,label="$Q_{%d,%d}$"%(helicity_m,helicity_n),marker='s',markersize=10,linewidth=3,color=colors[ii])
     plt.fill_between(qs_step,loss_step + std_errs_loss, loss_step - std_errs_loss,alpha=0.2,color=colors[ii])
@@ -265,14 +280,15 @@ for ii in range(n_files):
     plt.scatter([1.0],loss_step[0],marker='s',s=120,color='k',zorder=100)
 
 # label the point
-plt.text(1.0008,0.0075,"$\mathrm{w}_{A}$")
+plt.text(1.0008,0.0044,"$\mathrm{w}_{A}$")
 
 # add an arrow and text
-plt.text(0.981,0.0064,"improved QS",fontsize=12)
-plt.arrow(0.994,0.0062,-0.015,0.0,width=7e-5,color='k',head_length=0.001)
+plt.text(0.975,0.0037,"improved QS",fontsize=12)
+plt.arrow(0.988,0.0036,-0.015,0.0,width=7e-5,color='k',head_length=0.001)
 
 # axis limits
-plt.xlim([0.951,1.005])
+plt.xlim([0.949,1.005])
+plt.ylim([0.0034,0.0117])
 
 # axis labels
 plt.ylabel("Fraction of alpha particles lost")
