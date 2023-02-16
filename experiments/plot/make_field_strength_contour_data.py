@@ -11,6 +11,10 @@ Computes data for a contour plot of the field strength in boozer coordinates.
 
 usage:
   mpiexec -n 1 python3 configs/vmec_input_file
+
+use the following input files:
+configs/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_0.89
+configs/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.043
 """
 
 # load a vmec input file
@@ -40,11 +44,15 @@ field = InterpolatedBoozerField(bri, degree=interpolant_degree, srange=srange, t
                    zetarange=zetarange, extrapolate=True, nfp=nfp, stellsym=True)
 
 s_list = [0.05,0.25,0.5,1.0]
-# theta is [0,pi] with stellsym
 ntheta = 128
 nzeta = 128
-thetas = np.linspace(0, 2*np.pi, ntheta)
-zetas = np.linspace(0,2*np.pi/nfp, nzeta)
+if infile == "configs/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.043":
+  # shift by half period in zeta and by pi in theta
+  thetas = np.linspace(np.pi, 3*np.pi, ntheta) 
+  zetas = np.linspace(np.pi/nfp,2*np.pi/nfp + np.pi/nfp, nzeta)
+else:
+  thetas = np.linspace(0, 2*np.pi, ntheta)
+  zetas = np.linspace(0,2*np.pi/nfp, nzeta)
 [thetas,zetas] = np.meshgrid(thetas, zetas)
 # storage
 modB_list = np.zeros((len(s_list),ntheta*nzeta))
@@ -62,6 +70,11 @@ for ii,s_label in enumerate(s_list):
 
   # to reshape modB into mesh 
   #modB_mesh = np.reshape(modB,((nzeta,ntheta)))
+
+if infile == "configs/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_1.043":
+  # unshift the inputs
+  zetas -= np.pi/nfp
+  thetas -= np.pi
 
 # dump the data
 outdata = {}
