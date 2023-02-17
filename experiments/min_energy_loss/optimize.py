@@ -3,34 +3,21 @@ from mpi4py import MPI
 import sys
 import pickle
 from pdfo import pdfo,NonlinearConstraint as pdfo_nlc
-from simsopt.mhd.vmec_diagnostics import QuasisymmetryRatioResidual
-#from skquant.opt import minimize as skq_minimize
-from scipy.optimize import differential_evolution, NonlinearConstraint as sp_nlc, minimize as sp_minimize
-from scipy.integrate import simpson
 debug = False
 if debug:
-  #sys.path.append("../../../noise-tolerant-bfgs")
   sys.path.append("../../utils")
   sys.path.append("../../trace")
   sys.path.append("../../sample")
   sys.path.append("../../opt")
-  #sys.path.append("../../../SIMPLE/build/")
 else:
-  #sys.path.append("../../../../noise-tolerant-bfgs")
   sys.path.append("../../../utils")
   sys.path.append("../../../trace")
   sys.path.append("../../../sample")
   sys.path.append("../../../opt")
-  #sys.path.append("../../../../SIMPLE/build/")
-#from trace_simple import TraceSimple
 from trace_boozer import TraceBoozer
 from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
 from constants import V_MAX
-from gauss_quadrature import gauss_quadrature_nodes_coeffs
-#import ntqn
-from noise_tolerant_gradient_descent import NoiseTolerantGradientDescent
-#from sid_psm import SIDPSM
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -327,63 +314,10 @@ def get_random_points(sampling_level):
 # make a sampler for computing probabilities
 radial_sampler = RadialDensity(1000)
 
-if sampling_type == "grid" and sampling_level == "full":
-  # simpson
-  #s_lin = np.linspace(s_min,s_max, ns)
-  #theta_lin = np.linspace(0, 2*np.pi, ntheta)
-  #zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
-  #vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
-  #[surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin)
-
-  # gauss quadrature
-  s_lin,s_weights = gauss_quadrature_nodes_coeffs(ns,s_min,s_max)
-  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
-  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
-  vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
-  [surfaces,thetas,zetas,vpars] = np.meshgrid(s_lin,theta_lin,zeta_lin,vpar_lin,indexing='ij')
-  [w1,w2,w3,w4] = np.meshgrid(s_weights,theta_weights,zeta_weights,vpar_weights,indexing='ij')
-  quad_weights = w1*w2*w3*w4
-
-  # build a mesh
-  stz_inits = np.zeros((ns*ntheta*nzeta*nvpar, 3))
-  stz_inits[:, 0] = surfaces.flatten()
-  stz_inits[:, 1] = thetas.flatten()
-  stz_inits[:, 2] = zetas.flatten()
-  vpar_inits = vpars.flatten()
-  # radial likelihood
-  likelihood = radial_sampler._pdf(stz_inits[:,0])
-  likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
-
-elif sampling_type == "grid":
-  # grid over (theta,phi,vpar) for a fixed surface label
-  s_label = float(sampling_level)
-
-  ## simpson
-  #theta_lin = np.linspace(0, 2*np.pi, ntheta)
-  #zeta_lin = np.linspace(0,2*np.pi/tracer.surf.nfp, nzeta)
-  #vpar_lin = np.linspace(-V_MAX,V_MAX,nvpar)
-  #[thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin)
-
-  # gauss quadrature
-  theta_lin,theta_weights = gauss_quadrature_nodes_coeffs(ntheta,0,2*np.pi)
-  zeta_lin,zeta_weights = gauss_quadrature_nodes_coeffs(nzeta,0,2*np.pi/tracer.surf.nfp)
-  vpar_lin,vpar_weights = gauss_quadrature_nodes_coeffs(nvpar,-V_MAX,V_MAX)
-  [thetas,zetas,vpars] = np.meshgrid(theta_lin,zeta_lin,vpar_lin,indexing='ij')
-  [w1,w2,w3] = np.meshgrid(theta_weights,zeta_weights,vpar_weights,indexing='ij')
-  quad_weights = w1*w2*w3
-
-  # build a mesh
-  stz_inits = np.zeros((ntheta*nzeta*nvpar, 3))
-  stz_inits[:, 0] = s_label
-  stz_inits[:, 1] = thetas.flatten()
-  stz_inits[:, 2] = zetas.flatten()
-  vpar_inits = vpars.flatten()
-  # constant likelihood
-  likelihood = np.ones(len(vpar_inits))
-  likelihood *= (1/(2*np.pi))*(tracer.surf.nfp/(2*np.pi))*(1/(2*V_MAX))
-
-elif sampling_type == "SAA":
+if sampling_type == "SAA":
   stz_inits,vpar_inits = get_random_points(sampling_level)
+  # TODO: compute weights
+  weights = 
 
 
 """
@@ -404,6 +338,7 @@ def objective(x):
   """
   if sampling_type == "random":
     stzs,vpars = get_random_points(sampling_level)
+    # TODO: compute weights
   else:
     stzs = np.copy(stz_inits)
     vpars = np.copy(vpar_inits)
@@ -428,76 +363,12 @@ def objective(x):
     # sample average
     res = np.mean(feat)
     loss_frac = np.mean(c_times<tmax)
-  elif sampling_type == "grid" and sampling_level == "full":
-    # gauss quadrature
-    int0 = feat*likelihood
-    int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-    int0 = int0*quad_weights
-    res = np.sum(int0)
-
-    # loss frac for printing
-    loss_frac = c_times<tmax
-    int0 = loss_frac*likelihood
-    int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-    int0 = int0*quad_weights
-    loss_frac = np.sum(int0)
-
-    # simpson
-    #int0 = feat*likelihood
-    #int0 = int0.reshape((ns,ntheta,nzeta,nvpar))
-    #int1 = simpson(int0,vpar_lin,axis=-1)
-    #int2 = simpson(int1,zeta_lin,axis=-1)
-    #int3 = simpson(int2,theta_lin,axis=-1)
-    #res = simpson(int3,s_lin,axis=-1)
-  elif sampling_type == "grid":
-    # gauss quadrature
-    int0 = feat*likelihood
-    int0 = int0.reshape((ntheta,nzeta,nvpar))
-    int0 = int0*quad_weights
-    res = np.sum(int0)
-
-    # loss fraction for printing
-    loss_frac = c_times<tmax
-    int0 = loss_frac*likelihood
-    int0 = int0.reshape((ntheta,nzeta,nvpar))
-    int0 = int0*quad_weights
-    loss_frac = np.sum(int0)
-
-    # simpson
-    #int0 = feat*likelihood
-    #int0 = int0.reshape((ntheta,nzeta,nvpar))
-    #int1 = simpson(int0,vpar_lin,axis=-1)
-    #int2 = simpson(int1,zeta_lin,axis=-1)
-    #res = simpson(int2,theta_lin,axis=-1)
 
   if rank == 0:
     print('obj:',res,'P(loss):',loss_frac)
   sys.stdout.flush()
 
   return res
-
-# quasisymmetry objective
-helicity_m=helicity_n=1
-qsrr = QuasisymmetryRatioResidual(tracer.vmec,
-                                np.arange(0, 1.01, 0.1),  # Radii to target
-                                helicity_m=helicity_m, helicity_n=helicity_n)  # (M, N) you want in |B|
-def qs_residuals(x):
-  """
-  Compute the QS residuals
-  """
-  tracer.surf.x = np.copy(x)
-  try:
-    qs = qsrr.residuals() # quasisymmetry
-  except:
-    qs = np.inf
-  ret = qs
-  if rank == 0:
-    #print(ret)
-    print("QS:",np.sum(ret**2))
-    sys.stdout.flush()
-  return ret
-
-
 
 
 for max_mode in range(smallest_mode,largest_mode+1):
@@ -507,54 +378,10 @@ for max_mode in range(smallest_mode,largest_mode+1):
   x0 = tracer.expand_x(max_mode)
   dim_x = len(x0)
 
-
-  """
-  Rescale the variables
-  """
-  # jacobian of QS residuals
-  Ep = x0 + h_fdiff*np.eye(dim_x)
-  Fp = np.array([qs_residuals(e) for e in Ep])
-  F0 = qs_residuals(x0)
-  jac = (Fp - F0).T/h_fdiff
-
-  # build the Gauss-Newton hessian approximation
-  Hess = jac.T @ jac
-  jit = 1e-6*np.eye(dim_x) # jitter
-  L_scale = np.linalg.cholesky(Hess + jit)
-  
-  if rank == 0:
-    print('')
-    print('QS Hessian eigenvalues')
-    print(np.linalg.eigvals(Hess))
-    sys.stdout.flush()
-  
-  # rescale the variables y = L.T @ x
-  def to_scaled(x):
-    """maps to new variables"""
-    return L_scale.T @ x
-  def from_scaled(y):
-    """maps back to old variables"""
-    return np.linalg.solve(L_scale.T,y)
-  
-  # map x0 to y0
-  y0 = to_scaled(x0)
-
-
-
-  #if tmax < 5e-3:
-  #  # set the optimizer step size 0.1,0.01
-  #  max_step = max(0.1*pow(10,1-max_mode),0.01)
-  #else:
-  #  # set the optimizer step size 1,0.1,0.01
-  #  max_step = max(pow(10,1-max_mode),0.01)
-
-
   evw = EvalWrapper(objective,dim_x,1)
 
-  def penalty_obj(y):
+  def penalty_obj(x):
     """penalty formulation"""
-    # map back to original space
-    x = from_scaled(y)
 
     B = B_field(x)
     #B = B_field_volavg_con(x)
@@ -579,58 +406,6 @@ for max_mode in range(smallest_mode,largest_mode+1):
     return ret
 
 
-  def qs_penalty_grad(y):
-    """
-    Quasisymmetric penalty formulation gradient. This penalty function is identical
-    to the penalty function with the tracing parameter, except that quasisymmetry
-    is used instead of the tracing objective.
-    
-    gradient of      
-      f(x(y)) = (qs^2) + c_mirr_ub**2 + c_mirr_lb**2 + (asp-A*)^2
-    
-    by the chain rule we get
-      gradf_y = (Dx/Dy).T @ gradf_x
-    where the transformation x = L^{-T}y has jacobian
-      Dx/Dy = L^{-T}
-    Hence the gradient is
-      gradf_y = L^{-1} @ gradf_x
-    """
-    # TODO: this formulation does not include the iota constraint
-
-    # map back to original space
-    x = from_scaled(y)
-
-    def qs_penalty_residuals(x):
-      """
-      Compute the residuals in the QS penalty formulation
-      (qs^2) + c_mirr_ub**2 + c_mirr_lb**2 + (asp-A*)^2
-      """
-      qsr = qs_residuals(x)
-      B = B_field(x)
-      # TODO: we should analytically handle the gradients through the max
-      # B_lb <= modB <= B_ub
-      c_mirr_ub = np.maximum(B - B_ub, 0.0)
-      c_mirr_lb = np.maximum(B_lb - B, 0.0)
-      # aspect <= aspect_target
-      asp = aspect_ratio(x)
-      c_asp = max([asp-aspect_target,0.0])
-      ret = np.hstack((qsr,c_mirr_ub,c_mirr_lb,c_asp))
-      return ret
-    
-    # jacobian of QS penalty residuals
-    Ep = x + h_fdiff*np.eye(dim_x)
-    Fp = np.array([qs_penalty_residuals(e) for e in Ep])
-    F0 = qs_penalty_residuals(x)
-    jac = (Fp - F0).T/h_fdiff
-    # accumulate the gradient
-    gradf_x = 2*np.sum((jac.T*F0),axis=1)
-    
-    # differentiate through rescaling x(y) = L^{-T} @ y --> D_x y = L^{-T}
-    # gradf_y = (Dx/Dy).T @ gradf_x = L^{-1} @ grad_x
-    gradf_y = np.linalg.solve(L_scale,gradf_x)
-    return gradf_y
-      
-  
   if rank == 0:
     print(f"optimizing with tmax = {tmax}")
     print(f"max_mode = {max_mode}")
@@ -650,38 +425,6 @@ for max_mode in range(smallest_mode,largest_mode+1):
       print("")
       print(res)
 
-  elif method == "ebfgs":
-    # quickly estimate a 95% confidence interval on the noise
-    tracer.sync_seeds()
-    if sampling_level == "full":
-      # volume sampling
-      stz_temp,vpar_temp = tracer.sample_volume(200)
-    else:
-      # surface sampling
-      s_label = float(sampling_level)
-      stz_temp,vpar_temp = tracer.sample_surface(200,s_label)
-    c_times0 = tracer.compute_confinement_times(x0,stz_temp,vpar_temp,tmax)
-    eps_f = 1.96*np.std(c_times0)/np.sqrt(n_particles)
-
-    if rank == 0:
-      print("")
-      print("eps_f", eps_f)
-
-    # error in the gradient
-    #eps_g = h_fdiff
-    ## optimization options
-    #options = {}
-    #options['max_feval'] = maxfev
-    #options['alpha_init'] = max_step
-    # optimize
-    #yopt, fopt, iters, f_evals, g_evals, flag, res = ntqn.bfgs_e(penalty_obj, qs_penalty_grad, y0, eps_f=eps_f, eps_g=eps_g,options=options)
-    # noise tolerant gradient descent
-    yopt = NoiseTolerantGradientDescent(penalty_obj,qs_penalty_grad, y0,eps_f=eps_f,alpha0 = max_step,max_iter=maxfev,gtol=1e-3,verbose=True)
-    # convert yopt to xopt
-    xopt = from_scaled(yopt)
-  
-  
-  
   
   # evaluate the configuration
   if sampling_type == "random":
