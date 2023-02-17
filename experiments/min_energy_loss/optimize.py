@@ -17,6 +17,7 @@ else:
 from trace_boozer import TraceBoozer
 from eval_wrapper import EvalWrapper
 from radial_density import RadialDensity
+from angle_density import compute_det_jac_dcart_dbooz
 from constants import V_MAX
 
 comm = MPI.COMM_WORLD
@@ -57,7 +58,7 @@ bri_ntor = 16
 
 
 # read inputs
-sampling_type = sys.argv[1] # random or grid or SAA
+sampling_type = sys.argv[1] #  SAA
 sampling_level = sys.argv[2] # "full" or a float surface label
 objective_type = sys.argv[3] # mean_energy or mean_time
 method = sys.argv[4] # optimization method
@@ -78,9 +79,9 @@ ntheta = int(sys.argv[13]) # num theta samples
 nzeta = int(sys.argv[14]) # num phi samples
 nvpar = int(sys.argv[15]) # num vpar samples
 assert largest_mode >= smallest_mode
-assert sampling_type in ['random', "grid", "SAA"]
-assert objective_type in ['mean_energy','mean_time'], "invalid objective type"
-assert method in ['bobyqa','ebfgs'], "invalid optimiztaion method"
+assert sampling_type in ["SAA"]
+assert objective_type in ['mean_energy'], "invalid objective type"
+assert method in ['bobyqa'], "invalid optimiztaion method"
 
 # set the major radius
 major_radius = minor_radius*aspect_target
@@ -88,8 +89,6 @@ major_radius = minor_radius*aspect_target
 n_particles = ns*ntheta*nzeta*nvpar
 if objective_type == "mean_energy":
   ftarget = 3.5*np.exp(-2)
-elif objective_type == "mean_time":
-  ftarget = 0.0
 
 
 if vmec_label == "nfp2_QA_cold_high_res":
@@ -213,27 +212,6 @@ def aspect_ratio(x):
     print("aspect",asp)
   return asp
 
-def rotational_transform(x):
-  """
-  Compute iota
-  """
-  # update the surface
-  tracer.surf.x = np.copy(x)
-
-  # evaluate the objectives
-  try:
-    iota = tracer.vmec.mean_iota()
-  except:
-    iota = np.inf
-
-  # catch partial failures
-  if np.isnan(iota):
-    iota = np.inf
-
-  if rank == 0:
-    print("iota",iota)
-  return iota
-
 
 # TODO: switch to a constraint that is free of boozxform
 # constraint on mirror ratio
@@ -296,6 +274,9 @@ B_lb = B_mean*(1 - eps_B)*np.ones(len_B_field_out)
 Generate points for tracing
 """
 
+# make a sampler for computing probabilities
+radial_sampler = RadialDensity(1000)
+
 def get_random_points(sampling_level):
   """
   Return a set of random points to trace.
@@ -311,13 +292,12 @@ def get_random_points(sampling_level):
     stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   return stz_inits,vpar_inits
 
-# make a sampler for computing probabilities
-radial_sampler = RadialDensity(1000)
 
-if sampling_type == "SAA":
-  stz_inits,vpar_inits = get_random_points(sampling_level)
-  # TODO: compute weights
-  weights = 
+# SAA particle initialization
+stz_inits,vpar_inits = get_random_points(sampling_level)
+stz_inits = np.ascontiguousarray(stz_inits)
+field,bri = tracer.compute_boozer_field(x0)
+weights = compute_det_jac_dcart_dbooz(field,stz_inits)
 
 
 """
@@ -336,33 +316,19 @@ def objective(x):
   x: array,vmec configuration variables
   tmax: float, max trace time
   """
-  if sampling_type == "random":
-    stzs,vpars = get_random_points(sampling_level)
-    # TODO: compute weights
-  else:
-    stzs = np.copy(stz_inits)
-    vpars = np.copy(vpar_inits)
-
-  c_times = tracer.compute_confinement_times(x,stzs,vpars,tmax)
+  c_times = tracer.compute_confinement_times(x,stz_inits,vpar_inits,tmax)
 
   if np.any(~np.isfinite(c_times)):
     # vmec failed here; return worst possible value
     c_times = np.zeros(len(vpars))
 
 
-  if objective_type == "mean_energy": 
-    # minimize energy retained by particle
-    feat = 3.5*np.exp(-2*c_times/tmax)
-  elif objective_type == "mean_time": 
-    # expected confinement time
-    feat = tmax-c_times
+  # minimize energy retained by particle
+  feat = 3.5*np.exp(-2*c_times/tmax)
 
-
-  # now perform the averaging/quadrature
-  if sampling_type in ["SAA", "random"]:
-    # sample average
-    res = np.mean(feat)
-    loss_frac = np.mean(c_times<tmax)
+  # sample average
+  res = np.mean(feat*weights)
+  loss_frac = np.mean(c_times<tmax)
 
   if rank == 0:
     print('obj:',res,'P(loss):',loss_frac)
@@ -386,22 +352,18 @@ for max_mode in range(smallest_mode,largest_mode+1):
     B = B_field(x)
     #B = B_field_volavg_con(x)
     obj = evw(x)
+
     # B_lb <= modB <= B_ub
     c_mirr_ub = np.sum(np.maximum(B - B_ub, 0.0)**2)
     c_mirr_lb = np.sum(np.maximum(B_lb - B, 0.0)**2)
+
     # aspect <= aspect_target
     asp = aspect_ratio(x)
     c_asp = max([asp-aspect_target,0.0])**2
-    # iota constraint iota = iota_target
-    #iota = rotational_transform(x)
-    iota = np.mean(tracer.vmec.wout.iotas[1:]) # faster computation of iota
-    if constrain_iota:
-      c_iota = (iota-iota_target)**2
-    else:
-      c_iota = 0.0
-    ret = obj + c_asp + (c_mirr_ub + c_mirr_lb) + c_iota
+
+    ret = obj + c_asp + (c_mirr_ub + c_mirr_lb)
     if rank == 0:
-      print('p-obj:',ret,'asp',asp,'iota',iota,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
+      print('p-obj:',ret,'asp',asp,'c_mirr_ub',c_mirr_ub,'c_mirr_lb',c_mirr_lb)
       #print("")
     return ret
 
@@ -416,10 +378,8 @@ for max_mode in range(smallest_mode,largest_mode+1):
     rhoend = min_step
   
     # call bobyqa
-    res = pdfo(penalty_obj, y0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
-    yopt = np.copy(res.x)
-    # convert yopt to xopt
-    xopt = from_scaled(yopt)
+    res = pdfo(penalty_obj, x0, method='bobyqa',options={'maxfev': maxfev, 'ftarget': ftarget,'rhobeg':rhobeg,'rhoend':rhoend})
+    xopt = np.copy(res.x)
 
     if rank == 0:
       print("")
@@ -427,13 +387,10 @@ for max_mode in range(smallest_mode,largest_mode+1):
 
   
   # evaluate the configuration
-  if sampling_type == "random":
-    stz_inits,vpar_inits = get_random_points(sampling_level)
   c_times_opt = tracer.compute_confinement_times(xopt,stz_inits,vpar_inits,tmax)
   
   tracer.surf.x = np.copy(xopt)
   aspect_opt = tracer.vmec.aspect()
-  iota_opt = tracer.vmec.mean_iota()
   
   # out of sample performance
   stz_rand,vpar_rand = get_random_points(sampling_level)
@@ -457,12 +414,9 @@ for max_mode in range(smallest_mode,largest_mode+1):
     outdata['FX'] = evw.FX
     outdata['xopt'] = xopt
     outdata['aspect_opt'] = aspect_opt
-    outdata['iota_opt'] = iota_opt
     outdata['c_times_opt'] = c_times_opt
     outdata['c_times_out_of_sample'] = c_times_out_of_sample
     outdata['aspect_target'] = aspect_target
-    outdata['iota_target'] = iota_target
-    outdata['constrain_iota'] = constrain_iota
     outdata['major_radius'] = major_radius
     #outdata['minor_radius'] =  minor_radius
     outdata['target_volavgB'] = target_volavgB
