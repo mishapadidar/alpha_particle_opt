@@ -678,21 +678,11 @@ class TraceBoozer:
   
 
 if __name__ == "__main__":
-
-  #vmec_input = "../experiments/min_quasisymmetry/input.nfp2_QA_cold_high_res_phase_one_max_mode_1_quasisymmetry_opt"
-  #vmec_input="../experiments/phase_one/data/input.nfp4_QH_cold_high_res_phase_one_mirror_1.35_aspect_7.0_iota_-1.043"
-  #import pickle
-  #data_file = "../experiments/min_energy_loss/data/data_opt_nfp4_phase_one_mean_energy_grid_surface_0.25_tmax_0.001_bobyqa_mmode_2_iota_None.pickle"
-  #data_file = "../experiments/min_energy_loss/data_phase_one_first_res/data_opt_nfp4_phase_one_mean_energy_SAA_surface_0.25_tmax_0.0001_bobyqa_mmode_2_iota_None.pickle"
-  #data = pickle.load(open(data_file,"rb"))
-  #x0 = data['xopt']
-  #max_mode=data['max_mode']
-  #aspect_target = data['aspect_target']
-  #major_radius = data['major_radius']
-  #target_volavgB = data['target_volavgB']
+  comm = MPI.COMM_WORLD
+  size = comm.Get_size()
+  rank = comm.Get_rank()
 
   vmec_input = '../vmec_input_files/input.nfp4_QH_warm_start_high_res'
-  #vmec_input = '../vmec_input_files/input.nfp4_QH_cold_high_res'
   max_mode = 1
   aspect_target = 7.0
   major_radius = 1.7*aspect_target
@@ -709,86 +699,26 @@ if __name__ == "__main__":
                       interpolant_level=8,
                       bri_mpol=8,
                       bri_ntor=8)
-  #tracer.x0 = np.copy(x0)
   x0 = tracer.x0
 
-  """
-  Build an importance sampler.
-  """
-  tracer.sync_seeds()
-  tmax = 1e-3
+  tmax = 1e-4
+  n_particles = 10
+
+  # tracing points
   s_label = 0.25
-
-  comm = MPI.COMM_WORLD
-  rank = comm.Get_rank()
-
-  # for plotting the curve
-  #s_label = 0.25
-  #n_particles_per_sample = 500
-  #stz_inits,_ = tracer.sample_surface(n_particles_per_sample,float(s_label))
-  #def integrand(vpar):
-  #  # use the same vpar for all points
-  #  vpar_inits = vpar*np.ones(n_particles_per_sample)
-  #  # confinement times
-  #  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  #  # energy
-  #  return np.mean(3.5*np.exp(-2*c_times/tmax))
-  #vpar_list = np.linspace(-V_MAX,V_MAX,20)
-  #for vpar in vpar_list:
-  #  fv = integrand(vpar)
-  #  if rank == 0:
-  #    print(fv)
-
-  
-  # train an importance sampler over vpar
-  gmix = tracer.train_importance_sampler(x0,tmax,max_iter=30,n_samples=20,n_particles_per_sample=70,s_label=s_label,
-    n_terms=2)
-  if rank == 0:
-    print("")
-    print("gmix params")
-    print('mu',gmix.mu)
-    print('sigma',gmix.sigma)
-    print('weights',gmix.w)
-
-  # sample from the tracer
-  n_particles = 500
-  stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
-  if rank == 0:
-    vpar_inits_uc = gmix._sample(n_particles)
-    # map back to [-V_MAX,V_MAX]
-    vpar_inits = 2*V_MAX*vpar_inits_uc - V_MAX
-  comm.Bcast(vpar_inits,root=0)
-  # trace the particles
-  c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  feat = 3.5*np.exp(-2*c_times/tmax)
-  #p = 1.0/2/V_MAX
-  p = 1.0
-  if rank == 0:
-    fs_is = feat*p/gmix._pdf(vpar_inits_uc)
-    print("")
-    print('IS trace')
-    print('energy',np.mean(fs_is))
-    print('std',np.std(fs_is))
-
-  # tracing points
   stz_inits,vpar_inits = tracer.sample_surface(n_particles,s_label)
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
   feat = 3.5*np.exp(-2*c_times/tmax)
   if rank == 0:
     print("")
-    print('regular trace')
     print('energy',np.mean(feat))
-    print('std',np.std(feat))
-  quit()
+    print('loss frac', np.mean(c_times < tmax))
 
   # tracing points
-  n_particles = 1000
   stz_inits,vpar_inits = tracer.sample_volume(n_particles)
-  print('tracing')
   c_times = tracer.compute_confinement_times(x0,stz_inits,vpar_inits,tmax)
-  std_err = np.std(c_times)/np.sqrt(len(c_times))
-  mu = np.mean(c_times)
-  nrg = np.mean(3.5*np.exp(-2*c_times/tmax))
-  print('mean',mu,std_err)
-  print('energy',nrg)
-  print('loss fraction',np.mean(c_times < tmax))
+  feat = 3.5*np.exp(-2*c_times/tmax)
+  if rank == 0:
+    print("")
+    print('energy',np.mean(feat))
+    print('loss frac', np.mean(c_times < tmax))
