@@ -15,14 +15,14 @@ def compute_det_jac_dcart_dbooz(field,stz_grid):
   # convert points to cylindrical
   R = field.R() # (n_points,1)
   Z = field.Z() # (n_points,1)
-  Phi = stz_grid[:,-1].reshape((-1,1)) # phi = zeta
+  # phi = zeta - nu
+  Phi = stz_grid[:,-1].reshape((-1,1)) - field.nu_ref().reshape((-1,1))
   
   # dcylindrical/dboozer
   R_derivs = field.R_derivs() # (n_points,3)
   Z_derivs = field.Z_derivs() # (n_points,3)
-  # dphi/dzeta = 1
-  Phi_derivs = np.zeros((n_points,3))
-  Phi_derivs[:,-1] = 1.0
+  Phi_derivs = -field.nu_derivs()
+  Phi_derivs[:,-1] += 1.0
   
   # compute dcartesian/dBoozer
   # X = R*cos(Phi)
