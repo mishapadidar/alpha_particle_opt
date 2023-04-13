@@ -57,11 +57,17 @@ plt.setp([ax1,ax2,ax3,ax4], xticks=[0,np.pi/2], xticklabels=['0','$\pi$/2'],
 # set the colobar
 from matplotlib import ticker
 tick_font_size = 16
-for ax in (ax1,ax2,ax3,ax4):
-  cbar = plt.colorbar(p1,ax=ax)
+#for ax in ((ax1,p1),ax2,ax3,ax4):
+  #cbar = plt.colorbar(p1,ax=ax)
+  #cbar.locator = ticker.MaxNLocator(nbins=6)
+  #cbar.ax.tick_params(labelsize=tick_font_size)
+  #cbar.update_ticks()
+for ax,p in ((ax1,p1),(ax2,p2),(ax3,p3),(ax4,p4)):
+  cbar = plt.colorbar(p,ax=ax,format="%.2f")
   cbar.locator = ticker.MaxNLocator(nbins=6)
   cbar.ax.tick_params(labelsize=tick_font_size)
   cbar.update_ticks()
+  cbar.lines[0].set_linewidth(20)
 
 # make the axis labels
 for ax in (ax1,ax2,ax3,ax4):

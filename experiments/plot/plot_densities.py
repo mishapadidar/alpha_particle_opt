@@ -38,14 +38,22 @@ ax1,ax2 = ax_both
 # plot the angle density
 cont = ax2.contour(zetas,thetas,detjac,linewidths=2,levels=17)
 
+## set the colobar
+##plt.colorbar(cont)
+#from matplotlib import ticker
+#tick_font_size = 16
+#cbar = plt.colorbar(cont,ax=ax2)
+#cbar.locator = ticker.MaxNLocator(nbins=8)
+#cbar.ax.tick_params(labelsize=tick_font_size)
+#cbar.update_ticks()
 # set the colobar
-#plt.colorbar(cont)
 from matplotlib import ticker
 tick_font_size = 16
-cbar = plt.colorbar(cont,ax=ax2)
-cbar.locator = ticker.MaxNLocator(nbins=8)
+cbar = plt.colorbar(cont,ax=ax2,format="%.2f")
+cbar.locator = ticker.MaxNLocator(nbins=6)
 cbar.ax.tick_params(labelsize=tick_font_size)
 cbar.update_ticks()
+cbar.lines[0].set_linewidth(25)
 
 # plot the radial density
 n_points = 1000
@@ -68,14 +76,14 @@ ax2.set_xticks([0,np.pi/2],[0,"$\pi/2$"])
 ax2.set_yticks([0,2*np.pi],[0,"$2\pi$"])
 
 # titles
-ax1.set_title("$p(s)$")
-ax2.set_title(f"$p(\\theta,\zeta \ |\  s={s_label})$")
+ax1.set_title("$f(s)$")
+ax2.set_title(f"$f(\\theta,\zeta \ |\  s={s_label})$")
 
 # darken the border
 ax1.patch.set_edgecolor('black')  
-ax1.patch.set_linewidth('2')  
+ax1.patch.set_linewidth(2)  
 ax2.patch.set_edgecolor('black')  
-ax2.patch.set_linewidth('2')  
+ax2.patch.set_linewidth(2)  
 
 plt.tight_layout()
 
