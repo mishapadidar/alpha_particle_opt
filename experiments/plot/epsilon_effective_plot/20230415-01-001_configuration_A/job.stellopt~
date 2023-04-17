@@ -1,0 +1,35 @@
+#!/bin/bash -l
+
+# Standard output and error:
+##SBATCH -o ./sfincsJob.out.%j
+##SBATCH -e ./sfincsJob.err.%j
+# Initial working directory:
+#SBATCH -D ./
+# Job Name:
+#SBATCH -J stellopt
+
+# Queue (Partition):
+# #SBATCH --partition=express
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=40
+
+# Wall clock limit:
+#SBATCH --time=00:30:00
+
+# Memory in MB is required for shared jobs
+# #SBATCH --mem=32000
+
+# avoid overbooking of the cores which might occur via NumPy/MKL threading
+export OMP_NUM_THREADS=1
+
+module list
+#source activate 20210301-01
+
+#srun python test_regression.py
+#srun python simsopt_driver
+#srun /u/mlan/stellopt_github/develop/STELLOPT/VMEC2000/Release/xvmec2000 input.QA_A6
+#srun /u/mlan/VMEC2000/hiddenSymmetries/VMEC2000/_skbuild/linux-x86_64-3.9/cmake-build/build/bin/xvmec input.nfp2_QA
+
+#export STELLOPT_PATH=/u/mlan/stellopt_github/develop/STELLOPT
+srun /u/mlan/stellopt_github/develop/STELLOPT/STELLOPTV2/Release/xstelloptv2 input._neo
